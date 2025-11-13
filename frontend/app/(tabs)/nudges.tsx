@@ -58,7 +58,11 @@ export default function NudgesScreen() {
             </View>
             <Text style={styles.emptyTitle}>No nudges yet</Text>
             <Text style={styles.emptyText}>
-              We're learning your patterns. Nudges will appear when timing is right.
+              Koan is observing your patterns. Your first nudge usually appears within 24–48
+              hours.
+            </Text>
+            <Text style={styles.emptySubtext}>
+              We're learning when you need a gentle reminder and when to stay quiet.
             </Text>
           </View>
         ) : (
