@@ -171,6 +171,14 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     lineHeight: 21,
     paddingHorizontal: 40,
+    marginBottom: 12,
+  },
+  emptySubtext: {
+    fontSize: 13,
+    color: '#3A3A3A',
+    opacity: 0.5,
+    textAlign: 'center',
+    paddingHorizontal: 40,
   },
   nudgeCard: {
     backgroundColor: '#FFFFFF',
