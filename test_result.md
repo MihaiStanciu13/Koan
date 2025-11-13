@@ -294,3 +294,5 @@ agent_communication:
     message: "Reported 3 critical bugs: 1) Email signup blocked for previously used emails, 2) Onboarding screen skips/flashes, 3) Logout doesn't redirect to landing. Need fixes and comprehensive testing before Phase 2."
   - agent: "main"
     message: "All 3 critical bugs addressed: Fixed DB name mismatch and cleared correct database, rewrote navigation state machine in index.tsx, updated logout to clear all storage. Expo server restarted. Ready for backend testing followed by frontend UI testing to verify all fixes."
+  - agent: "testing"
+    message: "Backend testing completed successfully. CRITICAL BUG FIXED: Email Already Exists Error resolved - users can now reuse emails after deletion. All auth endpoints (signup/login/JWT verification) working correctly. Backend API healthy at https://focus-coach-8.preview.emergentagent.com/api with test_database. Frontend bugs (onboarding skip, logout navigation) still need UI testing - these are frontend-only issues not related to backend functionality."
