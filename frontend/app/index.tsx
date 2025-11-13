@@ -14,8 +14,8 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
-import { AuthProvider, useAuth } from '../contexts/AuthContext';
-import { behaviorAPI, nudgeAPI, patternsAPI, preferencesAPI, subscriptionAPI } from '../services/api';
+import { useRouter } from 'expo-router';
+import { useAuth } from '../contexts/AuthContext';
 import { storage } from '../services/storage';
 
 // Auth Screens
