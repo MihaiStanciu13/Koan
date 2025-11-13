@@ -1,0 +1,164 @@
+from motor.motor_asyncio import AsyncIOMotorDatabase
+from datetime import datetime, timedelta
+from typing import Dict, Optional
+import uuid
+import logging
+import os
+from emergentintegrations.llm.chat import LlmChat, UserMessage
+from models import Nudge, MicroMode
+
+logger = logging.getLogger(__name__)
+
+NUDGE_TEMPLATES = {
+    "context_switch": {
+        "title": "Decide your next step",
+        "prompt": "User has rapidly switched between {switch_count} apps in 30 minutes. Create a calm, subtle nudge (10-15 words) suggesting they choose one focus area."
+    },
+    "energy_drift": {
+        "title": "Time for a reset",
+        "prompt": "User has picked up their phone {pickup_count} times in 30 minutes without sustained focus. Create a gentle nudge (10-15 words) suggesting a brief pause or singular focus."
+    },
+    "boundary": {
+        "title": "Tomorrow can wait",
+        "prompt": "User is working late at night ({time}). Create a respectful, non-preachy nudge (10-15 words) suggesting to defer non-urgent work."
+    },
+    "meeting_recovery": {
+        "title": "Breathe between meetings",
+        "prompt": "User just finished back-to-back meetings. Create a brief reset prompt (10-15 words) to help them transition."
+    },
+    "anchor_action": {
+        "title": "Your anchor action",
+        "prompt": "Remind user to do their daily anchor action: '{anchor_action}'. Keep it simple and encouraging (10-15 words)."
+    },
+    "focus_mode": {
+        "title": "Focus time",
+        "prompt": "User is in focus mode. Create a supportive nudge (10-15 words) to maintain concentration."
+    }
+}
+
+async def create_nudge(db: AsyncIOMotorDatabase, user_id: str, nudge_type: str, context: Dict):
+    """Create and store a nudge for the user"""
+    try:
+        # Check if user is in Whisper Mode (fewer nudges)
+        preferences = await db.preferences.find_one({"user_id": user_id})
+        if preferences and preferences.get("whisper_mode", False):
+            # In whisper mode, only send high-priority nudges occasionally
+            recent_nudges = await db.nudges.count_documents({
+                "user_id": user_id,
+                "created_at": {"$gte": datetime.utcnow() - timedelta(hours=4)}
+            })
+            if recent_nudges > 0:
+                logger.info(f"Skipping nudge for user {user_id} in whisper mode")
+                return None
+        
+        # Check nudge frequency based on micro-mode
+        micro_mode = preferences.get("micro_mode", MicroMode.STANDARD) if preferences else MicroMode.STANDARD
+        if not should_send_nudge(nudge_type, micro_mode):
+            logger.info(f"Skipping nudge type {nudge_type} for mode {micro_mode}")
+            return None
+        
+        # Generate nudge content using AI
+        message, explanation = await generate_nudge_content(nudge_type, context, preferences)
+        
+        nudge_id = str(uuid.uuid4())
+        nudge = Nudge(
+            id=nudge_id,
+            user_id=user_id,
+            nudge_type=nudge_type,
+            message=message,
+            explanation=explanation,
+            delivered=False
+        )
+        
+        await db.nudges.insert_one(nudge.dict())
+        logger.info(f"Created nudge {nudge_id} for user {user_id}")
+        
+        return nudge
+    except Exception as e:
+        logger.error(f"Error creating nudge: {str(e)}")
+        return None
+
+async def generate_nudge_content(nudge_type: str, context: Dict, preferences: Optional[Dict]) -> tuple:
+    """Generate nudge message and explanation using AI"""
+    try:
+        template = NUDGE_TEMPLATES.get(nudge_type)
+        if not template:
+            return "Take a moment to refocus", "Based on your recent activity patterns"
+        
+        # Prepare prompt with context
+        prompt_text = template["prompt"].format(**context)
+        
+        # Get anchor action if needed
+        if nudge_type == "anchor_action" and preferences:
+            context["anchor_action"] = preferences.get("anchor_action", "close one loop")
+            prompt_text = template["prompt"].format(**context)
+        
+        # Initialize LLM Chat
+        api_key = os.getenv("EMERGENT_LLM_KEY")
+        chat = LlmChat(
+            api_key=api_key,
+            session_id=f"nudge_{nudge_type}_{datetime.utcnow().timestamp()}",
+            system_message="You are a subtle behavioral coach. Create brief, calm, professional nudges without clichés or motivational phrases. Be direct and respectful."
+        ).with_model("openai", "gpt-4o-mini")
+        
+        # Generate message
+        message_user_msg = UserMessage(text=prompt_text)
+        message = await chat.send_message(message_user_msg)
+        
+        # Generate explanation (why this nudge)
+        explanation_prompt = f"In 20-30 words, explain why we're sending this nudge: {message}. Focus on the behavioral pattern observed."
+        explanation_user_msg = UserMessage(text=explanation_prompt)
+        explanation = await chat.send_message(explanation_user_msg)
+        
+        return message.strip(), explanation.strip()
+    except Exception as e:
+        logger.error(f"Error generating nudge content: {str(e)}")
+        # Fallback to simple messages
+        fallback_messages = {
+            "context_switch": ("Pick one thing to focus on", "You've switched between apps frequently"),
+            "energy_drift": ("Take a breath, then choose one task", "Multiple phone checks detected"),
+            "boundary": ("This can wait until tomorrow", "Late evening work detected"),
+            "meeting_recovery": ("A moment to reset before the next thing", "Back-to-back meetings completed"),
+            "anchor_action": (f"Remember: {context.get('anchor_action', 'your daily anchor')}", "Daily anchor action reminder")
+        }
+        return fallback_messages.get(nudge_type, ("Take a moment", "Based on your patterns"))
+
+def should_send_nudge(nudge_type: str, micro_mode: str) -> bool:
+    """Determine if nudge should be sent based on micro-mode"""
+    # Focus mode: only focus-related nudges
+    if micro_mode == MicroMode.FOCUS:
+        return nudge_type in ["focus_mode", "anchor_action"]
+    
+    # Meeting mode: prioritize meeting recovery
+    if micro_mode == MicroMode.MEETING:
+        return nudge_type in ["meeting_recovery", "anchor_action"]
+    
+    # Travel mode: minimal nudges
+    if micro_mode == MicroMode.TRAVEL:
+        return nudge_type == "anchor_action"
+    
+    # Standard mode: all nudges allowed
+    return True
+
+async def get_pending_nudges(db: AsyncIOMotorDatabase, user_id: str):
+    """Get nudges that haven't been delivered yet"""
+    nudges = await db.nudges.find({
+        "user_id": user_id,
+        "delivered": False
+    }).sort("created_at", -1).to_list(10)
+    
+    return [Nudge(**nudge) for nudge in nudges]
+
+async def mark_nudge_delivered(db: AsyncIOMotorDatabase, nudge_id: str):
+    """Mark a nudge as delivered"""
+    await db.nudges.update_one(
+        {"id": nudge_id},
+        {"$set": {"delivered": True}}
+    )
+
+async def mark_nudge_opened(db: AsyncIOMotorDatabase, nudge_id: str):
+    """Mark a nudge as opened"""
+    await db.nudges.update_one(
+        {"id": nudge_id},
+        {"$set": {"opened": True}}
+    )
