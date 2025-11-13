@@ -500,6 +500,7 @@ const styles = StyleSheet.create({
     fontSize: 32,
     fontWeight: '600',
     color: '#3A3A3A',
+    marginBottom: 48,
   },
   title: {
     fontSize: 28,
