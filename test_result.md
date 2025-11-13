@@ -222,6 +222,51 @@ frontend:
       - working: true
         agent: "main"
         comment: "Comprehensive API service with all endpoints integrated"
+  
+  - task: "BUG FIX: Email Already Exists Error"
+    implemented: true
+    working: "NA"
+    file: "/app/backend/auth.py, /app/backend/server.py"
+    priority: "high"
+    stuck_count: 1
+    needs_retesting: true
+    status_history:
+      - working: false
+        agent: "user"
+        comment: "Users blocked from signing up with previously used email even after database was supposedly cleared"
+      - working: "NA"
+        agent: "main"
+        comment: "Root cause identified: AI was clearing wrong database (behavioral_nudge_db vs test_database). Forced deletion of all documents from correct test_database. Backend database name consistency verified in server.py. NEEDS TESTING to confirm signup now works with previously used emails."
+  
+  - task: "BUG FIX: Onboarding Screen Skip"
+    implemented: true
+    working: "NA"
+    file: "/app/frontend/app/index.tsx, /app/frontend/contexts/AuthContext.tsx"
+    priority: "high"
+    stuck_count: 2
+    needs_retesting: true
+    status_history:
+      - working: false
+        agent: "user"
+        comment: "After signup or login, onboarding screen flashes briefly then immediately navigates to home screen (tabs)"
+      - working: "NA"
+        agent: "main"
+        comment: "Complete navigation rewrite: Implemented proper state machine with 5 states (LOADING/LANDING/AUTH/ONBOARDING/APP). Added explicit checks for onboardingCompleted flag from AsyncStorage. Refactored useEffect to handle state transitions properly. NEEDS COMPREHENSIVE TESTING to verify onboarding now shows properly and doesn't skip."
+  
+  - task: "BUG FIX: Logout Navigation Failure"
+    implemented: true
+    working: "NA"
+    file: "/app/frontend/contexts/AuthContext.tsx, /app/frontend/app/index.tsx"
+    priority: "high"
+    stuck_count: 1
+    needs_retesting: true
+    status_history:
+      - working: false
+        agent: "user"
+        comment: "Tapping Logout button does not redirect user to landing page, only partially clears state on home screen"
+      - working: "NA"
+        agent: "main"
+        comment: "Updated logout function in AuthContext to clear ALL AsyncStorage items including 'onboardingCompleted' flag. Navigation rewrite should now properly detect no user and redirect to LANDING state. NEEDS TESTING to verify logout fully redirects to landing page."
 
 metadata:
   created_by: "main_agent"
