@@ -365,15 +365,24 @@ function LandingPageScreen({ onGetStarted }: any) {
               Short, subtle reminders. Nothing more.
             </Text>
           </View>
+
+          {/* Scroll indicator */}
+          <View style={styles.scrollIndicatorMiddle}>
+            <Ionicons name="chevron-down" size={20} color="#3A3A3A" style={{ opacity: 0.4 }} />
+          </View>
         </View>
 
-        {/* Pricing - Section 4 */}
+        {/* Pricing - Section 3 */}
         <View style={styles.pricingSection}>
           <Text style={styles.pricingAmount}>$9.99 / month after trial</Text>
           <Text style={styles.pricingCancel}>Cancel anytime.</Text>
           <Text style={styles.pricingPrivacy}>
             Koan analyzes metadata only — never message or email content.
           </Text>
+
+          <TouchableOpacity style={styles.ctaButton} onPress={onGetStarted}>
+            <Text style={styles.ctaButtonText}>Start Free Trial</Text>
+          </TouchableOpacity>
         </View>
 
         {/* Footer - Section 5 */}
