@@ -293,7 +293,7 @@ test_plan:
   current_focus:
     - "BUG FIX: Logout Navigation Failure"
   stuck_tasks:
-    - "BUG FIX: Logout Navigation Failure (stuck_count: 2)"
+    - "BUG FIX: Logout Navigation Failure (stuck_count: 3)"
   test_all: false
   test_priority: "stuck_first"
 
