@@ -149,6 +149,8 @@ export default function SettingsScreen() {
         onPress: async () => {
           try {
             await logout();
+            // Don't clear onboarding - user has already completed it
+            // Router will redirect to landing page automatically when user is null
             router.replace('/');
           } catch (error) {
             console.error('Logout error:', error);
