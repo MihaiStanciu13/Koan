@@ -16,12 +16,31 @@ import { useNotifications } from '../../contexts/NotificationContext';
 import { nudgeAPI, behaviorAPI, preferencesAPI, subscriptionAPI } from '../../services/api';
 import { format } from 'date-fns';
 
-const LEARNING_MESSAGES = [
-  "Learning your rhythm…",
-  "Observing your focus patterns…",
-  "Understanding your switching habits…",
-  "Noting your afternoon flow…",
-  "Sensing your energy drift…",
+const LEARNING_MESSAGES_BY_PHASE = [
+  // Phase 0: Just started
+  [
+    "Learning from your phone usage patterns…",
+    "Building your behavioral baseline…",
+    "Understanding your daily rhythm…",
+  ],
+  // Phase 1: Early learning (1-10 events)
+  [
+    "Observing when you pick up your phone…",
+    "Noting your app switching patterns…",
+    "Learning your focus windows…",
+  ],
+  // Phase 2: Building patterns (10-50 events)
+  [
+    "Understanding your switching habits…",
+    "Noting your afternoon flow…",
+    "Sensing your energy patterns…",
+  ],
+  // Phase 3: Active learning (50+ events)
+  [
+    "Learning your rhythm…",
+    "Observing your focus patterns…",
+    "Sensing your energy drift…",
+  ],
 ];
 
 const TODAY_HINTS = [
