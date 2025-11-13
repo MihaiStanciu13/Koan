@@ -279,7 +279,6 @@ metadata:
 
 test_plan:
   current_focus:
-    - "BUG FIX: Email Already Exists Error"
     - "BUG FIX: Onboarding Screen Skip"
     - "BUG FIX: Logout Navigation Failure"
   stuck_tasks:
