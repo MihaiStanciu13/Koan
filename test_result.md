@@ -174,14 +174,21 @@ backend:
 frontend:
   - task: "Authentication UI (Login/Signup)"
     implemented: true
-    working: true
+    working: false
     file: "/app/frontend/app/index.tsx"
     priority: "high"
+    stuck_count: 2
     needs_retesting: true
     status_history:
       - working: true
         agent: "main"
         comment: "Auth screens created with clean UI, needs user testing"
+      - working: false
+        agent: "user"
+        comment: "User reported 3 critical bugs: 1) Email exists error blocking signup even after DB clear, 2) Onboarding screen skips/flashes after login/signup, 3) Logout fails to redirect to landing page"
+      - working: false
+        agent: "main"
+        comment: "Fixed database name mismatch (was clearing wrong DB), performed bulletproof navigation rewrite in index.tsx with proper state machine (LOADING/LANDING/AUTH/ONBOARDING/APP states), updated logout to clear all storage including onboardingCompleted flag. Needs comprehensive testing."
   
   - task: "Main Dashboard with Anchor Action"
     implemented: true
