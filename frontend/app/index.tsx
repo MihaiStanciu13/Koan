@@ -147,6 +147,13 @@ function LoginScreen({ onSwitchToSignup }: any) {
             )}
           </TouchableOpacity>
 
+          {biometricAvailable && (
+            <TouchableOpacity style={styles.biometricButton} onPress={handleBiometricLogin} disabled={loading}>
+              <Ionicons name="finger-print" size={24} color="#A8D7F0" />
+              <Text style={styles.biometricText}>Use Face ID / Touch ID</Text>
+            </TouchableOpacity>
+          )}
+
           <TouchableOpacity onPress={onSwitchToSignup} style={styles.linkButton}>
             <Text style={styles.linkText}>New to Koan? Create account</Text>
           </TouchableOpacity>
