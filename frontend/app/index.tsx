@@ -177,8 +177,7 @@ function SignupScreen({ onSwitchToLogin }: any) {
     setLoading(true);
     try {
       await signup(email, password, name);
-      // After signup, always go to onboarding
-      router.replace('/onboarding');
+      // Navigation will be handled by useEffect in main component
     } catch (error: any) {
       Alert.alert('Signup Failed', error.response?.data?.detail || 'Could not create account');
     } finally {
