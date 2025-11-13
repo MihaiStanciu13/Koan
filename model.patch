@@ -1,0 +1,34 @@
+diff --git a/frontend/app/index.tsx b/frontend/app/index.tsx
+index 5fb4285..26586d4 100644
+--- a/frontend/app/index.tsx
++++ b/frontend/app/index.tsx
+@@ -638,7 +638,8 @@ const styles = StyleSheet.create({
+   whatSection: {
+     alignItems: 'center',
+     paddingHorizontal: 32,
+-    paddingVertical: 48,
++    paddingTop: 48,
++    paddingBottom: 24,
+     backgroundColor: '#FAFDFA',
+   },
+   whatTitle: {
+@@ -658,9 +659,18 @@ const styles = StyleSheet.create({
+   },
+   howSection: {
+     paddingHorizontal: 32,
+-    paddingTop: 24,
++    paddingTop: 16,
+     paddingBottom: 48,
+   },
++  scrollIndicator: {
++    position: 'absolute',
++    bottom: 32,
++    alignSelf: 'center',
++  },
++  scrollIndicatorMiddle: {
++    alignItems: 'center',
++    marginTop: 32,
++  },
+   howCard: {
+     backgroundColor: '#D9F7EB',
+     borderRadius: 8,
