@@ -87,13 +87,7 @@ function LoginScreen({ onSwitchToSignup }: any) {
         await SecureStore.setItemAsync('biometric_password', password);
       }
       
-      // Check if onboarding is complete
-      const onboardingComplete = await storage.isOnboardingComplete();
-      if (onboardingComplete) {
-        router.replace('/(tabs)');
-      } else {
-        router.replace('/onboarding');
-      }
+      // Navigation will be handled by useEffect in main component
     } catch (error: any) {
       Alert.alert('Login Failed', error.response?.data?.detail || 'Invalid credentials');
     } finally {
