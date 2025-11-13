@@ -62,7 +62,7 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(s
     return User(**user)
 
 @router.post("/signup")
-async def signup(user_data: UserCreate, db: AsyncIOMotorDatabase):
+async def signup(user_data: UserCreate):
     # Check if user exists
     existing_user = await db.users.find_one({"email": user_data.email})
     if existing_user:
