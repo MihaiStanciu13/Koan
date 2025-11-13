@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from motor.motor_asyncio import AsyncIOMotorDatabase
 from datetime import datetime, timedelta
 from typing import List, Dict
+from pydantic import BaseModel
 from models import PhoneBehavior, WorkplaceData, User
 from auth import get_current_user
 import logging
@@ -12,8 +13,6 @@ logger = logging.getLogger(__name__)
 class BehaviorEvent(BaseModel):
     event_type: str
     metadata: Dict = {}
-
-from pydantic import BaseModel
 
 @router.post("/phone")
 async def record_phone_behavior(
