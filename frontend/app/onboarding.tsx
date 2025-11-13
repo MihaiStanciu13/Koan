@@ -1,0 +1,376 @@
+import React, { useState } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  ScrollView,
+  Switch,
+} from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
+import { storage } from '../services/storage';
+import * as Notifications from 'expo-notifications';
+
+export default function Onboarding() {
+  const router = useRouter();
+  const [step, setStep] = useState(1);
+  const [notificationsEnabled, setNotificationsEnabled] = useState(false);
+  const [selectedMode, setSelectedMode] = useState('standard');
+
+  const handleNext = async () => {
+    if (step < 3) {
+      setStep(step + 1);
+    } else {
+      // Complete onboarding
+      await storage.setOnboardingComplete();
+      router.replace('/(tabs)');
+    }
+  };
+
+  const handleSkip = async () => {
+    await storage.setOnboardingComplete();
+    router.replace('/(tabs)');
+  };
+
+  const requestNotifications = async () => {
+    const { status } = await Notifications.requestPermissionsAsync();
+    setNotificationsEnabled(status === 'granted');
+  };
+
+  return (
+    <SafeAreaView style={styles.container}>
+      <ScrollView contentContainerStyle={styles.scrollContent}>
+        {/* Progress Indicator */}
+        <View style={styles.progressContainer}>
+          {[1, 2, 3].map((s) => (
+            <View
+              key={s}
+              style={[
+                styles.progressDot,
+                step >= s && styles.progressDotActive,
+              ]}
+            />
+          ))}
+        </View>
+
+        {/* Step 1: Philosophy */}
+        {step === 1 && (
+          <View style={styles.stepContainer}>
+            <Ionicons name="bulb-outline" size={64} color="#5B9FFF" />
+            <Text style={styles.title}>No Dashboards. No Metrics.</Text>
+            <Text style={styles.description}>
+              Just subtle, well-timed behavioral nudges that help you act on what you
+              already know.
+            </Text>
+            <View style={styles.featureList}>
+              <FeatureItem icon="notifications-off" text="No constant pings" />
+              <FeatureItem icon="bar-chart-outline" text="No tracking dashboards" />
+              <FeatureItem icon="trophy-outline" text="No gamification" />
+              <FeatureItem icon="sparkles" text="Just gentle course-corrections" />
+            </View>
+          </View>
+        )}
+
+        {/* Step 2: Permissions */}
+        {step === 2 && (
+          <View style={styles.stepContainer}>
+            <Ionicons name="notifications-outline" size={64} color="#5B9FFF" />
+            <Text style={styles.title}>Enable Nudge Notifications</Text>
+            <Text style={styles.description}>
+              We'll send you subtle reminders at the right moments. You can adjust
+              frequency anytime.
+            </Text>
+
+            <View style={styles.permissionCard}>
+              <View style={styles.permissionRow}>
+                <View style={styles.permissionLeft}>
+                  <Ionicons name="phone-portrait-outline" size={24} color="#5B9FFF" />
+                  <View style={styles.permissionText}>
+                    <Text style={styles.permissionTitle}>Phone Activity</Text>
+                    <Text style={styles.permissionSubtitle}>
+                      Detect patterns (pickups, app switches)
+                    </Text>
+                  </View>
+                </View>
+                <Switch
+                  value={notificationsEnabled}
+                  onValueChange={requestNotifications}
+                  trackColor={{ false: '#2a2a2a', true: '#5B9FFF' }}
+                />
+              </View>
+            </View>
+
+            <Text style={styles.privacyNote}>
+              🔒 We never read your messages, emails, or app content. Only high-level
+              patterns.
+            </Text>
+          </View>
+        )}
+
+        {/* Step 3: Choose Mode */}
+        {step === 3 && (
+          <View style={styles.stepContainer}>
+            <Ionicons name="settings-outline" size={64} color="#5B9FFF" />
+            <Text style={styles.title}>Select Your Mode</Text>
+            <Text style={styles.description}>
+              Choose how nudges adapt to your work style. You can change this anytime.
+            </Text>
+
+            <ModeCard
+              icon="flash-outline"
+              title="Standard"
+              description="Balanced nudges throughout the day"
+              selected={selectedMode === 'standard'}
+              onPress={() => setSelectedMode('standard')}
+            />
+            <ModeCard
+              icon="eye-outline"
+              title="Focus Mode"
+              description="Minimal interruptions, deep work support"
+              selected={selectedMode === 'focus'}
+              onPress={() => setSelectedMode('focus')}
+            />
+            <ModeCard
+              icon="people-outline"
+              title="Meeting-Heavy"
+              description="Recovery nudges between meetings"
+              selected={selectedMode === 'meeting'}
+              onPress={() => setSelectedMode('meeting')}
+            />
+            <ModeCard
+              icon="airplane-outline"
+              title="Travel Mode"
+              description="Ultra-rare, essential nudges only"
+              selected={selectedMode === 'travel'}
+              onPress={() => setSelectedMode('travel')}
+            />
+          </View>
+        )}
+
+        {/* Navigation Buttons */}
+        <View style={styles.buttonContainer}>
+          <TouchableOpacity style={styles.skipButton} onPress={handleSkip}>
+            <Text style={styles.skipText}>Skip</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity style={styles.nextButton} onPress={handleNext}>
+            <Text style={styles.nextText}>{step === 3 ? 'Get Started' : 'Next'}</Text>
+            <Ionicons name="arrow-forward" size={20} color="#fff" />
+          </TouchableOpacity>
+        </View>
+
+        <Text style={styles.timeEstimate}>⏱ Under 60 seconds</Text>
+      </ScrollView>
+    </SafeAreaView>
+  );
+}
+
+function FeatureItem({ icon, text }: { icon: any; text: string }) {
+  return (
+    <View style={styles.featureItem}>
+      <Ionicons name={icon} size={20} color="#5B9FFF" />
+      <Text style={styles.featureText}>{text}</Text>
+    </View>
+  );
+}
+
+function ModeCard({
+  icon,
+  title,
+  description,
+  selected,
+  onPress,
+}: {
+  icon: any;
+  title: string;
+  description: string;
+  selected: boolean;
+  onPress: () => void;
+}) {
+  return (
+    <TouchableOpacity
+      style={[styles.modeCard, selected && styles.modeCardSelected]}
+      onPress={onPress}
+    >
+      <Ionicons name={icon} size={24} color={selected ? '#5B9FFF' : '#888'} />
+      <View style={styles.modeText}>
+        <Text style={[styles.modeTitle, selected && styles.modeTextSelected]}>
+          {title}
+        </Text>
+        <Text style={styles.modeDescription}>{description}</Text>
+      </View>
+      {selected && <Ionicons name="checkmark-circle" size={24} color="#5B9FFF" />}
+    </TouchableOpacity>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#0a0a0a',
+  },
+  scrollContent: {
+    flexGrow: 1,
+    padding: 24,
+  },
+  progressContainer: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    marginBottom: 32,
+    gap: 8,
+  },
+  progressDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#2a2a2a',
+  },
+  progressDotActive: {
+    backgroundColor: '#5B9FFF',
+  },
+  stepContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  title: {
+    fontSize: 28,
+    fontWeight: '700',
+    color: '#fff',
+    marginTop: 24,
+    marginBottom: 12,
+    textAlign: 'center',
+  },
+  description: {
+    fontSize: 16,
+    color: '#888',
+    textAlign: 'center',
+    marginBottom: 32,
+    lineHeight: 24,
+    paddingHorizontal: 16,
+  },
+  featureList: {
+    width: '100%',
+    gap: 16,
+  },
+  featureItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingVertical: 8,
+  },
+  featureText: {
+    fontSize: 16,
+    color: '#ccc',
+  },
+  permissionCard: {
+    width: '100%',
+    backgroundColor: '#1a1a1a',
+    borderRadius: 16,
+    padding: 20,
+    marginBottom: 24,
+    borderWidth: 1,
+    borderColor: '#2a2a2a',
+  },
+  permissionRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  permissionLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    flex: 1,
+  },
+  permissionText: {
+    flex: 1,
+  },
+  permissionTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#fff',
+    marginBottom: 4,
+  },
+  permissionSubtitle: {
+    fontSize: 14,
+    color: '#888',
+  },
+  privacyNote: {
+    fontSize: 14,
+    color: '#888',
+    textAlign: 'center',
+    paddingHorizontal: 16,
+  },
+  modeCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#1a1a1a',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 12,
+    borderWidth: 2,
+    borderColor: '#2a2a2a',
+    gap: 12,
+  },
+  modeCardSelected: {
+    borderColor: '#5B9FFF',
+    backgroundColor: '#0f1a2e',
+  },
+  modeText: {
+    flex: 1,
+  },
+  modeTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#fff',
+    marginBottom: 4,
+  },
+  modeTextSelected: {
+    color: '#5B9FFF',
+  },
+  modeDescription: {
+    fontSize: 14,
+    color: '#888',
+  },
+  buttonContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 32,
+    gap: 12,
+  },
+  skipButton: {
+    flex: 1,
+    paddingVertical: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  skipText: {
+    color: '#888',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  nextButton: {
+    flex: 2,
+    flexDirection: 'row',
+    backgroundColor: '#5B9FFF',
+    paddingVertical: 16,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+  },
+  nextText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  timeEstimate: {
+    textAlign: 'center',
+    color: '#666',
+    fontSize: 12,
+    marginTop: 16,
+  },
+});
