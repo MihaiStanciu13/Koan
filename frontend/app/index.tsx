@@ -401,9 +401,14 @@ export default function Index() {
 
   // Handle navigation when user state changes
   useEffect(() => {
-    if (!loading && user) {
-      // User is logged in, check onboarding
-      checkOnboardingAndNavigate();
+    if (!loading) {
+      if (user) {
+        // User is logged in, check onboarding
+        checkOnboardingAndNavigate();
+      } else {
+        // User logged out, reset to landing page
+        setShowLogin(null);
+      }
     }
   }, [user, loading]);
 
