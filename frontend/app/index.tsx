@@ -262,66 +262,122 @@ function SignupScreen({ onSwitchToLogin }: any) {
 // Landing Page Screen
 function LandingPageScreen({ onGetStarted }: any) {
   const router = useRouter();
+  const pulseAnim = useRef(new Animated.Value(1)).current;
+  const opacityAnim = useRef(new Animated.Value(0.3)).current;
+
+  useEffect(() => {
+    // Subtle pulsing animation for the dot
+    Animated.loop(
+      Animated.sequence([
+        Animated.parallel([
+          Animated.timing(pulseAnim, {
+            toValue: 1.2,
+            duration: 3000,
+            useNativeDriver: true,
+          }),
+          Animated.timing(opacityAnim, {
+            toValue: 0.6,
+            duration: 3000,
+            useNativeDriver: true,
+          }),
+        ]),
+        Animated.parallel([
+          Animated.timing(pulseAnim, {
+            toValue: 1,
+            duration: 3000,
+            useNativeDriver: true,
+          }),
+          Animated.timing(opacityAnim, {
+            toValue: 0.3,
+            duration: 3000,
+            useNativeDriver: true,
+          }),
+        ]),
+      ])
+    ).start();
+  }, []);
   
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView contentContainerStyle={styles.landingScroll}>
-        {/* Hero */}
+        {/* Hero - Section 1 */}
         <View style={styles.landingHero}>
-          <View style={styles.logoSymbol}>
-            <View style={styles.logoDot} />
+          {/* Subtle animated dot with halo */}
+          <View style={styles.dotContainer}>
+            <Animated.View style={[styles.dotHalo, { 
+              transform: [{ scale: pulseAnim }],
+              opacity: opacityAnim,
+            }]} />
+            <View style={styles.dotCenter} />
           </View>
+
           <Text style={styles.brandName}>Koan</Text>
-          <Text style={styles.landingTitle}>
+          
+          <Text style={styles.heroTitle}>
             Everything you need to know,{'\n'}you already know.
           </Text>
-          <Text style={styles.landingSubtitle}>We just help you remember.</Text>
           
-          <TouchableOpacity style={styles.primaryButton} onPress={onGetStarted}>
-            <Text style={styles.primaryButtonText}>Start Free 7-Day Trial</Text>
-            <Ionicons name="arrow-forward" size={18} color="#3A3A3A" />
-          </TouchableOpacity>
-          
-          <Text style={styles.trialNote}>No credit card required</Text>
-        </View>
-
-        {/* Value Props */}
-        <View style={styles.landingFeatures}>
-          <Text style={styles.landingFeaturesTitle}>
-            Calm clarity. Subtle intelligence. Zero noise.
+          <Text style={styles.heroSubtitle}>
+            We just help you remember.
           </Text>
           
-          <View style={styles.featureRow}>
-            <Ionicons name="notifications-off-outline" size={24} color="#A8D7F0" />
-            <Text style={styles.featureText}>No constant pings</Text>
-          </View>
+          <TouchableOpacity style={styles.ctaButton} onPress={onGetStarted}>
+            <Text style={styles.ctaButtonText}>Start Free 7-Day Trial</Text>
+          </TouchableOpacity>
           
-          <View style={styles.featureRow}>
-            <Ionicons name="bar-chart-outline" size={24} color="#A8D7F0" />
-            <Text style={styles.featureText}>No tracking dashboards</Text>
+          <Text style={styles.ctaSubtext}>No credit card required</Text>
+        </View>
+
+        {/* What Koan Does - Section 2 */}
+        <View style={styles.whatSection}>
+          <Text style={styles.whatTitle}>Calm clarity for busy minds.</Text>
+          <Text style={styles.whatSubtitle}>
+            Subtle nudges at the right moment — no dashboards, no noise.
+          </Text>
+        </View>
+
+        {/* How Koan Works - Section 3 */}
+        <View style={styles.howSection}>
+          <View style={styles.howCard}>
+            <Text style={styles.howCardTitle}>Observes patterns</Text>
+            <Text style={styles.howCardText}>
+              Phone rhythm + your corporate tools (Outlook, Slack, Teams, Gmail, Calendar).
+              Always metadata, never content.
+            </Text>
           </View>
-          
-          <View style={styles.featureRow}>
-            <Ionicons name="trophy-outline" size={24} color="#A8D7F0" />
-            <Text style={styles.featureText}>No gamification</Text>
+
+          <View style={styles.howCard}>
+            <Text style={styles.howCardTitle}>Finds the right moment</Text>
+            <Text style={styles.howCardText}>
+              Nudges only appear when timing truly helps.
+            </Text>
           </View>
-          
-          <View style={styles.featureRow}>
-            <Ionicons name="sparkles" size={24} color="#A8D7F0" />
-            <Text style={styles.featureText}>Just gentle course-corrections</Text>
+
+          <View style={styles.howCard}>
+            <Text style={styles.howCardTitle}>Keeps things simple</Text>
+            <Text style={styles.howCardText}>
+              Short, subtle reminders. Nothing more.
+            </Text>
           </View>
         </View>
 
-        {/* Pricing */}
-        <View style={styles.landingPricing}>
-          <Text style={styles.pricingAmount}>$9.99</Text>
-          <Text style={styles.pricingPeriod}>per month after trial</Text>
+        {/* Pricing - Section 4 */}
+        <View style={styles.pricingSection}>
+          <Text style={styles.pricingAmount}>$9.99 / month after trial</Text>
+          <Text style={styles.pricingCancel}>Cancel anytime.</Text>
+          <Text style={styles.pricingPrivacy}>
+            Koan analyzes metadata only — never message or email content.
+          </Text>
         </View>
 
-        {/* Footer */}
-        <Text style={styles.landingFooter}>
-          For corporate professionals who are overloaded by dashboards, notifications, and metrics.
-        </Text>
+        {/* Footer - Section 5 */}
+        <View style={styles.footer}>
+          <Text style={styles.footerLink}>Terms</Text>
+          <Text style={styles.footerDivider}>·</Text>
+          <Text style={styles.footerLink}>Privacy</Text>
+          <Text style={styles.footerDivider}>·</Text>
+          <Text style={styles.footerLink}>Support</Text>
+        </View>
       </ScrollView>
       <StatusBar style="dark" />
     </SafeAreaView>
