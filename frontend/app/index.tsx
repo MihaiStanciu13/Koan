@@ -575,17 +575,18 @@ const styles = StyleSheet.create({
     paddingBottom: 40,
   },
   landingHero: {
+    minHeight: '100vh' as any,
     alignItems: 'center',
-    paddingTop: 80,
-    paddingBottom: 80,
+    justifyContent: 'center',
     paddingHorizontal: 32,
+    paddingVertical: 40,
   },
   dotContainer: {
     width: 80,
     height: 80,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 48,
+    marginBottom: 32,
   },
   dotHalo: {
     position: 'absolute',
