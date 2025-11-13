@@ -1,13 +1,25 @@
 from fastapi import APIRouter, HTTPException, Depends, Header
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from motor.motor_asyncio import AsyncIOMotorDatabase
+from motor.motor_asyncio import AsyncIOMotorDatabase, AsyncIOMotorClient
 from passlib.context import CryptContext
 from jose import JWTError, jwt
 from datetime import datetime, timedelta
 from typing import Optional
+from pathlib import Path
+from dotenv import load_dotenv
 import os
 import uuid
 from models import UserCreate, UserLogin, User, SubscriptionStatus
+
+# Load environment
+ROOT_DIR = Path(__file__).parent
+load_dotenv(ROOT_DIR / '.env')
+
+# Get MongoDB connection
+mongo_url = os.getenv('MONGO_URL', 'mongodb://localhost:27017')
+db_name = os.getenv('DB_NAME', 'behavioral_nudge_db')
+client = AsyncIOMotorClient(mongo_url)
+db = client[db_name]
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 security = HTTPBearer()
