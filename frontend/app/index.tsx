@@ -642,7 +642,8 @@ const styles = StyleSheet.create({
   },
   howSection: {
     paddingHorizontal: 32,
-    paddingVertical: 40,
+    paddingTop: 24,
+    paddingBottom: 48,
   },
   howCard: {
     backgroundColor: '#D9F7EB',
