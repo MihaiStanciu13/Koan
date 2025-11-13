@@ -26,7 +26,49 @@ function LoginScreen({ onSwitchToSignup }: any) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const [biometricAvailable, setBiometricAvailable] = useState(false);
   const { login } = useAuth();
+
+  useEffect(() => {
+    checkBiometric();
+  }, []);
+
+  const checkBiometric = async () => {
+    const compatible = await LocalAuthentication.hasHardwareAsync();
+    const enrolled = await LocalAuthentication.isEnrolledAsync();
+    setBiometricAvailable(compatible && enrolled);
+  };
+
+  const handleBiometricLogin = async () => {
+    try {
+      const result = await LocalAuthentication.authenticateAsync({
+        promptMessage: 'Log in to Koan',
+        fallbackLabel: 'Use password',
+      });
+
+      if (result.success) {
+        const savedEmail = await SecureStore.getItemAsync('biometric_email');
+        const savedPassword = await SecureStore.getItemAsync('biometric_password');
+        
+        if (savedEmail && savedPassword) {
+          setLoading(true);
+          await login(savedEmail, savedPassword);
+          const onboardingComplete = await storage.isOnboardingComplete();
+          if (onboardingComplete) {
+            router.replace('/(tabs)');
+          } else {
+            router.replace('/onboarding');
+          }
+        } else {
+          Alert.alert('No Saved Credentials', 'Please log in with email and password first');
+        }
+      }
+    } catch (error) {
+      console.error('Biometric auth error:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleLogin = async () => {
     if (!email || !password) {
@@ -36,6 +78,13 @@ function LoginScreen({ onSwitchToSignup }: any) {
     setLoading(true);
     try {
       await login(email, password);
+      
+      // Save credentials for biometric login (only on successful login)
+      if (biometricAvailable) {
+        await SecureStore.setItemAsync('biometric_email', email);
+        await SecureStore.setItemAsync('biometric_password', password);
+      }
+      
       // Check if onboarding is complete
       const onboardingComplete = await storage.isOnboardingComplete();
       if (onboardingComplete) {
