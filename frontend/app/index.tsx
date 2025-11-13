@@ -307,10 +307,16 @@ export default function Index() {
     );
   }
 
+  // Show landing page, login, or signup
+  if (showLogin === null) {
+    // Show landing page
+    return <LandingPageScreen onGetStarted={() => setShowLogin(false)} />;
+  }
+
   return showLogin ? (
-    <LoginScreen onSwitchToSignup={() => setShowLogin(false)} />
+    <LoginScreen onSwitchToSignup={() => setShowLogin(false)} onBack={() => setShowLogin(null)} />
   ) : (
-    <SignupScreen onSwitchToLogin={() => setShowLogin(true)} />
+    <SignupScreen onSwitchToLogin={() => setShowLogin(true)} onBack={() => setShowLogin(null)} />
   );
 }
 
