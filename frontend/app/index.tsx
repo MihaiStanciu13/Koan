@@ -659,7 +659,7 @@ const styles = StyleSheet.create({
   },
   howSection: {
     paddingHorizontal: 32,
-    paddingTop: 24,
+    paddingTop: 16,
     paddingBottom: 48,
   },
   howCard: {
