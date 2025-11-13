@@ -27,7 +27,6 @@ MOCKED_MONTHLY_PRICE = 9.99
 
 @router.get("/status")
 async def get_subscription_status(
-    db: AsyncIOMotorDatabase,
     current_user: User = Depends(get_current_user)
 ):
     """Get current subscription status"""
