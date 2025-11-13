@@ -61,8 +61,27 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(s
         raise HTTPException(status_code=401, detail="User not found")
     return User(**user)
 
+def validate_password(password: str) -> tuple[bool, str]:
+    """Validate password meets security requirements"""
+    if len(password) < 8:
+        return False, "Password must be at least 8 characters"
+    if not any(c.isupper() for c in password):
+        return False, "Password must contain at least one uppercase letter"
+    if not any(c.islower() for c in password):
+        return False, "Password must contain at least one lowercase letter"
+    if not any(c.isdigit() for c in password):
+        return False, "Password must contain at least one number"
+    if not any(c in "!@#$%^&*()_+-=[]{}|;:',.<>?/" for c in password):
+        return False, "Password must contain at least one special character"
+    return True, "Password is valid"
+
 @router.post("/signup")
 async def signup(user_data: UserCreate):
+    # Validate password
+    is_valid, message = validate_password(user_data.password)
+    if not is_valid:
+        raise HTTPException(status_code=400, detail=message)
+    
     # Check if user exists
     existing_user = await db.users.find_one({"email": user_data.email})
     if existing_user:
