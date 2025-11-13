@@ -202,7 +202,7 @@ function SignupScreen({ onSwitchToLogin }: any) {
             <Text style={styles.brandName}>Koan</Text>
           </View>
 
-          <Text style={styles.title}>Begin Your Practice</Text>
+          <Text style={styles.title}>Let's begin your journey toward clarity</Text>
           <Text style={styles.tagline}>7-day free trial • Cancel anytime</Text>
 
           <View style={styles.inputContainer}>
