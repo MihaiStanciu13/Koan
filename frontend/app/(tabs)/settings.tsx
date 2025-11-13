@@ -138,13 +138,20 @@ export default function SettingsScreen() {
     Alert.alert('Saved', 'Your anchor action has been updated');
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
     Alert.alert('Log Out', 'Are you sure you want to log out?', [
       { text: 'Cancel', style: 'cancel' },
       {
         text: 'Log Out',
         style: 'destructive',
-        onPress: logout,
+        onPress: async () => {
+          try {
+            await logout();
+            router.replace('/');
+          } catch (error) {
+            console.error('Logout error:', error);
+          }
+        },
       },
     ]);
   };
