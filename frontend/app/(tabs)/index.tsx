@@ -40,7 +40,7 @@ export default function HomeScreen() {
   const [anchorAction, setAnchorAction] = useState('close one loop');
   const [pendingNudges, setPendingNudges] = useState<any[]>([]);
   const [trialDays, setTrialDays] = useState(0);
-  const [currentLearningMessage, setCurrentLearningMessage] = useState(0);
+  const [learningPhase, setLearningPhase] = useState(0); // Track which phase of learning we're in
   const [currentHint, setCurrentHint] = useState(0);
   
   // Animation for pulsing dot
@@ -49,18 +49,32 @@ export default function HomeScreen() {
   useEffect(() => {
     loadData();
     startPulseAnimation();
-    
-    // Rotate learning message every 5 seconds
-    const messageInterval = setInterval(() => {
-      setCurrentLearningMessage((prev) => (prev + 1) % LEARNING_MESSAGES.length);
-    }, 5000);
+    determineLearningPhase();
     
     // Rotate hint daily
     const hint = new Date().getDate() % TODAY_HINTS.length;
     setCurrentHint(hint);
-    
-    return () => clearInterval(messageInterval);
   }, []);
+
+  const determineLearningPhase = async () => {
+    // Determine learning phase based on account age and activity
+    try {
+      const summary = await behaviorAPI.getSummary(7);
+      const totalEvents = summary.total_events || 0;
+      
+      if (totalEvents === 0) {
+        setLearningPhase(0); // Just started
+      } else if (totalEvents < 10) {
+        setLearningPhase(1); // Early learning
+      } else if (totalEvents < 50) {
+        setLearningPhase(2); // Building patterns
+      } else {
+        setLearningPhase(3); // Active learning
+      }
+    } catch (error) {
+      setLearningPhase(0);
+    }
+  };
 
   const startPulseAnimation = () => {
     Animated.loop(
