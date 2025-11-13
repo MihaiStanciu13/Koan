@@ -74,7 +74,6 @@ async def record_workplace_data(
 @router.get("/summary")
 async def get_behavior_summary(
     days: int = 7,
-    db: AsyncIOMotorDatabase = None,
     current_user: User = Depends(get_current_user)
 ):
     """Get summary of user's behavioral patterns"""
