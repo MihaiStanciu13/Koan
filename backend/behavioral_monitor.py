@@ -30,7 +30,6 @@ class BehaviorEvent(BaseModel):
 @router.post("/phone")
 async def record_phone_behavior(
     event: BehaviorEvent,
-    db: AsyncIOMotorDatabase,
     current_user: User = Depends(get_current_user)
 ):
     """Record phone behavior events (pickups, app switches, etc.)"""
