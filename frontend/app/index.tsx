@@ -638,7 +638,8 @@ const styles = StyleSheet.create({
   whatSection: {
     alignItems: 'center',
     paddingHorizontal: 32,
-    paddingVertical: 48,
+    paddingTop: 48,
+    paddingBottom: 24,
     backgroundColor: '#FAFDFA',
   },
   whatTitle: {
