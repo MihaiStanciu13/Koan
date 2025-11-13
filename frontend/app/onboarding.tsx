@@ -230,7 +230,22 @@ const styles = StyleSheet.create({
     backgroundColor: '#2a2a2a',
   },
   progressDotActive: {
-    backgroundColor: '#5B9FFF',
+    backgroundColor: '#A8D7F0',
+  },
+  logoSymbol: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: '#D9F7EB',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 16,
+  },
+  logoDot: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    backgroundColor: '#A8D7F0',
   },
   stepContainer: {
     flex: 1,
