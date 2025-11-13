@@ -1,9 +1,22 @@
 from fastapi import APIRouter, Depends, HTTPException
-from motor.motor_asyncio import AsyncIOMotorDatabase
+from motor.motor_asyncio import AsyncIOMotorDatabase, AsyncIOMotorClient
 from datetime import datetime, timedelta
+from pathlib import Path
+from dotenv import load_dotenv
+import os
 from models import User, SubscriptionStatus
 from auth import get_current_user
 import logging
+
+# Load environment
+ROOT_DIR = Path(__file__).parent
+load_dotenv(ROOT_DIR / '.env')
+
+# Get MongoDB connection
+mongo_url = os.getenv('MONGO_URL', 'mongodb://localhost:27017')
+db_name = os.getenv('DB_NAME', 'behavioral_nudge_db')
+client = AsyncIOMotorClient(mongo_url)
+db = client[db_name]
 
 router = APIRouter(prefix="/subscription", tags=["subscription"])
 logger = logging.getLogger(__name__)
