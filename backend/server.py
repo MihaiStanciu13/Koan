@@ -74,6 +74,10 @@ async def get_preferences(
         default_prefs = Preferences(user_id=current_user.id, micro_mode=MicroMode.STANDARD)
         await db.preferences.insert_one(default_prefs.dict())
         return default_prefs.dict()
+    
+    # Remove MongoDB _id field for JSON serialization
+    if '_id' in prefs:
+        del prefs['_id']
     return prefs
 
 @api_router.patch("/preferences")
