@@ -78,7 +78,7 @@ export default function Onboarding() {
         {/* Step 2: Permissions */}
         {step === 2 && (
           <View style={styles.stepContainer}>
-            <Ionicons name="notifications-outline" size={64} color="#5B9FFF" />
+            <Ionicons name="notifications-outline" size={64} color="#A8D7F0" />
             <Text style={styles.title}>Enable Nudge Notifications</Text>
             <Text style={styles.description}>
               We'll send you subtle reminders at the right moments. You can adjust
@@ -88,7 +88,7 @@ export default function Onboarding() {
             <View style={styles.permissionCard}>
               <View style={styles.permissionRow}>
                 <View style={styles.permissionLeft}>
-                  <Ionicons name="phone-portrait-outline" size={24} color="#5B9FFF" />
+                  <Ionicons name="phone-portrait-outline" size={24} color="#A8D7F0" />
                   <View style={styles.permissionText}>
                     <Text style={styles.permissionTitle}>Phone Activity</Text>
                     <Text style={styles.permissionSubtitle}>
@@ -99,7 +99,7 @@ export default function Onboarding() {
                 <Switch
                   value={notificationsEnabled}
                   onValueChange={requestNotifications}
-                  trackColor={{ false: '#2a2a2a', true: '#5B9FFF' }}
+                  trackColor={{ false: '#2a2a2a', true: '#A8D7F0' }}
                 />
               </View>
             </View>
@@ -114,7 +114,7 @@ export default function Onboarding() {
         {/* Step 3: Choose Mode */}
         {step === 3 && (
           <View style={styles.stepContainer}>
-            <Ionicons name="settings-outline" size={64} color="#5B9FFF" />
+            <Ionicons name="settings-outline" size={64} color="#A8D7F0" />
             <Text style={styles.title}>Select Your Mode</Text>
             <Text style={styles.description}>
               Choose how nudges adapt to your work style. You can change this anytime.
@@ -172,7 +172,7 @@ export default function Onboarding() {
 function FeatureItem({ icon, text }: { icon: any; text: string }) {
   return (
     <View style={styles.featureItem}>
-      <Ionicons name={icon} size={20} color="#5B9FFF" />
+      <Ionicons name={icon} size={20} color="#A8D7F0" />
       <Text style={styles.featureText}>{text}</Text>
     </View>
   );
@@ -196,14 +196,14 @@ function ModeCard({
       style={[styles.modeCard, selected && styles.modeCardSelected]}
       onPress={onPress}
     >
-      <Ionicons name={icon} size={24} color={selected ? '#5B9FFF' : '#888'} />
+      <Ionicons name={icon} size={24} color={selected ? '#A8D7F0' : '#888'} />
       <View style={styles.modeText}>
         <Text style={[styles.modeTitle, selected && styles.modeTextSelected]}>
           {title}
         </Text>
         <Text style={styles.modeDescription}>{description}</Text>
       </View>
-      {selected && <Ionicons name="checkmark-circle" size={24} color="#5B9FFF" />}
+      {selected && <Ionicons name="checkmark-circle" size={24} color="#A8D7F0" />}
     </TouchableOpacity>
   );
 }
@@ -211,7 +211,7 @@ function ModeCard({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0a0a0a',
+    backgroundColor: '#FAFDFA',
   },
   scrollContent: {
     flexGrow: 1,
@@ -333,7 +333,7 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   modeCardSelected: {
-    borderColor: '#5B9FFF',
+    borderColor: '#A8D7F0',
     backgroundColor: '#0f1a2e',
   },
   modeText: {
@@ -346,7 +346,7 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   modeTextSelected: {
-    color: '#5B9FFF',
+    color: '#A8D7F0',
   },
   modeDescription: {
     fontSize: 14,
@@ -372,7 +372,7 @@ const styles = StyleSheet.create({
   nextButton: {
     flex: 2,
     flexDirection: 'row',
-    backgroundColor: '#5B9FFF',
+    backgroundColor: '#A8D7F0',
     paddingVertical: 16,
     borderRadius: 12,
     alignItems: 'center',
