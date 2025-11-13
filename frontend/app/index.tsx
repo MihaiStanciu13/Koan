@@ -623,6 +623,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 32,
     paddingVertical: 14,
     borderRadius: 8,
+    marginTop: 32,
   },
   ctaButtonText: {
     fontSize: 15,
