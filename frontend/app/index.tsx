@@ -259,10 +259,79 @@ function SignupScreen({ onSwitchToLogin }: any) {
   );
 }
 
+// Landing Page Screen
+function LandingPageScreen({ onGetStarted }: any) {
+  const router = useRouter();
+  
+  return (
+    <SafeAreaView style={styles.container}>
+      <ScrollView contentContainerStyle={styles.landingScroll}>
+        {/* Hero */}
+        <View style={styles.landingHero}>
+          <View style={styles.logoSymbol}>
+            <View style={styles.logoDot} />
+          </View>
+          <Text style={styles.brandName}>Koan</Text>
+          <Text style={styles.landingTitle}>
+            Everything you need to know,{'\n'}you already know.
+          </Text>
+          <Text style={styles.landingSubtitle}>We just help you remember.</Text>
+          
+          <TouchableOpacity style={styles.primaryButton} onPress={onGetStarted}>
+            <Text style={styles.primaryButtonText}>Start Free 7-Day Trial</Text>
+            <Ionicons name="arrow-forward" size={18} color="#3A3A3A" />
+          </TouchableOpacity>
+          
+          <Text style={styles.trialNote}>No credit card required</Text>
+        </View>
+
+        {/* Value Props */}
+        <View style={styles.landingFeatures}>
+          <Text style={styles.landingFeaturesTitle}>
+            Calm clarity. Subtle intelligence. Zero noise.
+          </Text>
+          
+          <View style={styles.featureRow}>
+            <Ionicons name="notifications-off-outline" size={24} color="#A8D7F0" />
+            <Text style={styles.featureText}>No constant pings</Text>
+          </View>
+          
+          <View style={styles.featureRow}>
+            <Ionicons name="bar-chart-outline" size={24} color="#A8D7F0" />
+            <Text style={styles.featureText}>No tracking dashboards</Text>
+          </View>
+          
+          <View style={styles.featureRow}>
+            <Ionicons name="trophy-outline" size={24} color="#A8D7F0" />
+            <Text style={styles.featureText}>No gamification</Text>
+          </View>
+          
+          <View style={styles.featureRow}>
+            <Ionicons name="sparkles" size={24} color="#A8D7F0" />
+            <Text style={styles.featureText}>Just gentle course-corrections</Text>
+          </View>
+        </View>
+
+        {/* Pricing */}
+        <View style={styles.landingPricing}>
+          <Text style={styles.pricingAmount}>$9.99</Text>
+          <Text style={styles.pricingPeriod}>per month after trial</Text>
+        </View>
+
+        {/* Footer */}
+        <Text style={styles.landingFooter}>
+          For corporate professionals who are overloaded by dashboards, notifications, and metrics.
+        </Text>
+      </ScrollView>
+      <StatusBar style="dark" />
+    </SafeAreaView>
+  );
+}
+
 // Main App Router
 export default function Index() {
   const { user, loading } = useAuth();
-  const [showLogin, setShowLogin] = useState(true);
+  const [showLogin, setShowLogin] = useState<boolean | null>(null); // null = landing, true = login, false = signup
   const [isRedirecting, setIsRedirecting] = useState(false);
   const router = useRouter();
 
