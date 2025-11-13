@@ -205,6 +205,7 @@ function SignupScreen({ onSwitchToLogin }: any) {
 export default function Index() {
   const { user, loading } = useAuth();
   const [showLogin, setShowLogin] = useState(true);
+  const [isRedirecting, setIsRedirecting] = useState(false);
   const router = useRouter();
 
   useEffect(() => {
@@ -212,7 +213,10 @@ export default function Index() {
   }, [user, loading]);
 
   const checkAuthAndRedirect = async () => {
-    if (!loading && user) {
+    if (!loading && user && !isRedirecting) {
+      setIsRedirecting(true);
+      // Add a small delay to prevent flash
+      await new Promise(resolve => setTimeout(resolve, 100));
       const onboardingComplete = await storage.isOnboardingComplete();
       if (onboardingComplete) {
         router.replace('/(tabs)');
@@ -222,7 +226,7 @@ export default function Index() {
     }
   };
 
-  if (loading) {
+  if (loading || isRedirecting) {
     return (
       <View style={[styles.container, styles.centered]}>
         <View style={styles.logoSymbol}>
@@ -234,8 +238,15 @@ export default function Index() {
   }
 
   if (user) {
-    // Will redirect in useEffect
-    return null;
+    // Still redirecting, show loading
+    return (
+      <View style={[styles.container, styles.centered]}>
+        <View style={styles.logoSymbol}>
+          <View style={styles.logoDot} />
+        </View>
+        <ActivityIndicator size="large" color="#A8D7F0" style={{ marginTop: 20 }} />
+      </View>
+    );
   }
 
   return showLogin ? (
