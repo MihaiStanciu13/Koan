@@ -54,6 +54,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     await storage.removeAuthToken();
     await storage.removeUser();
     setUser(null);
+    // Navigation will happen automatically in index.tsx when user becomes null
   };
 
   return (
