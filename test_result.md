@@ -225,11 +225,11 @@ frontend:
   
   - task: "BUG FIX: Email Already Exists Error"
     implemented: true
-    working: "NA"
+    working: true
     file: "/app/backend/auth.py, /app/backend/server.py"
     priority: "high"
     stuck_count: 1
-    needs_retesting: true
+    needs_retesting: false
     status_history:
       - working: false
         agent: "user"
@@ -237,6 +237,9 @@ frontend:
       - working: "NA"
         agent: "main"
         comment: "Root cause identified: AI was clearing wrong database (behavioral_nudge_db vs test_database). Forced deletion of all documents from correct test_database. Backend database name consistency verified in server.py. NEEDS TESTING to confirm signup now works with previously used emails."
+      - working: true
+        agent: "testing"
+        comment: "CRITICAL BUG FIXED: Comprehensive backend testing completed. Test sequence: 1) Cleared test_database completely, 2) Signup with test@example.com succeeded with JWT token, 3) Duplicate signup correctly rejected with 'Email already registered', 4) Manual user deletion successful, 5) CRITICAL TEST PASSED: Signup with same email after deletion now succeeds. Auth endpoints working: login/signup/JWT verification all functional. Backend URL: https://focus-coach-8.preview.emergentagent.com/api, Database: test_database."
   
   - task: "BUG FIX: Onboarding Screen Skip"
     implemented: true
