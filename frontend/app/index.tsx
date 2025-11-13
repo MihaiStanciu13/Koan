@@ -414,8 +414,6 @@ export default function Index() {
   const checkAuthAndRedirect = async () => {
     if (!loading && user && !isRedirecting) {
       setIsRedirecting(true);
-      // Add a small delay to prevent flash
-      await new Promise(resolve => setTimeout(resolve, 100));
       const onboardingComplete = await storage.isOnboardingComplete();
       if (onboardingComplete) {
         router.replace('/(tabs)');
