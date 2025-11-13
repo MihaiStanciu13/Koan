@@ -51,8 +51,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const logout = async () => {
-    await storage.removeAuthToken();
-    await storage.removeUser();
+    // Clear ALL storage including onboarding flag to ensure clean logout
+    await storage.clearAll();
     setUser(null);
     // Navigation will happen automatically in index.tsx when user becomes null
   };
