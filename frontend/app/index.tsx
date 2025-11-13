@@ -577,7 +577,7 @@ const styles = StyleSheet.create({
     paddingBottom: 40,
   },
   landingHero: {
-    minHeight: '100vh' as any,
+    minHeight: Dimensions.get('window').height - 80,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 32,
