@@ -207,6 +207,14 @@ const styles = StyleSheet.create({
     lineHeight: 24,
     textAlign: 'center',
   },
+  narrativeSubtext: {
+    fontSize: 13,
+    color: '#3A3A3A',
+    opacity: 0.6,
+    lineHeight: 19,
+    textAlign: 'center',
+    marginTop: 12,
+  },
   card: {
     backgroundColor: '#FFFFFF',
     borderRadius: 12,
