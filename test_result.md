@@ -276,11 +276,18 @@ metadata:
 
 test_plan:
   current_focus:
-    - "Frontend UI/UX testing"
-    - "End-to-end flow testing"
+    - "BUG FIX: Email Already Exists Error"
+    - "BUG FIX: Onboarding Screen Skip"
+    - "BUG FIX: Logout Navigation Failure"
+  stuck_tasks:
+    - "BUG FIX: Onboarding Screen Skip (stuck_count: 2)"
   test_all: false
-  test_priority: "high_first"
+  test_priority: "stuck_first"
 
 agent_communication:
   - agent: "main"
     message: "MVP completed with all core backend features working. Frontend UI created and compiled successfully. Ready for user testing."
+  - agent: "user"
+    message: "Reported 3 critical bugs: 1) Email signup blocked for previously used emails, 2) Onboarding screen skips/flashes, 3) Logout doesn't redirect to landing. Need fixes and comprehensive testing before Phase 2."
+  - agent: "main"
+    message: "All 3 critical bugs addressed: Fixed DB name mismatch and cleared correct database, rewrote navigation state machine in index.tsx, updated logout to clear all storage. Expo server restarted. Ready for backend testing followed by frontend UI testing to verify all fixes."
