@@ -261,11 +261,11 @@ frontend:
   
   - task: "BUG FIX: Logout Navigation Failure"
     implemented: true
-    working: "NA"
+    working: false
     file: "/app/frontend/contexts/AuthContext.tsx, /app/frontend/app/index.tsx"
     priority: "high"
-    stuck_count: 2
-    needs_retesting: true
+    stuck_count: 3
+    needs_retesting: false
     status_history:
       - working: false
         agent: "user"
@@ -279,6 +279,9 @@ frontend:
       - working: "NA"
         agent: "main"
         comment: "FIXED: Updated logout function to use storage.clearAll() to properly clear ALL AsyncStorage including onboarding flag. Expo restarted. NEEDS RETESTING to verify logout now redirects to landing page and clears all state properly."
+      - working: false
+        agent: "testing"
+        comment: "COMPREHENSIVE MOBILE TESTING COMPLETED on iPhone 14 (390x844). RESULTS: 1) ✅ AuthContext logout function FIXED - now calls storage.clearAll() properly, 2) ✅ Settings page accessible and logout button found, 3) ✅ Logout button clickable and confirmation dialog works, 4) ❌ CRITICAL BUG STILL EXISTS: Logout does NOT redirect to landing page. After clicking logout and confirming, user remains on blank/loading screen instead of landing page. Navigation logic in index.tsx may not be handling post-logout state properly. The storage clearing works but navigation redirect fails."
 
 metadata:
   created_by: "main_agent"
