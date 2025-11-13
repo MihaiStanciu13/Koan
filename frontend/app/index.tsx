@@ -327,6 +327,11 @@ function LandingPageScreen({ onGetStarted }: any) {
           </TouchableOpacity>
           
           <Text style={styles.ctaSubtext}>No credit card required</Text>
+
+          {/* Scroll indicator */}
+          <View style={styles.scrollIndicator}>
+            <Ionicons name="chevron-down" size={20} color="#3A3A3A" style={{ opacity: 0.4 }} />
+          </View>
         </View>
 
         {/* What Koan Does - Section 2 */}
