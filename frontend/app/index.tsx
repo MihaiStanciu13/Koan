@@ -558,12 +558,12 @@ const styles = StyleSheet.create({
   },
   // Landing page styles - Minimal & Calm
   landingScroll: {
-    paddingBottom: 80,
+    paddingBottom: 40,
   },
   landingHero: {
     alignItems: 'center',
-    paddingTop: 120,
-    paddingBottom: 160,
+    paddingTop: 80,
+    paddingBottom: 80,
     paddingHorizontal: 32,
   },
   dotContainer: {
