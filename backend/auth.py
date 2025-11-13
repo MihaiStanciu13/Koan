@@ -106,7 +106,7 @@ async def signup(user_data: UserCreate):
     }
 
 @router.post("/login")
-async def login(user_data: UserLogin, db: AsyncIOMotorDatabase):
+async def login(user_data: UserLogin):
     # Find user
     user = await db.users.find_one({"email": user_data.email})
     if not user or not verify_password(user_data.password, user["hashed_password"]):
