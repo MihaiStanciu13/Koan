@@ -397,26 +397,31 @@ function LandingPageScreen({ onGetStarted }: any) {
 export default function Index() {
   const { user, loading } = useAuth();
   const [showLogin, setShowLogin] = useState<boolean | null>(null); // null = landing, true = login, false = signup
-  const [isRedirecting, setIsRedirecting] = useState(false);
   const router = useRouter();
 
+  // Handle navigation when user state changes
   useEffect(() => {
-    checkAuthAndRedirect();
+    if (!loading && user) {
+      // User is logged in, check onboarding
+      checkOnboardingAndNavigate();
+    }
   }, [user, loading]);
 
-  const checkAuthAndRedirect = async () => {
-    if (!loading && user && !isRedirecting) {
-      setIsRedirecting(true);
+  const checkOnboardingAndNavigate = async () => {
+    try {
       const onboardingComplete = await storage.isOnboardingComplete();
       if (onboardingComplete) {
         router.replace('/(tabs)');
       } else {
         router.replace('/onboarding');
       }
+    } catch (error) {
+      console.error('Navigation error:', error);
     }
   };
 
-  if (loading || isRedirecting) {
+  // Show loading while checking auth
+  if (loading) {
     return (
       <View style={[styles.container, styles.centered]}>
         <View style={styles.logoSymbol}>
@@ -427,8 +432,8 @@ export default function Index() {
     );
   }
 
+  // User is logged in - show loading while navigating
   if (user) {
-    // Still redirecting, show loading
     return (
       <View style={[styles.container, styles.centered]}>
         <View style={styles.logoSymbol}>
@@ -439,9 +444,8 @@ export default function Index() {
     );
   }
 
-  // Show landing page, login, or signup
+  // User is NOT logged in - show landing/login/signup
   if (showLogin === null) {
-    // Show landing page
     return <LandingPageScreen onGetStarted={() => setShowLogin(false)} />;
   }
 
