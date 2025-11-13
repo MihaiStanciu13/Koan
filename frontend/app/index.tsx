@@ -499,4 +499,76 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '600',
   },
+  // Landing page styles
+  landingScroll: {
+    paddingBottom: 40,
+  },
+  landingHero: {
+    alignItems: 'center',
+    paddingVertical: 60,
+    paddingHorizontal: 24,
+  },
+  landingTitle: {
+    fontSize: 26,
+    fontWeight: '600',
+    color: '#3A3A3A',
+    textAlign: 'center',
+    lineHeight: 36,
+    marginBottom: 12,
+  },
+  landingSubtitle: {
+    fontSize: 16,
+    color: '#3A3A3A',
+    opacity: 0.7,
+    textAlign: 'center',
+    marginBottom: 32,
+  },
+  landingFeatures: {
+    paddingHorizontal: 32,
+    marginBottom: 40,
+  },
+  landingFeaturesTitle: {
+    fontSize: 20,
+    fontWeight: '600',
+    color: '#3A3A3A',
+    textAlign: 'center',
+    marginBottom: 24,
+    lineHeight: 28,
+  },
+  featureRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    gap: 12,
+  },
+  featureText: {
+    fontSize: 15,
+    color: '#3A3A3A',
+  },
+  landingPricing: {
+    alignItems: 'center',
+    backgroundColor: '#D9F7EB',
+    paddingVertical: 24,
+    marginHorizontal: 24,
+    borderRadius: 12,
+    marginBottom: 24,
+  },
+  pricingAmount: {
+    fontSize: 40,
+    fontWeight: '600',
+    color: '#3A3A3A',
+  },
+  pricingPeriod: {
+    fontSize: 14,
+    color: '#3A3A3A',
+    opacity: 0.7,
+  },
+  landingFooter: {
+    fontSize: 13,
+    color: '#3A3A3A',
+    opacity: 0.6,
+    textAlign: 'center',
+    paddingHorizontal: 32,
+    lineHeight: 20,
+  },
 });
