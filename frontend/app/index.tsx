@@ -49,24 +49,24 @@ function LoginScreen({ onSwitchToSignup, onLogin }: any) {
           <Text style={styles.subtitle}>Subtle behavioral nudges for corporate life</Text>
 
           <View style={styles.inputContainer}>
-            <Ionicons name=\"mail-outline\" size={20} color=\"#888\" style={styles.inputIcon} />
+            <Ionicons name="mail-outline" size={20} color="#888" style={styles.inputIcon} />
             <TextInput
               style={styles.input}
-              placeholder=\"Email\"
-              placeholderTextColor=\"#888\"
+              placeholder="Email"
+              placeholderTextColor="#888"
               value={email}
               onChangeText={setEmail}
-              autoCapitalize=\"none\"
-              keyboardType=\"email-address\"
+              autoCapitalize="none"
+              keyboardType="email-address"
             />
           </View>
 
           <View style={styles.inputContainer}>
-            <Ionicons name=\"lock-closed-outline\" size={20} color=\"#888\" style={styles.inputIcon} />
+            <Ionicons name="lock-closed-outline" size={20} color="#888" style={styles.inputIcon} />
             <TextInput
               style={styles.input}
-              placeholder=\"Password\"
-              placeholderTextColor=\"#888\"
+              placeholder="Password"
+              placeholderTextColor="#888"
               value={password}
               onChangeText={setPassword}
               secureTextEntry
@@ -75,7 +75,7 @@ function LoginScreen({ onSwitchToSignup, onLogin }: any) {
 
           <TouchableOpacity style={styles.primaryButton} onPress={handleLogin} disabled={loading}>
             {loading ? (
-              <ActivityIndicator color=\"#fff\" />
+              <ActivityIndicator color="#fff" />
             ) : (
               <Text style={styles.primaryButtonText}>Log In</Text>
             )}
@@ -121,35 +121,35 @@ function SignupScreen({ onSwitchToLogin, onSignup }: any) {
           <Text style={styles.subtitle}>7-day free trial • No metrics • Just nudges</Text>
 
           <View style={styles.inputContainer}>
-            <Ionicons name=\"person-outline\" size={20} color=\"#888\" style={styles.inputIcon} />
+            <Ionicons name="person-outline" size={20} color="#888" style={styles.inputIcon} />
             <TextInput
               style={styles.input}
-              placeholder=\"Name\"
-              placeholderTextColor=\"#888\"
+              placeholder="Name"
+              placeholderTextColor="#888"
               value={name}
               onChangeText={setName}
             />
           </View>
 
           <View style={styles.inputContainer}>
-            <Ionicons name=\"mail-outline\" size={20} color=\"#888\" style={styles.inputIcon} />
+            <Ionicons name="mail-outline" size={20} color="#888" style={styles.inputIcon} />
             <TextInput
               style={styles.input}
-              placeholder=\"Email\"
-              placeholderTextColor=\"#888\"
+              placeholder="Email"
+              placeholderTextColor="#888"
               value={email}
               onChangeText={setEmail}
-              autoCapitalize=\"none\"
-              keyboardType=\"email-address\"
+              autoCapitalize="none"
+              keyboardType="email-address"
             />
           </View>
 
           <View style={styles.inputContainer}>
-            <Ionicons name=\"lock-closed-outline\" size={20} color=\"#888\" style={styles.inputIcon} />
+            <Ionicons name="lock-closed-outline" size={20} color="#888" style={styles.inputIcon} />
             <TextInput
               style={styles.input}
-              placeholder=\"Password\"
-              placeholderTextColor=\"#888\"
+              placeholder="Password"
+              placeholderTextColor="#888"
               value={password}
               onChangeText={setPassword}
               secureTextEntry
@@ -158,7 +158,7 @@ function SignupScreen({ onSwitchToLogin, onSignup }: any) {
 
           <TouchableOpacity style={styles.primaryButton} onPress={handleSignup} disabled={loading}>
             {loading ? (
-              <ActivityIndicator color=\"#fff\" />
+              <ActivityIndicator color="#fff" />
             ) : (
               <Text style={styles.primaryButtonText}>Start Free Trial</Text>
             )}
@@ -230,7 +230,7 @@ function DashboardScreen() {
           <View style={styles.header}>
             <Text style={styles.welcomeText}>Welcome, {user?.name}</Text>
             <TouchableOpacity onPress={logout}>
-              <Ionicons name=\"log-out-outline\" size={24} color=\"#888\" />
+              <Ionicons name="log-out-outline" size={24} color="#888" />
             </TouchableOpacity>
           </View>
 
@@ -248,10 +248,10 @@ function DashboardScreen() {
             <Text style={styles.cardSubtitle}>{anchorAction}</Text>
             <TouchableOpacity style={styles.anchorButton} onPress={handleAnchorAction} disabled={loading}>
               {loading ? (
-                <ActivityIndicator color=\"#5B9FFF\" />
+                <ActivityIndicator color="#5B9FFF" />
               ) : (
                 <>
-                  <Ionicons name=\"checkmark-circle\" size={20} color=\"#5B9FFF\" />
+                  <Ionicons name="checkmark-circle" size={20} color="#5B9FFF" />
                   <Text style={styles.anchorButtonText}>Do It Now</Text>
                 </>
               )}
@@ -281,7 +281,7 @@ function DashboardScreen() {
           </View>
         </View>
       </ScrollView>
-      <StatusBar style=\"light\" />
+      <StatusBar style="light" />
     </SafeAreaView>
   );
 }
@@ -311,7 +311,7 @@ function AppContent() {
   if (loading) {
     return (
       <View style={[styles.container, styles.centered]}>
-        <ActivityIndicator size=\"large\" color=\"#5B9FFF\" />
+        <ActivityIndicator size="large" color="#5B9FFF" />
       </View>
     );
   }
