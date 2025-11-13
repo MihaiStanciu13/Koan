@@ -1,34 +1,85 @@
-diff --git a/frontend/app/index.tsx b/frontend/app/index.tsx
-index 5fb4285..26586d4 100644
---- a/frontend/app/index.tsx
-+++ b/frontend/app/index.tsx
-@@ -638,7 +638,8 @@ const styles = StyleSheet.create({
-   whatSection: {
-     alignItems: 'center',
-     paddingHorizontal: 32,
--    paddingVertical: 48,
-+    paddingTop: 48,
-+    paddingBottom: 24,
-     backgroundColor: '#FAFDFA',
-   },
-   whatTitle: {
-@@ -658,9 +659,18 @@ const styles = StyleSheet.create({
-   },
-   howSection: {
-     paddingHorizontal: 32,
--    paddingTop: 24,
-+    paddingTop: 16,
-     paddingBottom: 48,
-   },
-+  scrollIndicator: {
-+    position: 'absolute',
-+    bottom: 32,
-+    alignSelf: 'center',
-+  },
-+  scrollIndicatorMiddle: {
-+    alignItems: 'center',
-+    marginTop: 32,
-+  },
-   howCard: {
-     backgroundColor: '#D9F7EB',
-     borderRadius: 8,
+diff --git a/model.patch b/model.patch
+index 05fc05c..e69de29 100644
+--- a/model.patch
++++ b/model.patch
+@@ -1,34 +0,0 @@
+-diff --git a/frontend/app/index.tsx b/frontend/app/index.tsx
+-index 5fb4285..26586d4 100644
+---- a/frontend/app/index.tsx
+-+++ b/frontend/app/index.tsx
+-@@ -638,7 +638,8 @@ const styles = StyleSheet.create({
+-   whatSection: {
+-     alignItems: 'center',
+-     paddingHorizontal: 32,
+--    paddingVertical: 48,
+-+    paddingTop: 48,
+-+    paddingBottom: 24,
+-     backgroundColor: '#FAFDFA',
+-   },
+-   whatTitle: {
+-@@ -658,9 +659,18 @@ const styles = StyleSheet.create({
+-   },
+-   howSection: {
+-     paddingHorizontal: 32,
+--    paddingTop: 24,
+-+    paddingTop: 16,
+-     paddingBottom: 48,
+-   },
+-+  scrollIndicator: {
+-+    position: 'absolute',
+-+    bottom: 32,
+-+    alignSelf: 'center',
+-+  },
+-+  scrollIndicatorMiddle: {
+-+    alignItems: 'center',
+-+    marginTop: 32,
+-+  },
+-   howCard: {
+-     backgroundColor: '#D9F7EB',
+-     borderRadius: 8,
+diff --git a/test_result.md b/test_result.md
+index f7cf4a9..d2ecc01 100644
+--- a/test_result.md
++++ b/test_result.md
+@@ -225,11 +225,11 @@ frontend:
+   
+   - task: "BUG FIX: Email Already Exists Error"
+     implemented: true
+-    working: "NA"
++    working: true
+     file: "/app/backend/auth.py, /app/backend/server.py"
+     priority: "high"
+     stuck_count: 1
+-    needs_retesting: true
++    needs_retesting: false
+     status_history:
+       - working: false
+         agent: "user"
+@@ -237,6 +237,9 @@ frontend:
+       - working: "NA"
+         agent: "main"
+         comment: "Root cause identified: AI was clearing wrong database (behavioral_nudge_db vs test_database). Forced deletion of all documents from correct test_database. Backend database name consistency verified in server.py. NEEDS TESTING to confirm signup now works with previously used emails."
++      - working: true
++        agent: "testing"
++        comment: "CRITICAL BUG FIXED: Comprehensive backend testing completed. Test sequence: 1) Cleared test_database completely, 2) Signup with test@example.com succeeded with JWT token, 3) Duplicate signup correctly rejected with 'Email already registered', 4) Manual user deletion successful, 5) CRITICAL TEST PASSED: Signup with same email after deletion now succeeds. Auth endpoints working: login/signup/JWT verification all functional. Backend URL: https://focus-coach-8.preview.emergentagent.com/api, Database: test_database."
+   
+   - task: "BUG FIX: Onboarding Screen Skip"
+     implemented: true
+@@ -276,7 +279,6 @@ metadata:
+ 
+ test_plan:
+   current_focus:
+-    - "BUG FIX: Email Already Exists Error"
+     - "BUG FIX: Onboarding Screen Skip"
+     - "BUG FIX: Logout Navigation Failure"
+   stuck_tasks:
+@@ -290,4 +292,6 @@ agent_communication:
+   - agent: "user"
+     message: "Reported 3 critical bugs: 1) Email signup blocked for previously used emails, 2) Onboarding screen skips/flashes, 3) Logout doesn't redirect to landing. Need fixes and comprehensive testing before Phase 2."
+   - agent: "main"
+-    message: "All 3 critical bugs addressed: Fixed DB name mismatch and cleared correct database, rewrote navigation state machine in index.tsx, updated logout to clear all storage. Expo server restarted. Ready for backend testing followed by frontend UI testing to verify all fixes."
+\ No newline at end of file
++    message: "All 3 critical bugs addressed: Fixed DB name mismatch and cleared correct database, rewrote navigation state machine in index.tsx, updated logout to clear all storage. Expo server restarted. Ready for backend testing followed by frontend UI testing to verify all fixes."
++  - agent: "testing"
++    message: "Backend testing completed successfully. CRITICAL BUG FIXED: Email Already Exists Error resolved - users can now reuse emails after deletion. All auth endpoints (signup/login/JWT verification) working correctly. Backend API healthy at https://focus-coach-8.preview.emergentagent.com/api with test_database. Frontend bugs (onboarding skip, logout navigation) still need UI testing - these are frontend-only issues not related to backend functionality."
+\ No newline at end of file
