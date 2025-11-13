@@ -58,7 +58,9 @@ export default function Onboarding() {
         {/* Step 1: Philosophy */}
         {step === 1 && (
           <View style={styles.stepContainer}>
-            <Ionicons name="bulb-outline" size={64} color="#5B9FFF" />
+            <View style={styles.logoSymbol}>
+              <View style={styles.logoDot} />
+            </View>
             <Text style={styles.title}>No Dashboards. No Metrics.</Text>
             <Text style={styles.description}>
               Just subtle, well-timed behavioral nudges that help you act on what you
