@@ -53,7 +53,6 @@ async def record_phone_behavior(
 @router.post("/workplace")
 async def record_workplace_data(
     event: BehaviorEvent,
-    db: AsyncIOMotorDatabase,
     current_user: User = Depends(get_current_user)
 ):
     """Record workplace tool data (mocked for now)"""
