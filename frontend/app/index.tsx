@@ -342,7 +342,7 @@ function LandingPageScreen({ onGetStarted }: any) {
           </Text>
         </View>
 
-        {/* How Koan Works - Section 3 */}
+        {/* How Koan Works - Section 2 continued */}
         <View style={styles.howSection}>
           <View style={styles.howCard}>
             <Text style={styles.howCardTitle}>Observes patterns</Text>
