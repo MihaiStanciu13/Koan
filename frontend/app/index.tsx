@@ -662,6 +662,15 @@ const styles = StyleSheet.create({
     paddingTop: 16,
     paddingBottom: 48,
   },
+  scrollIndicator: {
+    position: 'absolute',
+    bottom: 32,
+    alignSelf: 'center',
+  },
+  scrollIndicatorMiddle: {
+    alignItems: 'center',
+    marginTop: 32,
+  },
   howCard: {
     backgroundColor: '#D9F7EB',
     borderRadius: 8,
