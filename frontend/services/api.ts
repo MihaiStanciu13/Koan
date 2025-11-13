@@ -1,0 +1,123 @@
+import axios from 'axios';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import Constants from 'expo-constants';
+
+const API_URL = Constants.expoConfig?.extra?.EXPO_PUBLIC_BACKEND_URL || process.env.EXPO_PUBLIC_BACKEND_URL || '';
+
+const api = axios.create({
+  baseURL: `${API_URL}/api`,
+  headers: {
+    'Content-Type': 'application/json',
+  },
+});
+
+// Add token to requests
+api.interceptors.request.use(
+  async (config) => {
+    const token = await AsyncStorage.getItem('auth_token');
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+    return config;
+  },
+  (error) => Promise.reject(error)
+);
+
+export interface SignupData {
+  email: string;
+  password: string;
+  name: string;
+}
+
+export interface LoginData {
+  email: string;
+  password: string;
+}
+
+export interface User {
+  id: string;
+  email: string;
+  name: string;
+  subscription_status: string;
+  trial_ends?: string;
+}
+
+export const authAPI = {
+  signup: async (data: SignupData) => {
+    const response = await api.post('/auth/signup', data);
+    return response.data;
+  },
+  login: async (data: LoginData) => {
+    const response = await api.post('/auth/login', data);
+    return response.data;
+  },
+  getMe: async () => {
+    const response = await api.get('/auth/me');
+    return response.data;
+  },
+};
+
+export const behaviorAPI = {
+  recordPhoneBehavior: async (event_type: string, metadata: any = {}) => {
+    const response = await api.post('/behavior/phone', { event_type, metadata });
+    return response.data;
+  },
+  getSummary: async (days: number = 7) => {
+    const response = await api.get(`/behavior/summary?days=${days}`);
+    return response.data;
+  },
+};
+
+export const nudgeAPI = {
+  getPending: async () => {
+    const response = await api.get('/nudges/pending');
+    return response.data;
+  },
+  markDelivered: async (nudge_id: string) => {
+    const response = await api.post(`/nudges/${nudge_id}/delivered`);
+    return response.data;
+  },
+  markOpened: async (nudge_id: string) => {
+    const response = await api.post(`/nudges/${nudge_id}/opened`);
+    return response.data;
+  },
+  triggerAnchor: async () => {
+    const response = await api.post('/nudges/trigger-anchor');
+    return response.data;
+  },
+};
+
+export const preferencesAPI = {
+  get: async () => {
+    const response = await api.get('/preferences');
+    return response.data;
+  },
+  update: async (updates: any) => {
+    const response = await api.patch('/preferences', updates);
+    return response.data;
+  },
+};
+
+export const patternsAPI = {
+  getWeekly: async () => {
+    const response = await api.get('/patterns/weekly');
+    return response.data;
+  },
+};
+
+export const subscriptionAPI = {
+  getStatus: async () => {
+    const response = await api.get('/subscription/status');
+    return response.data;
+  },
+  createCheckout: async () => {
+    const response = await api.post('/subscription/create-checkout');
+    return response.data;
+  },
+  activate: async () => {
+    const response = await api.post('/subscription/activate');
+    return response.data;
+  },
+};
+
+export default api;
