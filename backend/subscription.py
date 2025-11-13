@@ -45,7 +45,6 @@ async def get_subscription_status(
 
 @router.post("/create-checkout")
 async def create_checkout_session(
-    db: AsyncIOMotorDatabase,
     current_user: User = Depends(get_current_user)
 ):
     """Create a Stripe checkout session (mocked)"""
@@ -60,7 +59,6 @@ async def create_checkout_session(
 
 @router.post("/activate")
 async def activate_subscription(
-    db: AsyncIOMotorDatabase,
     current_user: User = Depends(get_current_user)
 ):
     """Activate subscription (mocked for testing)"""
@@ -85,7 +83,6 @@ async def activate_subscription(
 
 @router.post("/cancel")
 async def cancel_subscription(
-    db: AsyncIOMotorDatabase,
     current_user: User = Depends(get_current_user)
 ):
     """Cancel subscription"""
@@ -103,7 +100,6 @@ async def cancel_subscription(
 
 @router.get("/check-trial")
 async def check_trial_status(
-    db: AsyncIOMotorDatabase,
     current_user: User = Depends(get_current_user)
 ):
     """Check if trial has expired and update status"""
