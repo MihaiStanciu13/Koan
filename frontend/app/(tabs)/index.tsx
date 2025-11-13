@@ -182,7 +182,9 @@ export default function HomeScreen() {
             <Animated.View style={[styles.pulsingDot, { transform: [{ scale: pulseAnim }] }]}>
               <View style={styles.dotInner} />
             </Animated.View>
-            <Text style={styles.learningText}>{LEARNING_MESSAGES[currentLearningMessage]}</Text>
+            <Text style={styles.learningText}>
+              {LEARNING_MESSAGES_BY_PHASE[learningPhase][0]}
+            </Text>
           </View>
         </View>
 
