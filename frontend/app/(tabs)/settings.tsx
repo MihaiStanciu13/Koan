@@ -48,6 +48,7 @@ const MICRO_MODES = [
 ];
 
 export default function SettingsScreen() {
+  const router = useRouter();
   const { user, logout } = useAuth();
   const [preferences, setPreferences] = useState<any>(null);
   const [subscription, setSubscription] = useState<any>(null);
