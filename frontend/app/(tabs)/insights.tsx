@@ -70,6 +70,11 @@ export default function InsightsScreen() {
             <View style={styles.narrativeDot} />
           </View>
           <Text style={styles.narrativeText}>{narrative}</Text>
+          {narrative.includes('baseline') && (
+            <Text style={styles.narrativeSubtext}>
+              Koan builds your baseline first. Patterns emerge gradually over the first few weeks.
+            </Text>
+          )}
         </View>
 
         {/* Detected Patterns */}
