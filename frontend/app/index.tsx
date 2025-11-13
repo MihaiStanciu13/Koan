@@ -668,10 +668,11 @@ const styles = StyleSheet.create({
   pricingSection: {
     alignItems: 'center',
     backgroundColor: '#D9F7EB',
-    paddingVertical: 40,
+    paddingVertical: 32,
     paddingHorizontal: 32,
     marginHorizontal: 32,
-    marginVertical: 80,
+    marginTop: 24,
+    marginBottom: 48,
     borderRadius: 8,
   },
   pricingAmount: {
