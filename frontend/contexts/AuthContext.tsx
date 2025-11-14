@@ -54,6 +54,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     // Clear ALL storage including onboarding flag to ensure clean logout
     await storage.clearAll();
     setUser(null);
+    setLoading(false); // Ensure loading is false so index.tsx can properly detect logout
     // Navigation will happen automatically in index.tsx when user becomes null
   };
 
