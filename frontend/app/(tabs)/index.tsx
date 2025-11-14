@@ -499,4 +499,26 @@ const styles = StyleSheet.create({
     lineHeight: 21,
     textAlign: 'center',
   },
+  anchorIconContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  anchorDescription: {
+    fontSize: 14,
+    color: '#3A3A3A',
+    opacity: 0.7,
+    lineHeight: 21,
+    marginBottom: 16,
+  },
+  anchorPreview: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  anchorPreviewText: {
+    fontSize: 12,
+    color: '#5FAD8E',
+    fontWeight: '500',
+  },
 });
