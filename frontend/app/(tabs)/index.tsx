@@ -82,6 +82,14 @@ export default function HomeScreen() {
     setCurrentHint(hint);
   }, []);
 
+  // Reload data when screen comes into focus (e.g., after returning from anchor actions)
+  useEffect(() => {
+    const unsubscribe = router.subscribe(() => {
+      loadData();
+    });
+    return unsubscribe;
+  }, []);
+
   const checkFirstVisit = async () => {
     try {
       const hasSeenWelcome = await AsyncStorage.getItem('hasSeenWelcomeVideo');
