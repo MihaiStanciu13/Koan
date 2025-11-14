@@ -173,6 +173,39 @@ backend:
       - working: true
         agent: "main"
         comment: "Subscription endpoints working with 7-day trial tracking"
+  
+  - task: "Adaptive Nudge Engine - Signal Evaluation"
+    implemented: true
+    working: true
+    file: "/app/backend/adaptive_nudge_engine.py"
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: "✅ POST /api/adaptive-nudges/evaluate endpoint working correctly. Test signal (excessive_pickups, strength 0.8) successfully processed and returned nudge_created status with message 'Take one breath before continuing.' Adaptive nudge engine fully functional."
+  
+  - task: "Adaptive Nudge Engine - Fallback Nudges"
+    implemented: true
+    working: true
+    file: "/app/backend/adaptive_nudge_engine.py"
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: "✅ GET /api/adaptive-nudges/fallback endpoint working correctly. Returns no_fallback_needed status as expected for new user (no 36-hour threshold met). Fallback nudge logic functioning properly."
+  
+  - task: "Adaptive Nudge Engine - Interaction Recording"
+    implemented: true
+    working: true
+    file: "/app/backend/adaptive_nudge_engine.py"
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: "✅ POST /api/adaptive-nudges/{nudge_id}/interaction endpoint working correctly. Successfully recorded 'engaged' action with status 'recorded'. Interaction tracking for adaptive learning functional."
 
 frontend:
   - task: "Authentication UI (Login/Signup)"
