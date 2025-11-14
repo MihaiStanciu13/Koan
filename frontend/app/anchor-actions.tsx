@@ -88,7 +88,9 @@ export default function AnchorActionsScreen() {
         return;
       }
 
-      await preferencesAPI.update({ anchor_actions: anchorActions });
+      console.log('SAVING anchor_actions:', anchorActions);
+      const result = await preferencesAPI.update({ anchor_actions: anchorActions });
+      console.log('SAVE RESULT:', result);
       Alert.alert('Saved', 'Your anchor actions have been saved.');
       router.back();
     } catch (error) {
