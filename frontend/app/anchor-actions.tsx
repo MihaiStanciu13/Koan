@@ -44,12 +44,11 @@ export default function AnchorActionsScreen() {
   }, []);
 
   // Reload when screen comes into focus
-  useEffect(() => {
-    const unsubscribe = router.subscribe(() => {
+  useFocusEffect(
+    React.useCallback(() => {
       loadAnchorActions();
-    });
-    return unsubscribe;
-  }, []);
+    }, [])
+  );
 
   const loadAnchorActions = async () => {
     try {
