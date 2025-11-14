@@ -294,6 +294,7 @@ const styles = StyleSheet.create({
     marginTop: 24,
     marginBottom: 12,
     textAlign: 'center',
+    width: '100%',
   },
   description: {
     fontSize: 16,
