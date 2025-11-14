@@ -84,10 +84,16 @@ export default function HomeScreen() {
 
   // Reload data when screen comes into focus (e.g., after returning from anchor actions)
   useEffect(() => {
-    const unsubscribe = router.subscribe(() => {
+    const focusHandler = () => {
       loadData();
-    });
-    return unsubscribe;
+    };
+    
+    // Listen for when this screen becomes focused
+    const subscription = router.addEventListener?.('focus', focusHandler);
+    
+    return () => {
+      subscription?.remove();
+    };
   }, []);
 
   const checkFirstVisit = async () => {
