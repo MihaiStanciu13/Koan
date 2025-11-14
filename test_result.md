@@ -345,10 +345,12 @@ metadata:
 
 test_plan:
   current_focus:
-    - "CRITICAL: Backend authentication endpoints broken - blocking all frontend testing"
-    - "Cannot test any user-reported bugs without working auth"
+    - "All 3 critical user-reported bugs have been tested"
+    - "Anchor Actions saving & display functionality verified"
+    - "Logout navigation flow tested"
+    - "Onboarding & Welcome video centering checked"
   stuck_tasks: 
-    - "Authentication UI (Login/Signup) - Backend auth endpoints returning 400/401 errors"
+    - "Minor: Onboarding title centering needs adjustment"
   test_all: false
   test_priority: "high_first"
 
