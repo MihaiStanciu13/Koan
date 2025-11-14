@@ -61,8 +61,9 @@ export default function AnchorActionsScreen() {
   };
 
   const selectSuggestion = (index: number, suggestion: string) => {
-    updateAnchorAction(index, 'text', suggestion);
-    updateAnchorAction(index, 'enabled', true);
+    const updated = [...anchorActions];
+    updated[index] = { ...updated[index], text: suggestion, enabled: true };
+    setAnchorActions(updated);
     setShowSuggestions(null);
   };
 
