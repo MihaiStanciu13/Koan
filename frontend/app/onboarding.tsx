@@ -75,29 +75,36 @@ export default function Onboarding() {
           </View>
         )}
 
-        {/* Step 2: Permissions */}
+        {/* Step 2: Notification Explanation */}
         {step === 2 && (
           <View style={styles.stepContainer}>
             <Ionicons name="notifications-outline" size={64} color="#A8D7F0" />
-            <Text style={styles.title}>Enable Nudge Notifications</Text>
+            <Text style={styles.title}>Koan works through small, subtle moments</Text>
             <Text style={styles.description}>
-              We'll send you subtle reminders at the right moments. You can adjust
-              frequency anytime.
+              Most of Koan's magic happens through short, gentle notifications delivered at the right time. 
+              They're quiet, respectful, and designed to help you realign — not interrupt.
             </Text>
 
-            <View style={styles.permissionCard}>
-              <View style={styles.permissionRow}>
-                <View style={styles.permissionLeft}>
-                  <Ionicons name="phone-portrait-outline" size={24} color="#A8D7F0" />
-                  <View style={styles.permissionText}>
-                    <Text style={styles.permissionTitle}>Phone Activity</Text>
-                    <Text style={styles.permissionSubtitle}>
-                      Detect patterns (pickups, app switches)
-                    </Text>
-                  </View>
-                </View>
-                <Switch
-                  value={notificationsEnabled}
+            <View style={styles.notificationFeatures}>
+              <View style={styles.featureRow}>
+                <Ionicons name="volume-off" size={20} color="#3A3A3A" />
+                <Text style={styles.featureText}>Silent by default</Text>
+              </View>
+              <View style={styles.featureRow}>
+                <Ionicons name="time-outline" size={20} color="#3A3A3A" />
+                <Text style={styles.featureText}>Delivered at the right time</Text>
+              </View>
+              <View style={styles.featureRow}>
+                <Ionicons name="shield-outline" size={20} color="#3A3A3A" />
+                <Text style={styles.featureText}>Private and respectful</Text>
+              </View>
+            </View>
+
+            <TouchableOpacity
+              style={styles.enableButton}
+              onPress={async () => {
+                await requestNotifications();
+                setNotificationsEnabled(true);
                   onValueChange={requestNotifications}
                   trackColor={{ false: '#2a2a2a', true: '#A8D7F0' }}
                 />
