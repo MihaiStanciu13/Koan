@@ -15,304 +15,410 @@ BACKEND_URL = "https://focus-coach-8.preview.emergentagent.com/api"
 
 class BackendTester:
     def __init__(self):
-        self.session = None
-        self.mongo_client = None
-        self.db = None
-        self.test_results = []
+        self.base_url = BACKEND_URL
+        self.auth_token = None
+        self.user_id = None
+        self.test_email = f"comprehensive_test_final_{uuid.uuid4().hex[:8]}@example.com"
+        self.test_password = "TestPass123!"
+        self.test_name = "Test User Final"
         
-    async def setup(self):
-        """Setup test environment"""
-        print("🔧 Setting up test environment...")
+    def log(self, message):
+        print(f"[{datetime.now().strftime('%H:%M:%S')}] {message}")
         
-        # Setup HTTP session
-        self.session = aiohttp.ClientSession()
-        
-        # Setup MongoDB connection
-        self.mongo_client = AsyncIOMotorClient(MONGO_URL)
-        self.db = self.mongo_client[DB_NAME]
-        
-        print(f"✅ Connected to MongoDB: {MONGO_URL}")
-        print(f"✅ Using database: {DB_NAME}")
-        print(f"✅ Backend URL: {BACKEND_URL}")
-        
-    async def cleanup(self):
-        """Cleanup test environment"""
-        if self.session:
-            await self.session.close()
-        if self.mongo_client:
-            self.mongo_client.close()
-            
-    async def clear_test_database(self):
-        """Clear all test data from database"""
-        print("\n🧹 Clearing test database completely...")
-        
+    def test_health_check(self):
+        """Test basic connectivity"""
+        self.log("Testing health check...")
         try:
-            # Clear all collections
-            collections = await self.db.list_collection_names()
-            for collection_name in collections:
-                result = await self.db[collection_name].delete_many({})
-                print(f"   Cleared {result.deleted_count} documents from {collection_name}")
-            
-            print("✅ Database cleared successfully")
-            return True
+            response = requests.get(f"{self.base_url}/health", timeout=10)
+            if response.status_code == 200:
+                self.log("✅ Health check passed")
+                return True
+            else:
+                self.log(f"❌ Health check failed: {response.status_code}")
+                return False
         except Exception as e:
-            print(f"❌ Failed to clear database: {str(e)}")
+            self.log(f"❌ Health check error: {str(e)}")
             return False
-            
-    async def test_health_check(self):
-        """Test API health check"""
-        print("\n🏥 Testing API health check...")
-        
-        try:
-            async with self.session.get(f"{BACKEND_URL}/health") as response:
-                if response.status == 200:
-                    data = await response.json()
-                    print(f"✅ Health check passed: {data}")
-                    return True
-                else:
-                    print(f"❌ Health check failed: {response.status}")
-                    return False
-        except Exception as e:
-            print(f"❌ Health check error: {str(e)}")
-            return False
-            
-    async def test_signup(self, email, password, name, should_succeed=True):
-        """Test user signup"""
-        print(f"\n📝 Testing signup with email: {email}")
-        
-        payload = {
-            "email": email,
-            "password": password,
-            "name": name
-        }
-        
-        try:
-            async with self.session.post(
-                f"{BACKEND_URL}/auth/signup",
-                json=payload,
-                headers={"Content-Type": "application/json"}
-            ) as response:
-                
-                response_data = await response.json()
-                
-                if should_succeed:
-                    if response.status == 200:
-                        print(f"✅ Signup succeeded: {response_data.get('user', {}).get('email')}")
-                        print(f"   Token received: {response_data.get('access_token', 'N/A')[:20]}...")
-                        return True, response_data
-                    else:
-                        print(f"❌ Signup failed unexpectedly: {response.status} - {response_data}")
-                        return False, response_data
-                else:
-                    if response.status == 400 and "already registered" in response_data.get('detail', '').lower():
-                        print(f"✅ Signup correctly rejected: {response_data.get('detail')}")
-                        return True, response_data
-                    else:
-                        print(f"❌ Signup should have failed but didn't: {response.status} - {response_data}")
-                        return False, response_data
-                        
-        except Exception as e:
-            print(f"❌ Signup error: {str(e)}")
-            return False, {"error": str(e)}
-            
-    async def test_login(self, email, password, should_succeed=True):
-        """Test user login"""
-        print(f"\n🔐 Testing login with email: {email}")
-        
-        payload = {
-            "email": email,
-            "password": password
-        }
-        
-        try:
-            async with self.session.post(
-                f"{BACKEND_URL}/auth/login",
-                json=payload,
-                headers={"Content-Type": "application/json"}
-            ) as response:
-                
-                response_data = await response.json()
-                
-                if should_succeed:
-                    if response.status == 200:
-                        print(f"✅ Login succeeded: {response_data.get('user', {}).get('email')}")
-                        print(f"   Token received: {response_data.get('access_token', 'N/A')[:20]}...")
-                        return True, response_data
-                    else:
-                        print(f"❌ Login failed: {response.status} - {response_data}")
-                        return False, response_data
-                else:
-                    if response.status == 401:
-                        print(f"✅ Login correctly rejected: {response_data.get('detail')}")
-                        return True, response_data
-                    else:
-                        print(f"❌ Login should have failed but didn't: {response.status} - {response_data}")
-                        return False, response_data
-                        
-        except Exception as e:
-            print(f"❌ Login error: {str(e)}")
-            return False, {"error": str(e)}
-            
-    async def manually_delete_user(self, email):
-        """Manually delete user from database"""
-        print(f"\n🗑️ Manually deleting user: {email}")
-        
-        try:
-            # Delete from users collection
-            user_result = await self.db.users.delete_many({"email": email})
-            print(f"   Deleted {user_result.deleted_count} users")
-            
-            # Also delete preferences if they exist
-            prefs_result = await self.db.preferences.delete_many({"user_id": {"$exists": True}})
-            print(f"   Deleted {prefs_result.deleted_count} preferences")
-            
-            print("✅ User deleted successfully")
-            return True
-        except Exception as e:
-            print(f"❌ Failed to delete user: {str(e)}")
-            return False
-            
-    async def verify_jwt_token(self, token):
-        """Verify JWT token by calling /auth/me endpoint"""
-        print(f"\n🎫 Verifying JWT token...")
-        
-        try:
-            headers = {
-                "Authorization": f"Bearer {token}",
-                "Content-Type": "application/json"
-            }
-            
-            async with self.session.get(f"{BACKEND_URL}/auth/me", headers=headers) as response:
-                if response.status == 200:
-                    data = await response.json()
-                    print(f"✅ Token valid: User {data.get('email')} authenticated")
-                    return True, data
-                else:
-                    response_data = await response.json()
-                    print(f"❌ Token invalid: {response.status} - {response_data}")
-                    return False, response_data
-                    
-        except Exception as e:
-            print(f"❌ Token verification error: {str(e)}")
-            return False, {"error": str(e)}
-            
-    async def run_critical_bug_test(self):
-        """Run the critical bug test sequence"""
-        print("\n" + "="*60)
-        print("🚨 CRITICAL BUG TEST: Email Already Exists Error")
-        print("="*60)
-        
-        test_passed = True
-        
-        # Step 1: Clear database completely
-        if not await self.clear_test_database():
-            test_passed = False
-            
-        # Step 2: Test initial signup - should succeed
-        success, signup_data = await self.test_signup(TEST_EMAIL, TEST_PASSWORD, TEST_NAME, should_succeed=True)
-        if not success:
-            test_passed = False
-        else:
-            # Verify JWT token
-            token = signup_data.get('access_token')
-            if token:
-                token_valid, _ = await self.verify_jwt_token(token)
-                if not token_valid:
-                    test_passed = False
-                    
-        # Step 3: Test duplicate signup - should fail
-        success, _ = await self.test_signup(TEST_EMAIL, TEST_PASSWORD, TEST_NAME, should_succeed=False)
-        if not success:
-            test_passed = False
-            
-        # Step 4: Manually delete user
-        if not await self.manually_delete_user(TEST_EMAIL):
-            test_passed = False
-            
-        # Step 5: CRITICAL TEST - signup with same email should now succeed
-        print("\n🎯 CRITICAL TEST: Signup after manual deletion")
-        success, signup_data2 = await self.test_signup(TEST_EMAIL, TEST_PASSWORD, TEST_NAME, should_succeed=True)
-        if not success:
-            print("❌ CRITICAL BUG STILL EXISTS: Cannot reuse email after deletion")
-            test_passed = False
-        else:
-            print("✅ CRITICAL BUG FIXED: Can reuse email after deletion")
-            
-        return test_passed
-        
-    async def run_auth_functionality_tests(self):
-        """Run basic auth functionality tests"""
-        print("\n" + "="*60)
-        print("🔐 AUTH FUNCTIONALITY TESTS")
-        print("="*60)
-        
-        test_passed = True
-        
-        # Test login with valid credentials
-        success, login_data = await self.test_login(TEST_EMAIL, TEST_PASSWORD, should_succeed=True)
-        if not success:
-            test_passed = False
-        else:
-            # Verify JWT token from login
-            token = login_data.get('access_token')
-            if token:
-                token_valid, _ = await self.verify_jwt_token(token)
-                if not token_valid:
-                    test_passed = False
-                    
-        # Test login with invalid credentials
-        success, _ = await self.test_login(TEST_EMAIL, "WrongPassword123!", should_succeed=False)
-        if not success:
-            test_passed = False
-            
-        # Test login with non-existent email
-        success, _ = await self.test_login("nonexistent@example.com", TEST_PASSWORD, should_succeed=False)
-        if not success:
-            test_passed = False
-            
-        return test_passed
-        
-    async def run_all_tests(self):
-        """Run all backend tests"""
-        print("🚀 Starting Backend Testing Suite")
-        print(f"Target: {BACKEND_URL}")
-        print(f"Database: {DB_NAME}")
-        
-        all_tests_passed = True
-        
-        # Health check
-        if not await self.test_health_check():
-            all_tests_passed = False
-            
-        # Critical bug test
-        if not await self.run_critical_bug_test():
-            all_tests_passed = False
-            
-        # Auth functionality tests
-        if not await self.run_auth_functionality_tests():
-            all_tests_passed = False
-            
-        # Final summary
-        print("\n" + "="*60)
-        if all_tests_passed:
-            print("✅ ALL TESTS PASSED")
-        else:
-            print("❌ SOME TESTS FAILED")
-        print("="*60)
-        
-        return all_tests_passed
-
-async def main():
-    """Main test runner"""
-    tester = BackendTester()
     
-    try:
-        await tester.setup()
-        success = await tester.run_all_tests()
-        return success
-    finally:
-        await tester.cleanup()
+    def test_auth_signup(self):
+        """Priority 1: Test signup with fresh email"""
+        self.log(f"Testing signup with email: {self.test_email}")
+        
+        signup_data = {
+            "email": self.test_email,
+            "password": self.test_password,
+            "name": self.test_name
+        }
+        
+        try:
+            response = requests.post(
+                f"{self.base_url}/auth/signup",
+                json=signup_data,
+                headers={"Content-Type": "application/json"},
+                timeout=10
+            )
+            
+            self.log(f"Signup response status: {response.status_code}")
+            
+            if response.status_code == 200:
+                data = response.json()
+                self.auth_token = data.get("access_token")
+                self.user_id = data.get("user", {}).get("id")
+                self.log("✅ Signup successful - 200 OK")
+                self.log(f"✅ JWT token received: {self.auth_token[:20]}...")
+                self.log(f"✅ User ID: {self.user_id}")
+                return True
+            else:
+                self.log(f"❌ Signup failed: {response.status_code}")
+                self.log(f"❌ Response: {response.text}")
+                return False
+                
+        except Exception as e:
+            self.log(f"❌ Signup error: {str(e)}")
+            return False
+    
+    def test_auth_login(self):
+        """Priority 1: Test login with same credentials"""
+        self.log("Testing login with same credentials...")
+        
+        login_data = {
+            "email": self.test_email,
+            "password": self.test_password
+        }
+        
+        try:
+            response = requests.post(
+                f"{self.base_url}/auth/login",
+                json=login_data,
+                headers={"Content-Type": "application/json"},
+                timeout=10
+            )
+            
+            self.log(f"Login response status: {response.status_code}")
+            
+            if response.status_code == 200:
+                data = response.json()
+                login_token = data.get("access_token")
+                self.log("✅ Login successful")
+                self.log(f"✅ JWT token received: {login_token[:20]}...")
+                return True
+            else:
+                self.log(f"❌ Login failed: {response.status_code}")
+                self.log(f"❌ Response: {response.text}")
+                return False
+                
+        except Exception as e:
+            self.log(f"❌ Login error: {str(e)}")
+            return False
+    
+    def test_jwt_verification(self):
+        """Priority 1: Verify JWT tokens work"""
+        self.log("Testing JWT token verification...")
+        
+        if not self.auth_token:
+            self.log("❌ No auth token available for verification")
+            return False
+        
+        headers = {
+            "Authorization": f"Bearer {self.auth_token}",
+            "Content-Type": "application/json"
+        }
+        
+        try:
+            response = requests.get(
+                f"{self.base_url}/auth/me",
+                headers=headers,
+                timeout=10
+            )
+            
+            self.log(f"JWT verification response status: {response.status_code}")
+            
+            if response.status_code == 200:
+                data = response.json()
+                self.log("✅ JWT verification successful")
+                self.log(f"✅ User data: {data.get('email')}")
+                return True
+            else:
+                self.log(f"❌ JWT verification failed: {response.status_code}")
+                self.log(f"❌ Response: {response.text}")
+                return False
+                
+        except Exception as e:
+            self.log(f"❌ JWT verification error: {str(e)}")
+            return False
+    
+    def test_adaptive_nudge_evaluate(self):
+        """Priority 2: Test POST /api/adaptive-nudges/evaluate"""
+        self.log("Testing adaptive nudge evaluation...")
+        
+        if not self.auth_token:
+            self.log("❌ No auth token for adaptive nudge test")
+            return False
+        
+        headers = {
+            "Authorization": f"Bearer {self.auth_token}",
+            "Content-Type": "application/json"
+        }
+        
+        # Test signal data
+        signal_data = {
+            "signal_type": "excessive_pickups",
+            "strength": 0.8,
+            "metadata": {
+                "pickup_count": 7,
+                "test": True
+            }
+        }
+        
+        try:
+            response = requests.post(
+                f"{self.base_url}/adaptive-nudges/evaluate",
+                json=signal_data,
+                headers=headers,
+                timeout=10
+            )
+            
+            self.log(f"Adaptive nudge evaluate response status: {response.status_code}")
+            
+            if response.status_code == 200:
+                data = response.json()
+                self.log("✅ Adaptive nudge evaluate successful")
+                self.log(f"✅ Response: {data.get('status')}")
+                if data.get('nudge'):
+                    self.log(f"✅ Nudge created: {data['nudge'].get('message', 'No message')}")
+                return True
+            else:
+                self.log(f"❌ Adaptive nudge evaluate failed: {response.status_code}")
+                self.log(f"❌ Response: {response.text}")
+                return False
+                
+        except Exception as e:
+            self.log(f"❌ Adaptive nudge evaluate error: {str(e)}")
+            return False
+    
+    def test_adaptive_nudge_fallback(self):
+        """Priority 2: Test GET /api/adaptive-nudges/fallback"""
+        self.log("Testing adaptive nudge fallback...")
+        
+        if not self.auth_token:
+            self.log("❌ No auth token for fallback test")
+            return False
+        
+        headers = {
+            "Authorization": f"Bearer {self.auth_token}",
+            "Content-Type": "application/json"
+        }
+        
+        try:
+            response = requests.get(
+                f"{self.base_url}/adaptive-nudges/fallback",
+                headers=headers,
+                timeout=10
+            )
+            
+            self.log(f"Adaptive nudge fallback response status: {response.status_code}")
+            
+            if response.status_code == 200:
+                data = response.json()
+                self.log("✅ Adaptive nudge fallback successful")
+                self.log(f"✅ Response: {data.get('status')}")
+                return True
+            else:
+                self.log(f"❌ Adaptive nudge fallback failed: {response.status_code}")
+                self.log(f"❌ Response: {response.text}")
+                return False
+                
+        except Exception as e:
+            self.log(f"❌ Adaptive nudge fallback error: {str(e)}")
+            return False
+    
+    def test_adaptive_nudge_interaction(self):
+        """Priority 2: Test POST /api/adaptive-nudges/{nudge_id}/interaction"""
+        self.log("Testing adaptive nudge interaction...")
+        
+        if not self.auth_token:
+            self.log("❌ No auth token for interaction test")
+            return False
+        
+        headers = {
+            "Authorization": f"Bearer {self.auth_token}",
+            "Content-Type": "application/json"
+        }
+        
+        # Use a test nudge ID
+        test_nudge_id = str(uuid.uuid4())
+        
+        try:
+            response = requests.post(
+                f"{self.base_url}/adaptive-nudges/{test_nudge_id}/interaction",
+                params={"action": "engaged"},
+                headers=headers,
+                timeout=10
+            )
+            
+            self.log(f"Adaptive nudge interaction response status: {response.status_code}")
+            
+            if response.status_code == 200:
+                data = response.json()
+                self.log("✅ Adaptive nudge interaction successful")
+                self.log(f"✅ Response: {data.get('status')}")
+                return True
+            else:
+                self.log(f"❌ Adaptive nudge interaction failed: {response.status_code}")
+                self.log(f"❌ Response: {response.text}")
+                return False
+                
+        except Exception as e:
+            self.log(f"❌ Adaptive nudge interaction error: {str(e)}")
+            return False
+    
+    def test_preferences_get(self):
+        """Priority 3: Test GET /api/preferences"""
+        self.log("Testing preferences GET...")
+        
+        if not self.auth_token:
+            self.log("❌ No auth token for preferences test")
+            return False
+        
+        headers = {
+            "Authorization": f"Bearer {self.auth_token}",
+            "Content-Type": "application/json"
+        }
+        
+        try:
+            response = requests.get(
+                f"{self.base_url}/preferences",
+                headers=headers,
+                timeout=10
+            )
+            
+            self.log(f"Preferences GET response status: {response.status_code}")
+            
+            if response.status_code == 200:
+                data = response.json()
+                self.log("✅ Preferences GET successful")
+                self.log(f"✅ Anchor action: {data.get('anchor_action')}")
+                return True
+            else:
+                self.log(f"❌ Preferences GET failed: {response.status_code}")
+                self.log(f"❌ Response: {response.text}")
+                return False
+                
+        except Exception as e:
+            self.log(f"❌ Preferences GET error: {str(e)}")
+            return False
+    
+    def test_preferences_patch(self):
+        """Priority 3: Test PATCH /api/preferences with anchor_actions"""
+        self.log("Testing preferences PATCH with anchor_actions...")
+        
+        if not self.auth_token:
+            self.log("❌ No auth token for preferences patch test")
+            return False
+        
+        headers = {
+            "Authorization": f"Bearer {self.auth_token}",
+            "Content-Type": "application/json"
+        }
+        
+        # Test updating anchor action
+        update_data = {
+            "anchor_action": "complete one important task"
+        }
+        
+        try:
+            response = requests.patch(
+                f"{self.base_url}/preferences",
+                json=update_data,
+                headers=headers,
+                timeout=10
+            )
+            
+            self.log(f"Preferences PATCH response status: {response.status_code}")
+            
+            if response.status_code == 200:
+                data = response.json()
+                self.log("✅ Preferences PATCH successful")
+                self.log(f"✅ Updates: {data.get('updates')}")
+                return True
+            else:
+                self.log(f"❌ Preferences PATCH failed: {response.status_code}")
+                self.log(f"❌ Response: {response.text}")
+                return False
+                
+        except Exception as e:
+            self.log(f"❌ Preferences PATCH error: {str(e)}")
+            return False
+    
+    def run_all_tests(self):
+        """Run all backend tests in priority order"""
+        self.log("=" * 60)
+        self.log("STARTING COMPREHENSIVE BACKEND TESTING")
+        self.log("=" * 60)
+        
+        results = {}
+        
+        # Health check first
+        results['health'] = self.test_health_check()
+        
+        # Priority 1: Auth Endpoints (CRITICAL)
+        self.log("\n" + "=" * 40)
+        self.log("PRIORITY 1: AUTH ENDPOINTS (CRITICAL)")
+        self.log("=" * 40)
+        
+        results['auth_signup'] = self.test_auth_signup()
+        results['auth_login'] = self.test_auth_login()
+        results['jwt_verification'] = self.test_jwt_verification()
+        
+        # Priority 2: Adaptive Nudge Engine Endpoints (NEW)
+        self.log("\n" + "=" * 40)
+        self.log("PRIORITY 2: ADAPTIVE NUDGE ENGINE (NEW)")
+        self.log("=" * 40)
+        
+        results['adaptive_evaluate'] = self.test_adaptive_nudge_evaluate()
+        results['adaptive_fallback'] = self.test_adaptive_nudge_fallback()
+        results['adaptive_interaction'] = self.test_adaptive_nudge_interaction()
+        
+        # Priority 3: Preferences API
+        self.log("\n" + "=" * 40)
+        self.log("PRIORITY 3: PREFERENCES API")
+        self.log("=" * 40)
+        
+        results['preferences_get'] = self.test_preferences_get()
+        results['preferences_patch'] = self.test_preferences_patch()
+        
+        # Summary
+        self.log("\n" + "=" * 60)
+        self.log("TEST RESULTS SUMMARY")
+        self.log("=" * 60)
+        
+        auth_working = all([results['auth_signup'], results['auth_login'], results['jwt_verification']])
+        adaptive_working = all([results['adaptive_evaluate'], results['adaptive_fallback'], results['adaptive_interaction']])
+        preferences_working = all([results['preferences_get'], results['preferences_patch']])
+        
+        self.log(f"1. Auth working? {'✅' if auth_working else '❌'}")
+        self.log(f"2. Adaptive nudge endpoints working? {'✅' if adaptive_working else '❌'}")
+        self.log(f"3. Preferences API working? {'✅' if preferences_working else '❌'}")
+        
+        # Check for 400/401 errors
+        errors_found = []
+        for test_name, result in results.items():
+            if not result:
+                errors_found.append(test_name)
+        
+        if errors_found:
+            self.log(f"4. Errors found in: {', '.join(errors_found)}")
+        else:
+            self.log("4. No 400/401 errors found ✅")
+        
+        return {
+            'auth_working': auth_working,
+            'adaptive_working': adaptive_working,
+            'preferences_working': preferences_working,
+            'errors': errors_found,
+            'detailed_results': results
+        }
 
 if __name__ == "__main__":
-    success = asyncio.run(main())
-    exit(0 if success else 1)
+    tester = BackendTester()
+    results = tester.run_all_tests()
