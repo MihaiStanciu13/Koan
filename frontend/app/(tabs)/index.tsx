@@ -61,6 +61,7 @@ export default function HomeScreen() {
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [anchorAction, setAnchorAction] = useState('close one loop');
+  const [anchorActions, setAnchorActions] = useState<any[]>([]);
   const [pendingNudges, setPendingNudges] = useState<any[]>([]);
   const [trialDays, setTrialDays] = useState(0);
   const [learningPhase, setLearningPhase] = useState(0); // Track which phase of learning we're in
