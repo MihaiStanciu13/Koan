@@ -152,6 +152,60 @@ async def trigger_anchor_nudge(
         return {"status": "created", "nudge": nudge.dict()}
     return {"status": "failed", "message": "Could not create nudge"}
 
+# Adaptive Nudge Engine endpoints
+from adaptive_nudge_engine import AdaptiveNudgeEngine, Signal, SignalType
+from pydantic import BaseModel
+from datetime import datetime as dt
+
+class SignalRequest(BaseModel):
+    signal_type: str
+    strength: float
+    metadata: dict = {}
+
+@api_router.post("/adaptive-nudges/evaluate")
+async def evaluate_signal_endpoint(
+    signal_request: SignalRequest,
+    current_user: User = Depends(get_current_user)
+):
+    """Evaluate a signal and potentially create an adaptive nudge"""
+    engine = AdaptiveNudgeEngine(db)
+    
+    signal = Signal(
+        signal_type=SignalType(signal_request.signal_type),
+        strength=signal_request.strength,
+        timestamp=dt.utcnow(),
+        metadata=signal_request.metadata
+    )
+    
+    nudge = await engine.evaluate_signal(current_user.id, signal)
+    
+    if nudge:
+        return {"status": "nudge_created", "nudge": nudge}
+    return {"status": "no_nudge", "message": "Signal did not meet threshold"}
+
+@api_router.get("/adaptive-nudges/fallback")
+async def check_fallback_nudge_endpoint(
+    current_user: User = Depends(get_current_user)
+):
+    """Check if fallback nudge should be sent (no nudges in 36 hours)"""
+    engine = AdaptiveNudgeEngine(db)
+    nudge = await engine.check_fallback_nudge(current_user.id)
+    
+    if nudge:
+        return {"status": "nudge_created", "nudge": nudge}
+    return {"status": "no_fallback_needed"}
+
+@api_router.post("/adaptive-nudges/{nudge_id}/interaction")
+async def record_interaction(
+    nudge_id: str,
+    action: str,
+    current_user: User = Depends(get_current_user)
+):
+    """Record user interaction with adaptive nudge (dismissed, engaged, ignored)"""
+    engine = AdaptiveNudgeEngine(db)
+    await engine.record_nudge_interaction(current_user.id, nudge_id, action)
+    return {"status": "recorded", "action": action}
+
 # Pattern detection endpoints
 @api_router.get("/patterns/weekly")
 async def get_weekly_patterns(
