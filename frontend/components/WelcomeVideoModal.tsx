@@ -133,10 +133,12 @@ const styles = StyleSheet.create({
   keyPoints: {
     marginBottom: 24,
     gap: 16,
+    alignItems: 'center',
   },
   keyPoint: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
     gap: 12,
   },
   keyPointText: {
