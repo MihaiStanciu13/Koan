@@ -109,7 +109,7 @@ export default function AnchorActionsScreen() {
       <ScrollView contentContainerStyle={styles.scrollContent}>
         {/* Description */}
         <View style={styles.descriptionCard}>
-          <Ionicons name="anchor-outline" size={32} color="#5FAD8E" />
+          <Ionicons name="boat-outline" size={32} color="#5FAD8E" />
           <Text style={styles.descriptionTitle}>What are Anchor Actions?</Text>
           <Text style={styles.descriptionText}>
             Simple, repeatable actions that ground you throughout the day. 
