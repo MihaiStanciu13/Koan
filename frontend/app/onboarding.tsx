@@ -104,17 +104,13 @@ export default function Onboarding() {
               style={styles.enableButton}
               onPress={async () => {
                 await requestNotifications();
-                setNotificationsEnabled(true);
-                  onValueChange={requestNotifications}
-                  trackColor={{ false: '#2a2a2a', true: '#A8D7F0' }}
-                />
-              </View>
-            </View>
+                handleNext();
+              }}
+            >
+              <Text style={styles.enableButtonText}>Enable Notifications</Text>
+            </TouchableOpacity>
 
-            <Text style={styles.privacyNote}>
-              🔒 We never read your messages, emails, or app content. Only high-level
-              patterns.
-            </Text>
+            <Text style={styles.subtleText}>You can choose how subtle they are.</Text>
           </View>
         )}
 
