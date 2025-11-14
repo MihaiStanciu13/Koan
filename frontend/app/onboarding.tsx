@@ -308,10 +308,12 @@ const styles = StyleSheet.create({
   featureList: {
     width: '100%',
     gap: 16,
+    alignItems: 'center',
   },
   featureItem: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
     gap: 12,
     paddingVertical: 8,
   },
