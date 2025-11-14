@@ -393,4 +393,36 @@ const styles = StyleSheet.create({
     fontSize: 12,
     marginTop: 16,
   },
+  notificationFeatures: {
+    width: '100%',
+    backgroundColor: '#F5F5F5',
+    borderRadius: 12,
+    padding: 20,
+    marginBottom: 24,
+    gap: 16,
+  },
+  featureRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  enableButton: {
+    backgroundColor: '#A8D7F0',
+    paddingVertical: 16,
+    paddingHorizontal: 32,
+    borderRadius: 12,
+    marginBottom: 12,
+  },
+  enableButtonText: {
+    color: '#3A3A3A',
+    fontSize: 16,
+    fontWeight: '600',
+    textAlign: 'center',
+  },
+  subtleText: {
+    fontSize: 14,
+    color: '#3A3A3A',
+    opacity: 0.7,
+    textAlign: 'center',
+  },
 });
