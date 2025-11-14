@@ -294,9 +294,11 @@ metadata:
 
 test_plan:
   current_focus:
-    - "Backend Authentication Issues (Signup 400, Login 401 errors)"
+    - "Backend Authentication Issues (CRITICAL BLOCKER - Signup/Login 400/401 errors)"
+    - "Onboarding Styling Fixes (CANNOT TEST - Auth blocked)"
+    - "Logout Bug Fix (CANNOT TEST - Auth blocked)"
   stuck_tasks:
-    - "Backend Authentication Issues preventing UI testing"
+    - "Backend Authentication Issues preventing ALL UI testing"
   test_all: false
   test_priority: "high_first"
 
