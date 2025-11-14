@@ -272,6 +272,21 @@ export default function SettingsScreen() {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Notification Preferences</Text>
           
+          <TouchableOpacity
+            style={styles.card}
+            onPress={() => router.push('/nudge-settings')}
+          >
+            <View style={styles.preferenceRow}>
+              <View style={styles.preferenceLeft}>
+                <Text style={styles.preferenceName}>Nudges & Notifications</Text>
+                <Text style={styles.preferenceDescription}>
+                  Nudge style, quiet hours, and more
+                </Text>
+              </View>
+              <Ionicons name="chevron-forward" size={20} color="#3A3A3A" />
+            </View>
+          </TouchableOpacity>
+          
           <View style={styles.card}>
             <View style={styles.preferenceRow}>
               <View style={styles.preferenceLeft}>
