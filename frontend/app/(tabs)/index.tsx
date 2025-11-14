@@ -280,6 +280,12 @@ export default function HomeScreen() {
           </Text>
         </View>
       </ScrollView>
+
+      {/* Welcome Video Modal */}
+      <WelcomeVideoModal 
+        visible={showWelcomeVideo} 
+        onClose={handleCloseWelcomeVideo} 
+      />
     </SafeAreaView>
   );
 }
