@@ -56,6 +56,7 @@ export default function OnboardingNew() {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [selectedMode, setSelectedMode] = useState('standard');
   const flatListRef = useRef<FlatList>(null);
+  const hasNavigatedToLanding = useRef(false);
 
   const handleNext = async () => {
     if (currentIndex < ONBOARDING_DATA.length - 1) {
