@@ -133,10 +133,7 @@ export default function AnchorActionsScreen() {
             </View>
 
             {/* Action Input */}
-            <TouchableOpacity
-              style={styles.inputContainer}
-              onPress={() => setShowSuggestions(showSuggestions === index ? null : index)}
-            >
+            <View style={styles.inputContainer}>
               <TextInput
                 style={styles.input}
                 placeholder="Choose or type an action..."
@@ -145,8 +142,10 @@ export default function AnchorActionsScreen() {
                 editable={anchor.enabled}
                 placeholderTextColor="#999"
               />
-              <Ionicons name="chevron-down" size={20} color="#3A3A3A" />
-            </TouchableOpacity>
+              <TouchableOpacity onPress={() => setShowSuggestions(showSuggestions === index ? null : index)}>
+                <Ionicons name="chevron-down" size={20} color="#3A3A3A" />
+              </TouchableOpacity>
+            </View>
 
             {/* Suggestions Dropdown */}
             {showSuggestions === index && (
