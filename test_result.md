@@ -115,6 +115,9 @@ backend:
       - working: true
         agent: "main"
         comment: "Auth endpoints working - signup and login tested successfully with JWT tokens"
+      - working: true
+        agent: "testing"
+        comment: "COMPREHENSIVE AUTH TESTING COMPLETED: ✅ Signup with fresh email (comprehensive_test_final_4db40a29@example.com) returns 200 OK with JWT token, ✅ Login with same credentials successful with JWT token, ✅ JWT token verification working via /auth/me endpoint. All Priority 1 auth endpoints fully functional. Backend URL: https://focus-coach-8.preview.emergentagent.com/api"
   
   - task: "Phone Behavior Monitoring"
     implemented: true
