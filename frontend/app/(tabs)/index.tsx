@@ -151,6 +151,11 @@ export default function HomeScreen() {
       ]);
 
       setAnchorAction(prefs.anchor_action || 'close one loop');
+      // Load anchor actions array
+      if (prefs.anchor_actions && Array.isArray(prefs.anchor_actions)) {
+        const enabledActions = prefs.anchor_actions.filter((a: any) => a.enabled && a.text);
+        setAnchorActions(enabledActions);
+      }
       setPendingNudges(nudges.nudges || []);
       setTrialDays(subscription.trial_days_remaining || 0);
     } catch (error) {
