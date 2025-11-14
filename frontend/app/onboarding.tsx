@@ -141,7 +141,16 @@ export default function OnboardingNew() {
 
               <TouchableOpacity
                 style={styles.enableButton}
-                onPress={requestNotifications}
+                onPress={() => {
+                  Alert.alert(
+                    'Enable Notifications?',
+                    'Koan sends gentle, silent notifications at the right moments. You can adjust settings anytime.',
+                    [
+                      { text: 'Not Now', style: 'cancel', onPress: () => handleNext() },
+                      { text: 'Enable', onPress: requestNotifications }
+                    ]
+                  );
+                }}
               >
                 <Text style={styles.enableButtonText}>Enable Notifications</Text>
               </TouchableOpacity>
