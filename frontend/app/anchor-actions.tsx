@@ -46,8 +46,12 @@ export default function AnchorActionsScreen() {
   const loadAnchorActions = async () => {
     try {
       const prefs = await preferencesAPI.get();
-      if (prefs.anchor_actions && Array.isArray(prefs.anchor_actions)) {
+      console.log('Loaded preferences:', prefs);
+      if (prefs.anchor_actions && Array.isArray(prefs.anchor_actions) && prefs.anchor_actions.length > 0) {
+        console.log('Setting anchor actions from prefs:', prefs.anchor_actions);
         setAnchorActions(prefs.anchor_actions);
+      } else {
+        console.log('No saved anchor actions, using defaults');
       }
     } catch (error) {
       console.error('Failed to load anchor actions:', error);
