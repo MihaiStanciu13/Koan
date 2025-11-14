@@ -410,6 +410,8 @@ export default function Index() {
         // User logged out, reset to landing page
         setShowLogin(null);
         setCheckingOnboarding(false);
+        // CRITICAL: Reset navigation stack on native
+        router.replace('/');
       }
     }
   }, [user, loading]);
