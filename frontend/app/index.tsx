@@ -399,6 +399,7 @@ export default function Index() {
   const [showLogin, setShowLogin] = useState<boolean | null>(null); // null = landing, true = login, false = signup
   const [checkingOnboarding, setCheckingOnboarding] = useState(false);
   const router = useRouter();
+  const previousUserRef = useRef(user);
 
   // Handle navigation when user state changes
   useEffect(() => {
@@ -406,14 +407,16 @@ export default function Index() {
       if (user) {
         // User is logged in, check onboarding
         checkOnboardingAndNavigate();
-      } else {
-        // User logged out, reset to landing page
+      } else if (previousUserRef.current !== null && user === null) {
+        // User JUST logged out (was logged in, now not), reset to landing page
         setShowLogin(null);
         setCheckingOnboarding(false);
-        // CRITICAL: Reset navigation stack on native
+        // CRITICAL: Reset navigation stack on native - only on logout
         router.replace('/');
       }
     }
+    // Update the ref
+    previousUserRef.current = user;
   }, [user, loading]);
 
   const checkOnboardingAndNavigate = async () => {
