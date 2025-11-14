@@ -258,14 +258,15 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 28,
     fontWeight: '700',
-    color: '#fff',
+    color: '#3A3A3A',
     marginTop: 24,
     marginBottom: 12,
     textAlign: 'center',
   },
   description: {
     fontSize: 16,
-    color: '#888',
+    color: '#3A3A3A',
+    opacity: 0.8,
     textAlign: 'center',
     marginBottom: 32,
     lineHeight: 24,
@@ -283,7 +284,8 @@ const styles = StyleSheet.create({
   },
   featureText: {
     fontSize: 16,
-    color: '#ccc',
+    color: '#5FAD8E',
+    fontWeight: '500',
   },
   permissionCard: {
     width: '100%',
