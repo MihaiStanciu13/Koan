@@ -339,9 +339,10 @@ metadata:
 
 test_plan:
   current_focus:
-    - "All backend testing completed successfully"
-    - "Frontend UI testing can now proceed"
-  stuck_tasks: []
+    - "CRITICAL: Backend authentication endpoints broken - blocking all frontend testing"
+    - "Cannot test any user-reported bugs without working auth"
+  stuck_tasks: 
+    - "Authentication UI (Login/Signup) - Backend auth endpoints returning 400/401 errors"
   test_all: false
   test_priority: "high_first"
 
