@@ -543,4 +543,20 @@ const styles = StyleSheet.create({
     color: '#5FAD8E',
     fontWeight: '500',
   },
+  anchorItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingVertical: 8,
+  },
+  anchorItemText: {
+    flex: 1,
+    fontSize: 14,
+    color: '#3A3A3A',
+  },
+  anchorItemTime: {
+    fontSize: 12,
+    color: '#5FAD8E',
+    fontWeight: '500',
+  },
 });
