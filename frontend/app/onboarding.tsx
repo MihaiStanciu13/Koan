@@ -34,7 +34,7 @@ const ONBOARDING_DATA = [
     id: '2',
     icon: 'notifications-outline',
     title: 'Koan works through small, subtle moments',
-    description: 'Most of Koan's magic happens through short, gentle notifications delivered at the right time. They're quiet, respectful, and designed to help you realign — not interrupt.',
+    description: 'Most of Koan\'s magic happens through short, gentle notifications delivered at the right time. They\'re quiet, respectful, and designed to help you realign - not interrupt.',
     features: [
       { icon: 'volume-off', text: 'Silent by default' },
       { icon: 'time-outline', text: 'Delivered at the right time' },
