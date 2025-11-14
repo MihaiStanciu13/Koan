@@ -35,6 +35,23 @@ export const storage = {
   
   // Clear all
   clearAll: async () => {
-    await AsyncStorage.clear();
+    try {
+      await AsyncStorage.clear();
+    } catch (error) {
+      // Fallback: remove keys individually if clear() fails on native
+      console.warn('AsyncStorage.clear() failed, using individual removal:', error);
+      await AsyncStorage.removeItem('auth_token');
+      await AsyncStorage.removeItem('user');
+      await AsyncStorage.removeItem('onboarding_complete');
+      await AsyncStorage.removeItem('hasSeenWelcomeVideo');
+    }
+  },
+  
+  // Clear auth only (for logout)
+  clearAuth: async () => {
+    await AsyncStorage.removeItem('auth_token');
+    await AsyncStorage.removeItem('user');
+    await AsyncStorage.removeItem('onboarding_complete');
+    await AsyncStorage.removeItem('hasSeenWelcomeVideo');
   },
 };
