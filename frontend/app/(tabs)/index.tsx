@@ -226,33 +226,30 @@ export default function HomeScreen() {
           <Text style={styles.hintText}>{TODAY_HINTS[currentHint]}</Text>
         </View>
 
-        {/* Anchor Action Card */}
-        <View style={styles.card}>
+        {/* Anchor Actions Card */}
+        <TouchableOpacity 
+          style={styles.card}
+          onPress={() => router.push('/anchor-actions')}
+        >
           <View style={styles.cardHeader}>
-            <Text style={styles.cardTitle}>Your Anchor Action</Text>
-            <View style={styles.badge}>
-              <Text style={styles.badgeText}>Daily</Text>
+            <View style={styles.anchorIconContainer}>
+              <Ionicons name="anchor-outline" size={24} color="#5FAD8E" />
+              <Text style={styles.cardTitle}>Anchor Actions</Text>
             </View>
+            <Ionicons name="chevron-forward" size={20} color="#3A3A3A" />
           </View>
           
-          <Text style={styles.anchorActionText}>{anchorAction}</Text>
-          
-          <Text style={styles.anchorExplanation}>
-            Pick ONE task and complete it fully before moving to the next. This daily practice
-            helps combat context-switching and unfinished work.
+          <Text style={styles.anchorDescription}>
+            Set 1-3 simple, repeatable actions that ground you throughout the day
           </Text>
 
-          <TouchableOpacity
-            style={styles.anchorButton}
-            onPress={handleAnchorAction}
-            disabled={loading}
-          >
-            <Text style={styles.anchorButtonText}>
-              {loading ? 'Sending...' : 'Send Reminder'}
+          <View style={styles.anchorPreview}>
+            <Ionicons name="time-outline" size={16} color="#5FAD8E" />
+            <Text style={styles.anchorPreviewText}>
+              Daily reminders at times you choose
             </Text>
-            <Ionicons name="arrow-forward" size={16} color="#3A3A3A" />
-          </TouchableOpacity>
-        </View>
+          </View>
+        </TouchableOpacity>
 
         {/* Recent Nudges */}
         {pendingNudges.length > 0 && (
