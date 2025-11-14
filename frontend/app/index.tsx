@@ -397,6 +397,7 @@ function LandingPageScreen({ onGetStarted }: any) {
 export default function Index() {
   const { user, loading } = useAuth();
   const [showLogin, setShowLogin] = useState<boolean | null>(null); // null = landing, true = login, false = signup
+  const [checkingOnboarding, setCheckingOnboarding] = useState(false);
   const router = useRouter();
 
   // Handle navigation when user state changes
@@ -408,13 +409,21 @@ export default function Index() {
       } else {
         // User logged out, reset to landing page
         setShowLogin(null);
+        setCheckingOnboarding(false);
       }
     }
   }, [user, loading]);
 
   const checkOnboardingAndNavigate = async () => {
+    // Prevent multiple simultaneous checks
+    if (checkingOnboarding) return;
+    
+    setCheckingOnboarding(true);
     try {
+      // Add a small delay to ensure AsyncStorage is ready on native
+      await new Promise(resolve => setTimeout(resolve, 50));
       const onboardingComplete = await storage.isOnboardingComplete();
+      
       if (onboardingComplete) {
         router.replace('/(tabs)');
       } else {
@@ -422,6 +431,10 @@ export default function Index() {
       }
     } catch (error) {
       console.error('Navigation error:', error);
+      // Fallback to onboarding if there's an error
+      router.replace('/onboarding');
+    } finally {
+      setCheckingOnboarding(false);
     }
   };
 
