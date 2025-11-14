@@ -1,30 +1,17 @@
 #!/usr/bin/env python3
 """
-Backend Testing Suite for Behavioral Nudge App
-Focus: Critical Bug Fix - Email Already Exists Error
+Comprehensive Backend Testing for Adaptive Nudge Engine + Auth
+Tests Priority 1: Auth, Priority 2: Adaptive Nudge Engine, Priority 3: Preferences
 """
 
-import asyncio
-import aiohttp
+import requests
 import json
-from motor.motor_asyncio import AsyncIOMotorClient
-import os
-from pathlib import Path
-from dotenv import load_dotenv
+import uuid
+from datetime import datetime
+import time
 
-# Load environment
-ROOT_DIR = Path(__file__).parent / "backend"
-load_dotenv(ROOT_DIR / '.env')
-
-# Configuration
+# Backend URL from frontend .env
 BACKEND_URL = "https://focus-coach-8.preview.emergentagent.com/api"
-MONGO_URL = os.getenv('MONGO_URL', 'mongodb://localhost:27017')
-DB_NAME = os.getenv('DB_NAME', 'test_database')
-
-# Test data
-TEST_EMAIL = "test@example.com"
-TEST_PASSWORD = "TestPass123!"
-TEST_NAME = "Test User"
 
 class BackendTester:
     def __init__(self):
