@@ -149,12 +149,11 @@ export default function SettingsScreen() {
         onPress: async () => {
           try {
             await logout();
-            // Use setTimeout to ensure state updates before navigation
-            setTimeout(() => {
-              router.replace('/');
-            }, 100);
+            // Navigation will be handled automatically by the index.tsx state machine
+            // No manual navigation needed - the useEffect will detect user === null
           } catch (error) {
             console.error('Logout error:', error);
+            Alert.alert('Error', 'Failed to log out. Please try again.');
           }
         },
       },
