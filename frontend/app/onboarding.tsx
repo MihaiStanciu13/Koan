@@ -4,11 +4,10 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
-  ScrollView,
-  Switch,
   FlatList,
   Dimensions,
   Alert,
+  Switch,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -18,19 +17,51 @@ import * as Notifications from 'expo-notifications';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
-export default function Onboarding() {
+const ONBOARDING_DATA = [
+  {
+    id: '1',
+    icon: 'leaf-outline',
+    title: 'Welcome to Koan',
+    description: 'A different kind of productivity app',
+    features: [
+      'No constant pings',
+      'No tracking or dashboards',
+      'Just gentle nudges',
+      'At the right moments',
+    ],
+  },
+  {
+    id: '2',
+    icon: 'notifications-outline',
+    title: 'Koan works through small, subtle moments',
+    description: 'Most of Koan's magic happens through short, gentle notifications delivered at the right time. They're quiet, respectful, and designed to help you realign — not interrupt.',
+    features: [
+      { icon: 'volume-off', text: 'Silent by default' },
+      { icon: 'time-outline', text: 'Delivered at the right time' },
+      { icon: 'shield-outline', text: 'Private and respectful' },
+    ],
+    isNotificationStep: true,
+  },
+  {
+    id: '3',
+    icon: 'heart-outline',
+    title: 'Choose Your Mode',
+    description: 'Select how you want to experience Koan',
+    isModeSelection: true,
+  },
+];
+
+export default function OnboardingNew() {
   const router = useRouter();
-  const [step, setStep] = useState(0); // 0-indexed now for FlatList
-  const [notificationsEnabled, setNotificationsEnabled] = useState(false);
+  const [currentIndex, setCurrentIndex] = useState(0);
   const [selectedMode, setSelectedMode] = useState('standard');
   const flatListRef = useRef<FlatList>(null);
 
   const handleNext = async () => {
-    if (step < 2) {
-      // Move to next step
-      const nextStep = step + 1;
-      setStep(nextStep);
-      flatListRef.current?.scrollToIndex({ index: nextStep, animated: true });
+    if (currentIndex < ONBOARDING_DATA.length - 1) {
+      const nextIndex = currentIndex + 1;
+      setCurrentIndex(nextIndex);
+      flatListRef.current?.scrollToIndex({ index: nextIndex, animated: true });
     } else {
       // Complete onboarding
       await storage.setOnboardingComplete();
@@ -46,172 +77,142 @@ export default function Onboarding() {
   const requestNotifications = async () => {
     try {
       const { status } = await Notifications.requestPermissionsAsync();
-      setNotificationsEnabled(status === 'granted');
       
       if (status === 'granted') {
         Alert.alert('Notifications Enabled', 'You can adjust notification settings anytime in Settings.');
+        handleNext();
+      } else if (status === 'denied') {
+        Alert.alert('Notifications Disabled', 'You can enable them later in Settings.');
+        handleNext();
       }
     } catch (error) {
       console.error('Failed to request notifications:', error);
+      handleNext();
     }
   };
 
   const onViewableItemsChanged = useRef(({ viewableItems }: any) => {
     if (viewableItems.length > 0) {
-      setStep(viewableItems[0].index);
+      setCurrentIndex(viewableItems[0].index);
     }
   }).current;
 
+  const renderOnboardingCard = ({ item, index }: any) => {
+    return (
+      <View style={styles.card}>
+        <View style={styles.cardContent}>
+          <Ionicons name={item.icon} size={64} color="#A8D7F0" />
+          <Text style={styles.title}>{item.title}</Text>
+          <Text style={styles.description}>{item.description}</Text>
+
+          {/* Step 1: Features List */}
+          {item.id === '1' && (
+            <View style={styles.featureList}>
+              {item.features.map((feature: string, idx: number) => (
+                <View key={idx} style={styles.featureItem}>
+                  <Ionicons name="checkmark-circle" size={20} color="#5FAD8E" />
+                  <Text style={styles.featureText}>{feature}</Text>
+                </View>
+              ))}
+            </View>
+          )}
+
+          {/* Step 2: Notification Features */}
+          {item.isNotificationStep && (
+            <>
+              <View style={styles.notificationFeatures}>
+                {item.features.map((feature: any, idx: number) => (
+                  <View key={idx} style={styles.featureRow}>
+                    <Ionicons name={feature.icon} size={20} color="#5FAD8E" />
+                    <Text style={styles.featureRowText}>{feature.text}</Text>
+                  </View>
+                ))}
+              </View>
+
+              <TouchableOpacity
+                style={styles.enableButton}
+                onPress={requestNotifications}
+              >
+                <Text style={styles.enableButtonText}>Enable Notifications</Text>
+              </TouchableOpacity>
+
+              <Text style={styles.subtleText}>You can choose how subtle they are.</Text>
+            </>
+          )}
+
+          {/* Step 3: Mode Selection */}
+          {item.isModeSelection && (
+            <View style={styles.modeContainer}>
+              <ModeCard
+                icon="flame-outline"
+                title="Standard Mode"
+                description="Smart nudges based on patterns"
+                selected={selectedMode === 'standard'}
+                onPress={() => setSelectedMode('standard')}
+              />
+              <ModeCard
+                icon="volume-low-outline"
+                title="Whisper Mode"
+                description="Ultra-rare, low-frequency nudges"
+                selected={selectedMode === 'whisper'}
+                onPress={() => setSelectedMode('whisper')}
+              />
+            </View>
+          )}
+        </View>
+      </View>
+    );
+  };
+
   return (
     <SafeAreaView style={styles.container}>
-      <ScrollView contentContainerStyle={styles.scrollContent}>
-        {/* Progress Indicator */}
-        <View style={styles.progressContainer}>
-          {[1, 2, 3].map((s) => (
-            <View
-              key={s}
-              style={[
-                styles.progressDot,
-                step >= s && styles.progressDotActive,
-              ]}
-            />
-          ))}
-        </View>
+      {/* Progress Indicator */}
+      <View style={styles.progressContainer}>
+        {ONBOARDING_DATA.map((_, index) => (
+          <View
+            key={index}
+            style={[
+              styles.progressDot,
+              index === currentIndex && styles.progressDotActive,
+            ]}
+          />
+        ))}
+      </View>
 
-        {/* Step 1: Philosophy */}
-        {step === 1 && (
-          <View style={styles.stepContainer}>
-            <View style={styles.logoSymbol}>
-              <View style={styles.logoDot} />
-            </View>
-            <Text style={styles.title}>No Dashboards. No Metrics.</Text>
-            <Text style={styles.description}>
-              Just subtle, well-timed behavioral nudges that help you act on what you
-              already know.
-            </Text>
-            <View style={styles.featureList}>
-              <FeatureItem icon="notifications-off" text="No constant pings" />
-              <FeatureItem icon="bar-chart-outline" text="No tracking dashboards" />
-              <FeatureItem icon="trophy-outline" text="No gamification" />
-              <FeatureItem icon="sparkles" text="Just gentle course-corrections" />
-            </View>
-          </View>
-        )}
+      {/* Swipeable Cards */}
+      <FlatList
+        ref={flatListRef}
+        data={ONBOARDING_DATA}
+        renderItem={renderOnboardingCard}
+        keyExtractor={(item) => item.id}
+        horizontal
+        pagingEnabled
+        showsHorizontalScrollIndicator={false}
+        onViewableItemsChanged={onViewableItemsChanged}
+        viewabilityConfig={{ itemVisiblePercentThreshold: 50 }}
+        scrollEventThrottle={16}
+      />
 
-        {/* Step 2: Notification Explanation */}
-        {step === 2 && (
-          <View style={styles.stepContainer}>
-            <Ionicons name="notifications-outline" size={64} color="#A8D7F0" />
-            <Text style={styles.title}>Koan works through small, subtle moments</Text>
-            <Text style={styles.description}>
-              Most of Koan's magic happens through short, gentle notifications delivered at the right time. 
-              They're quiet, respectful, and designed to help you realign — not interrupt.
-            </Text>
+      {/* Bottom Navigation */}
+      <View style={styles.buttonContainer}>
+        <TouchableOpacity style={styles.skipButton} onPress={handleSkip}>
+          <Text style={styles.skipText}>Skip</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.nextButton} onPress={handleNext}>
+          <Text style={styles.nextText}>
+            {currentIndex === ONBOARDING_DATA.length - 1 ? 'Get Started' : 'Next'}
+          </Text>
+          <Ionicons name="arrow-forward" size={20} color="#FFFFFF" />
+        </TouchableOpacity>
+      </View>
 
-            <View style={styles.notificationFeatures}>
-              <View style={styles.featureRow}>
-                <Ionicons name="volume-off" size={20} color="#3A3A3A" />
-                <Text style={styles.featureText}>Silent by default</Text>
-              </View>
-              <View style={styles.featureRow}>
-                <Ionicons name="time-outline" size={20} color="#3A3A3A" />
-                <Text style={styles.featureText}>Delivered at the right time</Text>
-              </View>
-              <View style={styles.featureRow}>
-                <Ionicons name="shield-outline" size={20} color="#3A3A3A" />
-                <Text style={styles.featureText}>Private and respectful</Text>
-              </View>
-            </View>
-
-            <TouchableOpacity
-              style={styles.enableButton}
-              onPress={async () => {
-                await requestNotifications();
-                handleNext();
-              }}
-            >
-              <Text style={styles.enableButtonText}>Enable Notifications</Text>
-            </TouchableOpacity>
-
-            <Text style={styles.subtleText}>You can choose how subtle they are.</Text>
-          </View>
-        )}
-
-        {/* Step 3: Choose Mode */}
-        {step === 3 && (
-          <View style={styles.stepContainer}>
-            <Ionicons name="settings-outline" size={64} color="#A8D7F0" />
-            <Text style={styles.title}>Select Your Mode</Text>
-            <Text style={styles.description}>
-              Choose how nudges adapt to your work style. You can change this anytime.
-            </Text>
-
-            <ModeCard
-              icon="flash-outline"
-              title="Standard"
-              description="Balanced nudges throughout the day"
-              selected={selectedMode === 'standard'}
-              onPress={() => setSelectedMode('standard')}
-            />
-            <ModeCard
-              icon="eye-outline"
-              title="Focus Mode"
-              description="Minimal interruptions, deep work support"
-              selected={selectedMode === 'focus'}
-              onPress={() => setSelectedMode('focus')}
-            />
-            <ModeCard
-              icon="people-outline"
-              title="Meeting-Heavy"
-              description="Recovery nudges between meetings"
-              selected={selectedMode === 'meeting'}
-              onPress={() => setSelectedMode('meeting')}
-            />
-            <ModeCard
-              icon="airplane-outline"
-              title="Travel Mode"
-              description="Ultra-rare, essential nudges only"
-              selected={selectedMode === 'travel'}
-              onPress={() => setSelectedMode('travel')}
-            />
-          </View>
-        )}
-
-        {/* Navigation Buttons */}
-        <View style={styles.buttonContainer}>
-          <TouchableOpacity style={styles.skipButton} onPress={handleSkip}>
-            <Text style={styles.skipText}>Skip</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.nextButton} onPress={handleNext}>
-            <Text style={styles.nextText}>{step === 3 ? 'Get Started' : 'Next'}</Text>
-            <Ionicons name="arrow-forward" size={20} color="#fff" />
-          </TouchableOpacity>
-        </View>
-
-        <Text style={styles.timeEstimate}>⏱ Under 60 seconds</Text>
-      </ScrollView>
+      <Text style={styles.timeEstimate}>Takes about 30 seconds</Text>
     </SafeAreaView>
   );
 }
 
-function FeatureItem({ icon, text }: { icon: any; text: string }) {
-  return (
-    <View style={styles.featureItem}>
-      <Ionicons name={icon} size={20} color="#A8D7F0" />
-      <Text style={styles.featureText}>{text}</Text>
-    </View>
-  );
-}
-
-function ModeCard({
-  icon,
-  title,
-  description,
-  selected,
-  onPress,
-}: {
-  icon: any;
+function ModeCard({ icon, title, description, selected, onPress }: {
+  icon: string;
   title: string;
   description: string;
   selected: boolean;
@@ -222,14 +223,15 @@ function ModeCard({
       style={[styles.modeCard, selected && styles.modeCardSelected]}
       onPress={onPress}
     >
-      <Ionicons name={icon} size={24} color={selected ? '#A8D7F0' : '#888'} />
-      <View style={styles.modeText}>
-        <Text style={[styles.modeTitle, selected && styles.modeTextSelected]}>
-          {title}
-        </Text>
-        <Text style={styles.modeDescription}>{description}</Text>
-      </View>
-      {selected && <Ionicons name="checkmark-circle" size={24} color="#A8D7F0" />}
+      <Ionicons
+        name={icon}
+        size={32}
+        color={selected ? '#5FAD8E' : '#3A3A3A'}
+      />
+      <Text style={[styles.modeTitle, selected && styles.modeTitleSelected]}>
+        {title}
+      </Text>
+      <Text style={styles.modeDescription}>{description}</Text>
     </TouchableOpacity>
   );
 }
@@ -239,44 +241,31 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#FAFDFA',
   },
-  scrollContent: {
-    flexGrow: 1,
-    padding: 24,
-  },
   progressContainer: {
     flexDirection: 'row',
     justifyContent: 'center',
-    marginBottom: 32,
+    alignItems: 'center',
+    paddingVertical: 20,
     gap: 8,
   },
   progressDot: {
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: '#2a2a2a',
+    backgroundColor: '#E6E6E4',
   },
   progressDotActive: {
-    backgroundColor: '#A8D7F0',
+    backgroundColor: '#5FAD8E',
+    width: 24,
   },
-  logoSymbol: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    backgroundColor: '#D9F7EB',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 16,
-  },
-  logoDot: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-    backgroundColor: '#A8D7F0',
-  },
-  stepContainer: {
+  card: {
+    width: SCREEN_WIDTH,
     flex: 1,
-    alignItems: 'center',
     justifyContent: 'center',
+    paddingHorizontal: 32,
+  },
+  cardContent: {
+    alignItems: 'center',
   },
   title: {
     fontSize: 28,
@@ -310,80 +299,85 @@ const styles = StyleSheet.create({
     color: '#5FAD8E',
     fontWeight: '500',
   },
-  permissionCard: {
+  notificationFeatures: {
     width: '100%',
-    backgroundColor: '#1a1a1a',
-    borderRadius: 16,
+    backgroundColor: '#F5F5F5',
+    borderRadius: 12,
     padding: 20,
     marginBottom: 24,
-    borderWidth: 1,
-    borderColor: '#2a2a2a',
+    gap: 16,
   },
-  permissionRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  permissionLeft: {
+  featureRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-    flex: 1,
   },
-  permissionText: {
-    flex: 1,
+  featureRowText: {
+    fontSize: 15,
+    color: '#3A3A3A',
+    fontWeight: '500',
   },
-  permissionTitle: {
+  enableButton: {
+    backgroundColor: '#5FAD8E',
+    paddingVertical: 16,
+    paddingHorizontal: 32,
+    borderRadius: 12,
+    marginBottom: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  enableButtonText: {
+    color: '#FFFFFF',
     fontSize: 16,
-    fontWeight: '600',
-    color: '#fff',
-    marginBottom: 4,
-  },
-  permissionSubtitle: {
-    fontSize: 14,
-    color: '#888',
-  },
-  privacyNote: {
-    fontSize: 14,
-    color: '#888',
+    fontWeight: '700',
     textAlign: 'center',
-    paddingHorizontal: 16,
+  },
+  subtleText: {
+    fontSize: 14,
+    color: '#3A3A3A',
+    opacity: 0.7,
+    textAlign: 'center',
+  },
+  modeContainer: {
+    width: '100%',
+    gap: 16,
   },
   modeCard: {
-    flexDirection: 'row',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 24,
     alignItems: 'center',
-    backgroundColor: '#1a1a1a',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 12,
     borderWidth: 2,
-    borderColor: '#2a2a2a',
-    gap: 12,
+    borderColor: '#E6E6E4',
   },
   modeCardSelected: {
-    borderColor: '#A8D7F0',
-    backgroundColor: '#0f1a2e',
-  },
-  modeText: {
-    flex: 1,
+    borderColor: '#5FAD8E',
+    backgroundColor: '#D9F7EB',
   },
   modeTitle: {
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: '600',
-    color: '#fff',
+    color: '#3A3A3A',
+    marginTop: 12,
     marginBottom: 4,
   },
-  modeTextSelected: {
-    color: '#A8D7F0',
+  modeTitleSelected: {
+    color: '#3A3A3A',
   },
   modeDescription: {
     fontSize: 14,
-    color: '#888',
+    color: '#3A3A3A',
+    opacity: 0.7,
+    textAlign: 'center',
   },
   buttonContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginTop: 32,
+    paddingHorizontal: 32,
+    marginTop: 16,
     gap: 12,
   },
   skipButton: {
@@ -422,37 +416,6 @@ const styles = StyleSheet.create({
     color: '#666',
     fontSize: 12,
     marginTop: 16,
-  },
-  notificationFeatures: {
-    width: '100%',
-    backgroundColor: '#F5F5F5',
-    borderRadius: 12,
-    padding: 20,
-    marginBottom: 24,
-    gap: 16,
-  },
-  featureRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  enableButton: {
-    backgroundColor: '#A8D7F0',
-    paddingVertical: 16,
-    paddingHorizontal: 32,
-    borderRadius: 12,
-    marginBottom: 12,
-  },
-  enableButtonText: {
-    color: '#3A3A3A',
-    fontSize: 16,
-    fontWeight: '600',
-    textAlign: 'center',
-  },
-  subtleText: {
-    fontSize: 14,
-    color: '#3A3A3A',
-    opacity: 0.7,
-    textAlign: 'center',
+    marginBottom: 20,
   },
 });
