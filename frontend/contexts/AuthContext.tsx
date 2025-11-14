@@ -51,11 +51,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const logout = async () => {
-    // Clear ALL storage including onboarding flag to ensure clean logout
-    await storage.clearAll();
-    setUser(null);
-    setLoading(false); // Ensure loading is false so index.tsx can properly detect logout
-    // Navigation will happen automatically in index.tsx when user becomes null
+    try {
+      // Clear auth-related storage (safer than clearAll on native)
+      await storage.clearAuth();
+      setUser(null);
+      setLoading(false); // Ensure loading is false so index.tsx can properly detect logout
+      // Navigation will happen automatically in index.tsx when user becomes null
+    } catch (error) {
+      console.error('Logout storage clear error:', error);
+      // Still set user to null even if storage fails
+      setUser(null);
+      setLoading(false);
+    }
   };
 
   return (
