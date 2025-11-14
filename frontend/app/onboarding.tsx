@@ -79,10 +79,19 @@ export default function OnboardingNew() {
       const { status } = await Notifications.requestPermissionsAsync();
       
       if (status === 'granted') {
-        Alert.alert('Notifications Enabled', 'You can adjust notification settings anytime in Settings.');
-        handleNext();
+        Alert.alert(
+          'Notifications Enabled', 
+          'You can adjust notification settings anytime in Settings.',
+          [{ text: 'OK', onPress: () => handleNext() }]
+        );
       } else if (status === 'denied') {
-        Alert.alert('Notifications Disabled', 'You can enable them later in Settings.');
+        Alert.alert(
+          'Notifications Disabled', 
+          'You can enable them later in Settings.',
+          [{ text: 'OK', onPress: () => handleNext() }]
+        );
+      } else {
+        // User dismissed without choosing
         handleNext();
       }
     } catch (error) {
