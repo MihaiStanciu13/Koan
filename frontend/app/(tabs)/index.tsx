@@ -239,22 +239,38 @@ export default function HomeScreen() {
         >
           <View style={styles.cardHeader}>
             <View style={styles.anchorIconContainer}>
-              <Ionicons name="anchor-outline" size={24} color="#5FAD8E" />
+              <Ionicons name="boat-outline" size={24} color="#5FAD8E" />
               <Text style={styles.cardTitle}>Anchor Actions</Text>
             </View>
             <Ionicons name="chevron-forward" size={20} color="#3A3A3A" />
           </View>
           
-          <Text style={styles.anchorDescription}>
-            Set 1-3 simple, repeatable actions that ground you throughout the day
-          </Text>
-
-          <View style={styles.anchorPreview}>
-            <Ionicons name="time-outline" size={16} color="#5FAD8E" />
-            <Text style={styles.anchorPreviewText}>
-              Daily reminders at times you choose
-            </Text>
-          </View>
+          {anchorActions.length > 0 ? (
+            <>
+              <Text style={styles.anchorDescription}>
+                Your daily anchors:
+              </Text>
+              {anchorActions.map((action: any, index: number) => (
+                <View key={index} style={styles.anchorItem}>
+                  <Ionicons name="checkmark-circle" size={16} color="#5FAD8E" />
+                  <Text style={styles.anchorItemText}>{action.text}</Text>
+                  <Text style={styles.anchorItemTime}>{action.time}</Text>
+                </View>
+              ))}
+            </>
+          ) : (
+            <>
+              <Text style={styles.anchorDescription}>
+                Set 1-3 simple, repeatable actions that ground you throughout the day
+              </Text>
+              <View style={styles.anchorPreview}>
+                <Ionicons name="time-outline" size={16} color="#5FAD8E" />
+                <Text style={styles.anchorPreviewText}>
+                  Daily reminders at times you choose
+                </Text>
+              </View>
+            </>
+          )}
         </TouchableOpacity>
 
         {/* Recent Nudges */}
