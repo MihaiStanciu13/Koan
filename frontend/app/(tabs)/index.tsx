@@ -57,6 +57,7 @@ const TODAY_HINTS = [
 export default function HomeScreen() {
   const { user } = useAuth();
   const { sendNudgeNotification } = useNotifications();
+  const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [anchorAction, setAnchorAction] = useState('close one loop');
