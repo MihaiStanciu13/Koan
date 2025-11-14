@@ -43,6 +43,14 @@ export default function AnchorActionsScreen() {
     loadAnchorActions();
   }, []);
 
+  // Reload when screen comes into focus
+  useEffect(() => {
+    const unsubscribe = router.subscribe(() => {
+      loadAnchorActions();
+    });
+    return unsubscribe;
+  }, []);
+
   const loadAnchorActions = async () => {
     try {
       const prefs = await preferencesAPI.get();
