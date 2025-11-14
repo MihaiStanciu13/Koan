@@ -15,6 +15,8 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useNotifications } from '../../contexts/NotificationContext';
 import { nudgeAPI, behaviorAPI, preferencesAPI, subscriptionAPI } from '../../services/api';
 import { format } from 'date-fns';
+import WelcomeVideoModal from '../../components/WelcomeVideoModal';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const LEARNING_MESSAGES_BY_PHASE = [
   // Phase 0: Just started
