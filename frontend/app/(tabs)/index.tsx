@@ -63,6 +63,7 @@ export default function HomeScreen() {
   const [trialDays, setTrialDays] = useState(0);
   const [learningPhase, setLearningPhase] = useState(0); // Track which phase of learning we're in
   const [currentHint, setCurrentHint] = useState(0);
+  const [showWelcomeVideo, setShowWelcomeVideo] = useState(false);
   
   // Animation for pulsing dot
   const pulseAnim = useRef(new Animated.Value(1)).current;
@@ -71,11 +72,35 @@ export default function HomeScreen() {
     loadData();
     startPulseAnimation();
     determineLearningPhase();
+    checkFirstVisit();
     
     // Rotate hint daily
     const hint = new Date().getDate() % TODAY_HINTS.length;
     setCurrentHint(hint);
   }, []);
+
+  const checkFirstVisit = async () => {
+    try {
+      const hasSeenWelcome = await AsyncStorage.getItem('hasSeenWelcomeVideo');
+      if (!hasSeenWelcome) {
+        // Show welcome video modal after a brief delay
+        setTimeout(() => {
+          setShowWelcomeVideo(true);
+        }, 1000);
+      }
+    } catch (error) {
+      console.error('Failed to check first visit:', error);
+    }
+  };
+
+  const handleCloseWelcomeVideo = async () => {
+    setShowWelcomeVideo(false);
+    try {
+      await AsyncStorage.setItem('hasSeenWelcomeVideo', 'true');
+    } catch (error) {
+      console.error('Failed to save welcome video flag:', error);
+    }
+  };
 
   const determineLearningPhase = async () => {
     // Determine learning phase based on account age and activity
