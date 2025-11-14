@@ -234,7 +234,7 @@ frontend:
   
   - task: "Main Dashboard with Anchor Action"
     implemented: true
-    working: true
+    working: "NA"
     file: "/app/frontend/app/index.tsx"
     priority: "high"
     needs_retesting: true
@@ -242,6 +242,9 @@ frontend:
       - working: true
         agent: "main"
         comment: "Dashboard with anchor action button, weekly narrative display implemented"
+      - working: "NA"
+        agent: "testing"
+        comment: "CANNOT TEST: Dashboard and anchor action functionality cannot be tested due to backend authentication failure. Frontend code appears correctly implemented with anchor actions card, welcome video modal, and main dashboard components, but requires working authentication to access and test functionality."
   
   - task: "Auth Context & State Management"
     implemented: true
