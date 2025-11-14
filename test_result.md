@@ -216,7 +216,7 @@ frontend:
     working: false
     file: "/app/frontend/app/index.tsx"
     priority: "high"
-    stuck_count: 2
+    stuck_count: 3
     needs_retesting: true
     status_history:
       - working: true
@@ -228,6 +228,9 @@ frontend:
       - working: false
         agent: "main"
         comment: "Fixed database name mismatch (was clearing wrong DB), performed bulletproof navigation rewrite in index.tsx with proper state machine (LOADING/LANDING/AUTH/ONBOARDING/APP states), updated logout to clear all storage including onboardingCompleted flag. Needs comprehensive testing."
+      - working: false
+        agent: "testing"
+        comment: "❌ CRITICAL BACKEND FAILURE: Comprehensive frontend testing blocked by authentication endpoints returning 400/401 errors. Frontend UI renders correctly (landing page, signup/login forms work visually), but backend auth endpoints completely broken: POST /api/auth/signup returns 400 Bad Request, POST /api/auth/login returns 401 Unauthorized. Network monitoring confirms requests are being sent but backend is rejecting them. Cannot test any user-reported bugs (onboarding flow, logout navigation, anchor actions, notification opt-in) without working authentication. Backend logs show consistent 400/401 errors contradicting previous backend test claims."
   
   - task: "Main Dashboard with Anchor Action"
     implemented: true
