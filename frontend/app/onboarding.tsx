@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   View,
   Text,
@@ -6,6 +6,9 @@ import {
   TouchableOpacity,
   ScrollView,
   Switch,
+  FlatList,
+  Dimensions,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -13,15 +16,21 @@ import { useRouter } from 'expo-router';
 import { storage } from '../services/storage';
 import * as Notifications from 'expo-notifications';
 
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
+
 export default function Onboarding() {
   const router = useRouter();
-  const [step, setStep] = useState(1);
+  const [step, setStep] = useState(0); // 0-indexed now for FlatList
   const [notificationsEnabled, setNotificationsEnabled] = useState(false);
   const [selectedMode, setSelectedMode] = useState('standard');
+  const flatListRef = useRef<FlatList>(null);
 
   const handleNext = async () => {
-    if (step < 3) {
-      setStep(step + 1);
+    if (step < 2) {
+      // Move to next step
+      const nextStep = step + 1;
+      setStep(nextStep);
+      flatListRef.current?.scrollToIndex({ index: nextStep, animated: true });
     } else {
       // Complete onboarding
       await storage.setOnboardingComplete();
@@ -35,9 +44,23 @@ export default function Onboarding() {
   };
 
   const requestNotifications = async () => {
-    const { status } = await Notifications.requestPermissionsAsync();
-    setNotificationsEnabled(status === 'granted');
+    try {
+      const { status } = await Notifications.requestPermissionsAsync();
+      setNotificationsEnabled(status === 'granted');
+      
+      if (status === 'granted') {
+        Alert.alert('Notifications Enabled', 'You can adjust notification settings anytime in Settings.');
+      }
+    } catch (error) {
+      console.error('Failed to request notifications:', error);
+    }
   };
+
+  const onViewableItemsChanged = useRef(({ viewableItems }: any) => {
+    if (viewableItems.length > 0) {
+      setStep(viewableItems[0].index);
+    }
+  }).current;
 
   return (
     <SafeAreaView style={styles.container}>
