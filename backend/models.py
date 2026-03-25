@@ -56,6 +56,7 @@ class Preferences(BaseModel):
     micro_mode: MicroMode = MicroMode.STANDARD
     whisper_mode: bool = False
     anchor_action: str = "close one loop"
+    anchor_actions: List[Dict] = []  # List of anchor actions with text, time, enabled
     quiet_periods: List[Dict] = []  # Learned periods when user focuses
     connected_tools: List[str] = []  # gmail, outlook, slack, etc.
     notification_enabled: bool = True
@@ -64,6 +65,7 @@ class PreferencesUpdate(BaseModel):
     micro_mode: Optional[MicroMode] = None
     whisper_mode: Optional[bool] = None
     anchor_action: Optional[str] = None
+    anchor_actions: Optional[List[Dict]] = None
     notification_enabled: Optional[bool] = None
 
 # Nudge Models
