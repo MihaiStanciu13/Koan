@@ -61,6 +61,10 @@ class Preferences(BaseModel):
     quiet_periods: List[Dict] = []  # Learned periods when user focuses
     connected_tools: List[str] = []  # gmail, outlook, slack, etc.
     notification_enabled: bool = True
+    nudge_style: str = "silent"  # silent, subtle, time-sensitive
+    quiet_hours_enabled: bool = True
+    quiet_hours_start: str = "23:00"
+    quiet_hours_end: str = "07:00"
 
 class PreferencesUpdate(BaseModel):
     micro_mode: Optional[MicroMode] = None
@@ -68,6 +72,10 @@ class PreferencesUpdate(BaseModel):
     anchor_action: Optional[str] = None
     anchor_actions: Optional[List[Dict]] = None
     notification_enabled: Optional[bool] = None
+    nudge_style: Optional[str] = None
+    quiet_hours_enabled: Optional[bool] = None
+    quiet_hours_start: Optional[str] = None
+    quiet_hours_end: Optional[str] = None
 
 # Nudge Models
 class Nudge(BaseModel):
