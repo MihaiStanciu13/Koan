@@ -73,6 +73,10 @@ export const nudgeAPI = {
     const response = await api.get('/nudges/pending');
     return response.data;
   },
+  getCount: async () => {
+    const response = await api.get('/nudges/count');
+    return response.data.count || 0;
+  },
   markDelivered: async (nudge_id: string) => {
     const response = await api.post(`/nudges/${nudge_id}/delivered`);
     return response.data;
