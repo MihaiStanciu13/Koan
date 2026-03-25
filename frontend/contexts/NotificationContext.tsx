@@ -36,11 +36,12 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
       // Send token to backend
       if (token) {
         try {
+          const authToken = await storage.getAuthToken();
           const response = await fetch(`${process.env.EXPO_PUBLIC_BACKEND_URL}/api/user/push-token`, {
             method: 'PATCH',
             headers: {
               'Content-Type': 'application/json',
-              'Authorization': `Bearer ${await getAuthToken()}`,
+              'Authorization': `Bearer ${authToken}`,
             },
             body: JSON.stringify({ push_token: token }),
           });
