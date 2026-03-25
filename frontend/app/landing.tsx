@@ -153,7 +153,7 @@ export default function LandingPage() {
           <View style={styles.pricingCard}>
             <Text style={styles.pricingAmount}>$9.99</Text>
             <Text style={styles.pricingPeriod}>per month</Text>
-            <Text style={styles.pricingTrial}>7-day free trial</Text>
+            <Text style={styles.pricingTrial}>14-day free trial</Text>
             <Text style={styles.pricingNote}>Cancel anytime. No questions asked.</Text>
           </View>
         </View>
