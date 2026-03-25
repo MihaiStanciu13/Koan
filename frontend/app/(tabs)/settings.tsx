@@ -337,46 +337,7 @@ export default function SettingsScreen() {
         </View>
       </ScrollView>
 
-      {/* Anchor Action Modal */}
-      <Modal
-        visible={showAnchorModal}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setShowAnchorModal(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Edit Anchor Action</Text>
-            <Text style={styles.modalDescription}>
-              Choose one daily behavior to focus on
-            </Text>
-
-            <TextInput
-              style={styles.modalInput}
-              value={tempAnchorAction}
-              onChangeText={setTempAnchorAction}
-              placeholder="e.g., close one loop"
-              placeholderTextColor="#3A3A3A60"
-              autoFocus
-            />
-
-            <View style={styles.modalButtons}>
-              <TouchableOpacity
-                style={styles.modalButtonCancel}
-                onPress={() => setShowAnchorModal(false)}
-              >
-                <Text style={styles.modalButtonCancelText}>Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.modalButtonSave}
-                onPress={saveAnchorAction}
-              >
-                <Text style={styles.modalButtonSaveText}>Save</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </Modal>
+      
     </SafeAreaView>
   );
 }
