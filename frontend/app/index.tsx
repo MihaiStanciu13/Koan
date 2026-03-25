@@ -198,7 +198,7 @@ function SignupScreen({ onSwitchToLogin }: any) {
           </View>
 
           <Text style={styles.title}>Let's begin your journey toward clarity</Text>
-          <Text style={styles.tagline}>7-day free trial • Cancel anytime</Text>
+          <Text style={styles.tagline}>14-day free trial • Cancel anytime</Text>
 
           <View style={styles.inputContainer}>
             <Ionicons name="person-outline" size={20} color="#3A3A3A" style={styles.inputIcon} />
