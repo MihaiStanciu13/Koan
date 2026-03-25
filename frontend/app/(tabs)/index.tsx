@@ -623,4 +623,40 @@ const styles = StyleSheet.create({
     color: '#5FAD8E',
     fontWeight: '500',
   },
+  milestoneCard: {
+    backgroundColor: '#D9F7EB',
+    borderRadius: 16,
+    padding: 24,
+    marginBottom: 16,
+    alignItems: 'center',
+  },
+  milestoneHeader: {
+    marginBottom: 16,
+  },
+  milestoneTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#3A3A3A',
+    marginBottom: 12,
+    textAlign: 'center',
+  },
+  milestoneText: {
+    fontSize: 15,
+    color: '#3A3A3A',
+    opacity: 0.8,
+    lineHeight: 22,
+    textAlign: 'center',
+    marginBottom: 20,
+  },
+  milestoneButton: {
+    backgroundColor: '#5FAD8E',
+    paddingVertical: 12,
+    paddingHorizontal: 32,
+    borderRadius: 12,
+  },
+  milestoneButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
+  },
 });
