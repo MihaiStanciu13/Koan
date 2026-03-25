@@ -120,4 +120,23 @@ export const subscriptionAPI = {
   },
 };
 
+export const adaptiveNudgeAPI = {
+  evaluate: async (signal_type: string, strength: number, metadata: any = {}) => {
+    const response = await api.post('/adaptive-nudges/evaluate', {
+      signal_type,
+      strength,
+      metadata,
+    });
+    return response.data;
+  },
+  checkFallback: async () => {
+    const response = await api.get('/adaptive-nudges/fallback');
+    return response.data;
+  },
+  recordInteraction: async (nudge_id: string, action: string) => {
+    const response = await api.post(`/adaptive-nudges/${nudge_id}/interaction?action=${action}`);
+    return response.data;
+  },
+};
+
 export default api;
