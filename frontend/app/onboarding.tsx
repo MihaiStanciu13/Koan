@@ -306,14 +306,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
   },
   featureList: {
-    width: '100%',
+    width: '80%',
     gap: 16,
-    alignItems: 'center',
+    alignSelf: 'center',
   },
   featureItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
+    justifyContent: 'flex-start',
     gap: 12,
     paddingVertical: 8,
   },
