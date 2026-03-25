@@ -7,11 +7,13 @@ import {
   TouchableOpacity,
   TextInput,
   Alert,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { preferencesAPI } from '../services/api';
+import DateTimePicker from '@react-native-community/datetimepicker';
 
 const SUGGESTED_ANCHORS = [
   'Close one loop',
