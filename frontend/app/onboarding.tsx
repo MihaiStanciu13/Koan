@@ -286,6 +286,7 @@ const styles = StyleSheet.create({
   cardContent: {
     alignItems: 'center',
     justifyContent: 'center',
+    width: '100%',
   },
   title: {
     fontSize: 28,
