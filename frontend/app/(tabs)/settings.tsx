@@ -127,16 +127,7 @@ export default function SettingsScreen() {
     await updatePreference('micro_mode', mode);
   };
 
-  const saveAnchorAction = async () => {
-    if (!tempAnchorAction.trim()) {
-      Alert.alert('Error', 'Please enter an anchor action');
-      return;
-    }
-    setAnchorAction(tempAnchorAction);
-    await updatePreference('anchor_action', tempAnchorAction);
-    setShowAnchorModal(false);
-    Alert.alert('Saved', 'Your anchor action has been updated');
-  };
+  
 
   const handleLogout = async () => {
     Alert.alert('Log Out', 'Are you sure you want to log out?', [
