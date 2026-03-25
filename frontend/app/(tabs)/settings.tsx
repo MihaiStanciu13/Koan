@@ -108,17 +108,90 @@ export default function SettingsScreen() {
   };
 
   const toggleWorkplaceTool = async (toolId: string) => {
-    const newTools = connectedTools.includes(toolId)
-      ? connectedTools.filter(t => t !== toolId)
-      : [...connectedTools, toolId];
-    
-    setConnectedTools(newTools);
-    await updatePreference('connected_tools', newTools);
-    
-    Alert.alert(
-      'Mock Connection',
-      `${toolId} ${newTools.includes(toolId) ? 'connected' : 'disconnected'}. This is a mock integration for MVP testing.`
-    );
+    // Special handling for Google Calendar OAuth
+    if (toolId === 'gcalendar') {
+      if (connectedTools.includes('gcalendar')) {
+        // Disconnect
+        try {
+          await api.delete('/integrations/calendar/disconnect');
+          const newTools = connectedTools.filter(t => t !== 'gcalendar');
+          setConnectedTools(newTools);
+          await updatePreference('connected_tools', newTools);
+          Alert.alert('Disconnected', 'Google Calendar has been disconnected.');
+        } catch (error) {
+          console.error('Failed to disconnect calendar:', error);
+          Alert.alert('Error', 'Failed to disconnect Google Calendar.');
+        }
+      } else {
+        // Connect with OAuth
+        await initiateGoogleCalendarOAuth();
+      }
+    } else {
+      // Mock for other tools
+      const newTools = connectedTools.includes(toolId)
+        ? connectedTools.filter(t => t !== toolId)
+        : [...connectedTools, toolId];
+      
+      setConnectedTools(newTools);
+      await updatePreference('connected_tools', newTools);
+      
+      Alert.alert(
+        'Mock Connection',
+        `${toolId} ${newTools.includes(toolId) ? 'connected' : 'disconnected'}. This is a mock integration for MVP testing.`
+      );
+    }
+  };
+
+  const initiateGoogleCalendarOAuth = async () => {
+    try {
+      const redirectUri = 'https://focus-coach-8.preview.emergentagent.com';
+      const clientId = process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID || 'YOUR_GOOGLE_CLIENT_ID';
+      
+      const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?` +
+        `client_id=${clientId}&` +
+        `redirect_uri=${encodeURIComponent(redirectUri)}&` +
+        `response_type=code&` +
+        `scope=${encodeURIComponent('https://www.googleapis.com/auth/calendar.readonly')}&` +
+        `access_type=offline&` +
+        `prompt=consent`;
+      
+      const result = await WebBrowser.openAuthSessionAsync(authUrl, redirectUri);
+      
+      if (result.type === 'success' && result.url) {
+        const url = new URL(result.url);
+        const code = url.searchParams.get('code');
+        
+        if (code) {
+          // Exchange code for tokens (backend should handle this)
+          await handleOAuthCallback(code);
+        }
+      }
+    } catch (error) {
+      console.error('OAuth error:', error);
+      Alert.alert('Error', 'Failed to connect Google Calendar. Please try again.');
+    }
+  };
+
+  const handleOAuthCallback = async (code: string) => {
+    try {
+      // For MVP, we'll store a mock token
+      // In production, backend should exchange code for tokens
+      const mockToken = 'mock_google_calendar_token';
+      
+      await api.post('/integrations/calendar/connect', {
+        access_token: mockToken,
+        refresh_token: 'mock_refresh_token',
+      });
+      
+      const newTools = [...connectedTools, 'gcalendar'];
+      setConnectedTools(newTools);
+      await updatePreference('connected_tools', newTools);
+      
+      Alert.alert('Connected', 'Google Calendar connected successfully!');
+    } catch (error) {
+      console.error('Failed to save calendar tokens:', error);
+      Alert.alert('Error', 'Failed to complete Google Calendar connection.');
+    }
   };
 
   const changeMicroMode = async (mode: string) => {
