@@ -317,7 +317,7 @@ function LandingPageScreen({ onGetStarted }: any) {
           </Text>
           
           <TouchableOpacity style={styles.ctaButton} onPress={onGetStarted}>
-            <Text style={styles.ctaButtonText}>Start Free 7-Day Trial</Text>
+            <Text style={styles.ctaButtonText}>Start Free 14-Day Trial</Text>
           </TouchableOpacity>
           
           <Text style={styles.ctaSubtext}>No credit card required</Text>
