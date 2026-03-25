@@ -35,6 +35,7 @@ class User(BaseModel):
     trial_start: datetime = Field(default_factory=datetime.utcnow)
     trial_ends: Optional[datetime] = None
     subscription_ends: Optional[datetime] = None
+    push_token: Optional[str] = None  # Expo push notification token
 
 # Behavioral Data Models
 class PhoneBehavior(BaseModel):
