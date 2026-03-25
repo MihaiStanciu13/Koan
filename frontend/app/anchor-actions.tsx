@@ -40,6 +40,8 @@ export default function AnchorActionsScreen() {
     { text: '', time: '18:00', enabled: false },
   ]);
   const [showSuggestions, setShowSuggestions] = useState<number | null>(null);
+  const [showTimePicker, setShowTimePicker] = useState<number | null>(null);
+  const [tempTime, setTempTime] = useState(new Date());
 
   useEffect(() => {
     loadAnchorActions();
