@@ -61,9 +61,7 @@ export default function SettingsScreen() {
   const [microMode, setMicroMode] = useState('standard');
   const [anchorAction, setAnchorAction] = useState('close one loop');
   
-  // Modal states
-  const [showAnchorModal, setShowAnchorModal] = useState(false);
-  const [tempAnchorAction, setTempAnchorAction] = useState('');
+  
 
   useEffect(() => {
     loadSettings();
