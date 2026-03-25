@@ -29,7 +29,31 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
   const responseListener = useRef<Notifications.Subscription>();
 
   useEffect(() => {
-    registerForPushNotificationsAsync().then(token => setExpoPushToken(token || null));
+    registerForPushNotificationsAsync().then(async (token) => {
+      setExpoPushToken(token || null);
+      
+      // Send token to backend
+      if (token) {
+        try {
+          const response = await fetch(`${process.env.EXPO_PUBLIC_BACKEND_URL}/api/user/push-token`, {
+            method: 'PATCH',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${await getAuthToken()}`,
+            },
+            body: JSON.stringify({ push_token: token }),
+          });
+          
+          if (response.ok) {
+            console.log('Push token saved to backend');
+          } else {
+            console.warn('Failed to save push token to backend');
+          }
+        } catch (error) {
+          console.error('Error saving push token:', error);
+        }
+      }
+    });
 
     notificationListener.current = Notifications.addNotificationReceivedListener(notification => {
       setNotification(notification);
