@@ -137,6 +137,14 @@ export const adaptiveNudgeAPI = {
     const response = await api.post(`/adaptive-nudges/${nudge_id}/interaction?action=${action}`);
     return response.data;
   },
+  checkMilestones: async () => {
+    const response = await api.get('/adaptive-nudges/milestones');
+    return response.data;
+  },
+  getPersonalizedNudges: async () => {
+    const response = await api.get('/adaptive-nudges/personalized');
+    return response.data;
+  },
 };
 
 export default api;
