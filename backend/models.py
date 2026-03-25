@@ -36,6 +36,8 @@ class User(BaseModel):
     trial_ends: Optional[datetime] = None
     subscription_ends: Optional[datetime] = None
     push_token: Optional[str] = None  # Expo push notification token
+    google_calendar_token: Optional[str] = None  # Google OAuth access token
+    google_calendar_refresh_token: Optional[str] = None  # Google OAuth refresh token
 
 # Behavioral Data Models
 class PhoneBehavior(BaseModel):
