@@ -158,7 +158,7 @@ function LoginScreen({ onSwitchToSignup }: any) {
 }
 
 // Signup Screen with Koan Branding
-function SignupScreen({ onSwitchToLogin }: any) {
+function SignupScreen({ onSwitchToLogin, onBack }: any) {
   const router = useRouter();
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -186,6 +186,13 @@ function SignupScreen({ onSwitchToLogin }: any) {
     <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <SafeAreaView style={styles.authContainer}>
+          {/* Back button */}
+          {onBack && (
+            <TouchableOpacity onPress={onBack} style={styles.backButton}>
+              <Text style={styles.backButtonText}>← Back</Text>
+            </TouchableOpacity>
+          )}
+
           {/* Logo / Brand Mark */}
           <View style={styles.logoContainer}>
             <View style={styles.logoSymbol}>
@@ -194,8 +201,14 @@ function SignupScreen({ onSwitchToLogin }: any) {
             <Text style={styles.brandName}>Koan</Text>
           </View>
 
-          <Text style={styles.title}>Let's begin your journey toward clarity</Text>
-          <Text style={styles.tagline}>14-day free trial • Cancel anytime</Text>
+          <Text style={styles.title}>Begin your practice</Text>
+          <Text style={styles.tagline}>14 days free, then $9.99/month</Text>
+
+          {/* Trial note banner */}
+          <View style={styles.trialBanner}>
+            <View style={styles.trialDot} />
+            <Text style={styles.trialBannerText}>14-day free trial · No credit card required</Text>
+          </View>
 
           <View style={styles.inputContainer}>
             <Ionicons name="person-outline" size={20} color="#3A3A3A" style={styles.inputIcon} />
