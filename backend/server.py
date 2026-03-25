@@ -224,6 +224,120 @@ async def record_interaction(
     await engine.record_nudge_interaction(current_user.id, nudge_id, action)
     return {"status": "recorded", "action": action}
 
+@api_router.get("/adaptive-nudges/milestones")
+async def check_milestones_endpoint(
+    current_user: User = Depends(get_current_user)
+):
+    """Check user milestones and trigger milestone nudges"""
+    # Get user behavior summary
+    behavior_summary = await db["behavior_events"].aggregate([
+        {"$match": {"user_id": current_user.id}},
+        {"$group": {
+            "_id": None,
+            "total_events": {"$sum": 1},
+            "days_active": {"$addToSet": {"$dateToString": {"format": "%Y-%m-%d", "date": "$timestamp"}}}
+        }}
+    ]).to_list(length=1)
+    
+    if not behavior_summary:
+        return {"milestones": []}
+    
+    total_events = behavior_summary[0].get("total_events", 0)
+    days_active = len(behavior_summary[0].get("days_active", []))
+    
+    milestones = []
+    
+    # Milestone 1: First week (7 days active)
+    if days_active >= 7:
+        milestones.append({
+            "type": "first_week",
+            "message": "One week of mindful awareness. You're building something lasting.",
+            "achieved": True
+        })
+    
+    # Milestone 2: 50 behavior events
+    if total_events >= 50:
+        milestones.append({
+            "type": "fifty_events",
+            "message": "Fifty moments of awareness. Your patterns are becoming clear.",
+            "achieved": True
+        })
+    
+    # Milestone 3: Two weeks (14 days active)
+    if days_active >= 14:
+        milestones.append({
+            "type": "two_weeks",
+            "message": "Two weeks of practice. Notice how your awareness has deepened.",
+            "achieved": True
+        })
+    
+    # Milestone 4: 100 behavior events
+    if total_events >= 100:
+        milestones.append({
+            "type": "hundred_events",
+            "message": "One hundred moments of mindfulness. You're developing true awareness.",
+            "achieved": True
+        })
+    
+    # Milestone 5: One month (30 days active)
+    if days_active >= 30:
+        milestones.append({
+            "type": "one_month",
+            "message": "One month of consistent practice. Your mindful habits are taking root.",
+            "achieved": True
+        })
+    
+    return {"milestones": milestones}
+
+@api_router.get("/adaptive-nudges/personalized")
+async def get_personalized_nudges_endpoint(
+    current_user: User = Depends(get_current_user)
+):
+    """Get personalized nudges based on user patterns and preferences"""
+    # Get user preferences
+    prefs = await db["preferences"].find_one({"user_id": current_user.id})
+    
+    # Get recent behavior patterns
+    recent_events = await db["behavior_events"].find(
+        {"user_id": current_user.id},
+        sort=[("timestamp", -1)],
+        limit=50
+    ).to_list(length=50)
+    
+    personalized_nudges = []
+    
+    # Analyze patterns and create personalized nudges
+    if recent_events:
+        # Check for excessive phone pickups pattern
+        pickup_events = [e for e in recent_events if e.get("event_type") == "phone_pickup"]
+        if len(pickup_events) > 10:
+            personalized_nudges.append({
+                "type": "pickup_awareness",
+                "message": "Notice the impulse before reaching for your phone.",
+                "priority": "high"
+            })
+        
+        # Check for late night usage
+        late_night_events = [e for e in recent_events if e.get("timestamp", dt.utcnow()).hour >= 22]
+        if len(late_night_events) > 5:
+            personalized_nudges.append({
+                "type": "evening_boundary",
+                "message": "Consider setting an evening boundary for deeper rest.",
+                "priority": "medium"
+            })
+    
+    # Add anchor action reminder if configured
+    if prefs and prefs.get("anchor_actions"):
+        enabled_actions = [a for a in prefs["anchor_actions"] if a.get("enabled")]
+        if enabled_actions:
+            personalized_nudges.append({
+                "type": "anchor_reminder",
+                "message": f"Remember your anchor: {enabled_actions[0].get('text', 'close one loop')}",
+                "priority": "low"
+            })
+    
+    return {"personalized_nudges": personalized_nudges}
+
 # Pattern detection endpoints
 @api_router.get("/patterns/weekly")
 async def get_weekly_patterns(
