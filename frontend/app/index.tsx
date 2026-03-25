@@ -264,8 +264,8 @@ function SignupScreen({ onSwitchToLogin, onBack }: any) {
   );
 }
 
-// Landing Page Screen
-function LandingPageScreen({ onGetStarted }: any) {
+// Landing Page Screen (simplified for returning logged-out users)
+function LandingPageScreen({ onGetStarted, onSignIn }: any) {
   const router = useRouter();
   const pulseAnim = useRef(new Animated.Value(1)).current;
   const opacityAnim = useRef(new Animated.Value(0.3)).current;
@@ -304,10 +304,10 @@ function LandingPageScreen({ onGetStarted }: any) {
   
   return (
     <SafeAreaView style={styles.container}>
-      <ScrollView contentContainerStyle={styles.landingScroll}>
-        {/* Hero - Section 1 */}
+      <View style={styles.landingScroll}>
+        {/* Centered content */}
         <View style={styles.landingHero}>
-          {/* Subtle animated dot with halo */}
+          {/* Animated dot */}
           <View style={styles.dotContainer}>
             <Animated.View style={[styles.dotHalo, { 
               transform: [{ scale: pulseAnim }],
@@ -325,79 +325,41 @@ function LandingPageScreen({ onGetStarted }: any) {
           <Text style={styles.heroSubtitle}>
             We just help you remember.
           </Text>
-          
+
+          {/* Three pills */}
+          <View style={styles.pillsContainer}>
+            <View style={styles.pill}>
+              <Text style={styles.pillText}>No dashboards</Text>
+            </View>
+            <Text style={styles.pillDivider}>·</Text>
+            <View style={styles.pill}>
+              <Text style={styles.pillText}>No streaks</Text>
+            </View>
+            <Text style={styles.pillDivider}>·</Text>
+            <View style={styles.pill}>
+              <Text style={styles.pillText}>No noise</Text>
+            </View>
+          </View>
+
+          {/* CTAs */}
           <TouchableOpacity style={styles.ctaButton} onPress={onGetStarted}>
-            <Text style={styles.ctaButtonText}>Start Free 14-Day Trial</Text>
+            <Text style={styles.ctaButtonText}>Start free trial</Text>
           </TouchableOpacity>
-          
-          <Text style={styles.ctaSubtext}>No credit card required</Text>
 
-          {/* Scroll indicator */}
-          <View style={styles.scrollIndicator}>
-            <Ionicons name="chevron-down" size={20} color="#3A3A3A" style={{ opacity: 0.4 }} />
-          </View>
-        </View>
+          <TouchableOpacity onPress={onSignIn} style={styles.linkButton}>
+            <Text style={styles.linkText}>Already have an account? Sign in</Text>
+          </TouchableOpacity>
 
-        {/* What Koan Does - Section 2 */}
-        <View style={styles.whatSection}>
-          <Text style={styles.whatTitle}>Calm clarity for busy minds.</Text>
-          <Text style={styles.whatSubtitle}>
-            Subtle nudges at the right moment — no dashboards, no noise.
-          </Text>
-        </View>
-
-        {/* How Koan Works - Section 2 continued */}
-        <View style={styles.howSection}>
-          <View style={styles.howCard}>
-            <Text style={styles.howCardTitle}>Observes patterns</Text>
-            <Text style={styles.howCardText}>
-              Phone rhythm + your corporate tools (Outlook, Slack, Teams, Gmail, Calendar).
-              Always metadata, never content.
-            </Text>
-          </View>
-
-          <View style={styles.howCard}>
-            <Text style={styles.howCardTitle}>Finds the right moment</Text>
-            <Text style={styles.howCardText}>
-              Nudges only appear when timing truly helps.
-            </Text>
-          </View>
-
-          <View style={styles.howCard}>
-            <Text style={styles.howCardTitle}>Keeps things simple</Text>
-            <Text style={styles.howCardText}>
-              Short, subtle reminders. Nothing more.
-            </Text>
-          </View>
-
-          {/* Scroll indicator */}
-          <View style={styles.scrollIndicatorMiddle}>
-            <Ionicons name="chevron-down" size={20} color="#3A3A3A" style={{ opacity: 0.4 }} />
-          </View>
-        </View>
-
-        {/* Pricing - Section 3 */}
-        <View style={styles.pricingSection}>
-          <Text style={styles.pricingAmount}>$9.99 / month after trial</Text>
-          <Text style={styles.pricingCancel}>Cancel anytime.</Text>
-          <Text style={styles.pricingPrivacy}>
-            Koan analyzes metadata only — never message or email content.
-          </Text>
-
-          <TouchableOpacity style={styles.ctaButton} onPress={onGetStarted}>
-            <Text style={styles.ctaButtonText}>Start Free Trial</Text>
+          {/* Learn more link */}
+          <TouchableOpacity onPress={() => router.push('/learn-more')}>
+            <Text style={styles.learnMoreLink}>Learn more about Koan ↓</Text>
           </TouchableOpacity>
         </View>
-
-        {/* Footer - Section 5 */}
-        <View style={styles.footer}>
-          <Text style={styles.footerLink}>Terms</Text>
-          <Text style={styles.footerDivider}>·</Text>
-          <Text style={styles.footerLink}>Privacy</Text>
-          <Text style={styles.footerDivider}>·</Text>
-          <Text style={styles.footerLink}>Support</Text>
-        </View>
-      </ScrollView>
+      </View>
+      <StatusBar style="dark" />
+    </SafeAreaView>
+  );
+}
       <StatusBar style="dark" />
     </SafeAreaView>
   );
