@@ -55,12 +55,8 @@ function LoginScreen({ onSwitchToSignup }: any) {
         if (savedEmail && savedPassword) {
           setLoading(true);
           await login(savedEmail, savedPassword);
-          const onboardingComplete = await storage.isOnboardingComplete();
-          if (onboardingComplete) {
-            router.replace('/(tabs)');
-          } else {
-            router.replace('/onboarding');
-          }
+          // Login always goes to tabs (skip onboarding check)
+          router.replace('/(tabs)');
         } else {
           Alert.alert('No Saved Credentials', 'Please log in with email and password first');
         }
@@ -87,7 +83,8 @@ function LoginScreen({ onSwitchToSignup }: any) {
         await SecureStore.setItemAsync('biometric_password', password);
       }
       
-      // Navigation will be handled by useEffect in main component
+      // Login always goes to tabs (returning users skip onboarding)
+      router.replace('/(tabs)');
     } catch (error: any) {
       Alert.alert('Login Failed', error.response?.data?.detail || 'Invalid credentials');
     } finally {
