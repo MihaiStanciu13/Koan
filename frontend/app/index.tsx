@@ -762,4 +762,26 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: 12,
   },
+  pillsContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 24,
+    marginBottom: 32,
+    gap: 8,
+  },
+  pill: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+  },
+  pillText: {
+    fontSize: 11,
+    color: '#3A3A3A',
+    opacity: 0.7,
+  },
+  pillDivider: {
+    fontSize: 11,
+    color: '#3A3A3A',
+    opacity: 0.4,
+  },
 });
