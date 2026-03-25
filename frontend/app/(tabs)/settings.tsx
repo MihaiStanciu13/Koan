@@ -14,6 +14,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useAuth } from '../../contexts/AuthContext';
 import { preferencesAPI, subscriptionAPI } from '../../services/api';
+import * as WebBrowser from 'expo-web-browser';
 
 const WORKPLACE_TOOLS = [
   { id: 'gmail', name: 'Gmail', icon: 'mail-outline', color: '#EA4335' },
