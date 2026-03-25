@@ -122,6 +122,12 @@ async def get_pending_nudges_endpoint(
     nudges = await get_pending_nudges(db, current_user.id)
     return {"nudges": [n.dict() for n in nudges]}
 
+@api_router.get("/nudges/count")
+async def get_nudge_count(current_user: User = Depends(get_current_user)):
+    """Get total count of nudges sent to user"""
+    count = await db.nudges.count_documents({"user_id": current_user.id})
+    return {"count": count}
+
 @api_router.post("/nudges/{nudge_id}/delivered")
 async def mark_delivered(
     nudge_id: str,
