@@ -318,6 +318,25 @@ export default function HomeScreen() {
           )}
         </TouchableOpacity>
 
+        {/* 5th Nudge Milestone */}
+        {show5thNudgeMilestone && (
+          <View style={styles.milestoneCard}>
+            <View style={styles.milestoneHeader}>
+              <Ionicons name="trophy-outline" size={32} color="#5FAD8E" />
+            </View>
+            <Text style={styles.milestoneTitle}>Your pattern baseline is forming</Text>
+            <Text style={styles.milestoneText}>
+              You've received 5 nudges. Koan works best over time — your subtle patterns are starting to emerge.
+            </Text>
+            <TouchableOpacity 
+              style={styles.milestoneButton}
+              onPress={() => setShow5thNudgeMilestone(false)}
+            >
+              <Text style={styles.milestoneButtonText}>Continue</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
         {/* Recent Nudges */}
         {pendingNudges.length > 0 && (
           <View style={styles.card}>
