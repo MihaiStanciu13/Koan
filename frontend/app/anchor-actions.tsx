@@ -371,6 +371,11 @@ const styles = StyleSheet.create({
     backgroundColor: '#F5F5F5',
     borderRadius: 8,
   },
+  timeText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#3A3A3A',
+  },
   infoCard: {
     flexDirection: 'row',
     gap: 12,
