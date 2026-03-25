@@ -14,7 +14,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { useAuth } from '../../contexts/AuthContext';
 import { useNotifications } from '../../contexts/NotificationContext';
-import { nudgeAPI, behaviorAPI, preferencesAPI, subscriptionAPI } from '../../services/api';
+import { nudgeAPI, behaviorAPI, preferencesAPI, subscriptionAPI, adaptiveNudgeAPI } from '../../services/api';
 import { format } from 'date-fns';
 import WelcomeVideoModal from '../../components/WelcomeVideoModal';
 import AsyncStorage from '@react-native-async-storage/async-storage';
