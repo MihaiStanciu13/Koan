@@ -159,12 +159,11 @@ export default function HomeScreen() {
 
   const loadData = async () => {
     try {
-      const [prefs, nudges, subscription] = await Promise.all([
+      const [prefs, nudges, subscription, fallback] = await Promise.all([
         preferencesAPI.get(),
         nudgeAPI.getPending(),
         subscriptionAPI.getStatus(),
-        adaptiveNudgeAPI.checkMilestones(),
-        adaptiveNudgeAPI.getPersonalizedNudges(),
+        adaptiveNudgeAPI.checkFallback().catch(() => null), // Optional fallback check
       ]);
 
       setAnchorAction(prefs.anchor_action || 'close one loop');
@@ -173,8 +172,19 @@ export default function HomeScreen() {
         const enabledActions = prefs.anchor_actions.filter((a: any) => a.enabled && a.text);
         setAnchorActions(enabledActions);
       }
-      setPendingNudges(nudges.nudges || []);
+      
+      let allNudges = nudges.nudges || [];
+      
+      // Add fallback nudge if returned
+      if (fallback && fallback.nudge) {
+        allNudges = [fallback.nudge, ...allNudges];
+      }
+      
+      setPendingNudges(allNudges);
       setTrialDays(subscription.trial_days_remaining || 0);
+      
+      // Check for 5th nudge milestone
+      await checkNudgeMilestone();
     } catch (error) {
       console.error('Failed to load data:', error);
     }
