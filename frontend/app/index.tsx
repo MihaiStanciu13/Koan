@@ -762,4 +762,42 @@ const styles = StyleSheet.create({
     color: '#3A3A3A',
     opacity: 0.3,
   },
+  backButton: {
+    position: 'absolute',
+    top: 20,
+    left: 22,
+    zIndex: 10,
+  },
+  backButtonText: {
+    fontSize: 12,
+    color: '#3A3A3A',
+    opacity: 0.6,
+  },
+  trialBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: '#D9F7EB',
+    borderRadius: 8,
+    paddingVertical: 9,
+    paddingHorizontal: 12,
+    marginBottom: 16,
+  },
+  trialDot: {
+    width: 5,
+    height: 5,
+    borderRadius: 2.5,
+    backgroundColor: '#5FAD8E',
+  },
+  trialBannerText: {
+    fontSize: 11,
+    fontWeight: '300',
+    color: '#3A3A3A',
+  },
+  learnMoreLink: {
+    fontSize: 11,
+    color: 'rgba(95,173,142,0.7)',
+    textAlign: 'center',
+    marginTop: 12,
+  },
 });
