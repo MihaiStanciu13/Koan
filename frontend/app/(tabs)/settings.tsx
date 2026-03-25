@@ -247,27 +247,6 @@ export default function SettingsScreen() {
           ))}
         </View>
 
-        {/* Anchor Action */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Anchor Action</Text>
-          <Text style={styles.sectionSubtitle}>
-            Your daily behavioral anchor
-          </Text>
-          
-          <TouchableOpacity
-            style={styles.card}
-            onPress={() => {
-              setTempAnchorAction(anchorAction);
-              setShowAnchorModal(true);
-            }}
-          >
-            <View style={styles.anchorRow}>
-              <Text style={styles.anchorText}>{anchorAction}</Text>
-              <Ionicons name="pencil-outline" size={20} color="#3A3A3A" />
-            </View>
-          </TouchableOpacity>
-        </View>
-
         {/* Notification Preferences */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Notification Preferences</Text>
@@ -281,6 +260,21 @@ export default function SettingsScreen() {
                 <Text style={styles.preferenceName}>Nudges & Notifications</Text>
                 <Text style={styles.preferenceDescription}>
                   Nudge style, quiet hours, and more
+                </Text>
+              </View>
+              <Ionicons name="chevron-forward" size={20} color="#3A3A3A" />
+            </View>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.card}
+            onPress={() => router.push('/anchor-actions')}
+          >
+            <View style={styles.preferenceRow}>
+              <View style={styles.preferenceLeft}>
+                <Text style={styles.preferenceName}>Anchor Actions</Text>
+                <Text style={styles.preferenceDescription}>
+                  Set 1-3 daily behavioral anchors
                 </Text>
               </View>
               <Ionicons name="chevron-forward" size={20} color="#3A3A3A" />
