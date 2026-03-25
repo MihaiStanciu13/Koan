@@ -113,6 +113,59 @@ async def update_push_token(
     
     return {"status": "updated", "push_token": token}
 
+# Google Calendar Integration endpoints
+from google_calendar import fetch_calendar_events
+
+@api_router.post("/integrations/calendar/connect")
+async def connect_google_calendar(
+    tokens: dict,
+    current_user: User = Depends(get_current_user)
+):
+    """Save Google Calendar OAuth tokens"""
+    access_token = tokens.get("access_token")
+    refresh_token = tokens.get("refresh_token")
+    
+    if not access_token:
+        raise HTTPException(status_code=400, detail="access_token is required")
+    
+    update_data = {"google_calendar_token": access_token}
+    if refresh_token:
+        update_data["google_calendar_refresh_token"] = refresh_token
+    
+    await db.users.update_one(
+        {"_id": current_user.id},
+        {"$set": update_data}
+    )
+    
+    return {"status": "connected"}
+
+@api_router.get("/integrations/calendar/events")
+async def get_calendar_events(
+    current_user: User = Depends(get_current_user)
+):
+    """Fetch calendar events for meeting-based nudges"""
+    user = await db.users.find_one({"_id": current_user.id})
+    
+    if not user or not user.get("google_calendar_token"):
+        raise HTTPException(status_code=404, detail="Google Calendar not connected")
+    
+    access_token = user["google_calendar_token"]
+    events_data = await fetch_calendar_events(access_token)
+    
+    return events_data
+
+@api_router.delete("/integrations/calendar/disconnect")
+async def disconnect_google_calendar(
+    current_user: User = Depends(get_current_user)
+):
+    """Disconnect Google Calendar"""
+    await db.users.update_one(
+        {"_id": current_user.id},
+        {"$unset": {"google_calendar_token": "", "google_calendar_refresh_token": ""}}
+    )
+    
+    return {"status": "disconnected"}
+
 # Nudge endpoints
 @api_router.get("/nudges/pending")
 async def get_pending_nudges_endpoint(
