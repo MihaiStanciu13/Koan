@@ -185,13 +185,39 @@ export default function AnchorActionsScreen() {
               <View style={styles.timeContainer}>
                 <Ionicons name="time-outline" size={20} color="#5FAD8E" />
                 <Text style={styles.timeLabel}>Daily reminder at</Text>
-                <TextInput
+                <TouchableOpacity 
                   style={styles.timeInput}
-                  value={anchor.time}
-                  onChangeText={(text) => updateAnchorAction(index, 'time', text)}
-                  placeholder="HH:MM"
-                  placeholderTextColor="#999"
-                />
+                  onPress={() => {
+                    const [hours, minutes] = anchor.time.split(':');
+                    const date = new Date();
+                    date.setHours(parseInt(hours), parseInt(minutes));
+                    setTempTime(date);
+                    setShowTimePicker(index);
+                  }}
+                >
+                  <Text style={styles.timeText}>{anchor.time}</Text>
+                </TouchableOpacity>
+                {showTimePicker === index && (
+                  <DateTimePicker
+                    value={tempTime}
+                    mode="time"
+                    is24Hour={true}
+                    display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                    onChange={(event, selectedDate) => {
+                      if (Platform.OS === 'android') {
+                        setShowTimePicker(null);
+                      }
+                      if (selectedDate) {
+                        const hours = selectedDate.getHours().toString().padStart(2, '0');
+                        const minutes = selectedDate.getMinutes().toString().padStart(2, '0');
+                        updateAnchorAction(index, 'time', `${hours}:${minutes}`);
+                        if (Platform.OS === 'ios') {
+                          setShowTimePicker(null);
+                        }
+                      }
+                    }}
+                  />
+                )}
               </View>
             )}
           </View>
