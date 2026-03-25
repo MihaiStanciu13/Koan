@@ -95,6 +95,24 @@ async def update_preferences(
     
     return {"status": "updated", "updates": update_dict}
 
+# Push notification token endpoint
+@api_router.patch("/user/push-token")
+async def update_push_token(
+    push_token: dict,
+    current_user: User = Depends(get_current_user)
+):
+    """Save Expo push notification token for the user"""
+    token = push_token.get("push_token")
+    if not token:
+        raise HTTPException(status_code=400, detail="push_token is required")
+    
+    await db.users.update_one(
+        {"_id": current_user.id},
+        {"$set": {"push_token": token}}
+    )
+    
+    return {"status": "updated", "push_token": token}
+
 # Nudge endpoints
 @api_router.get("/nudges/pending")
 async def get_pending_nudges_endpoint(
