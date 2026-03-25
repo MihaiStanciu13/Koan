@@ -42,7 +42,7 @@ export default function LandingPage() {
             style={styles.ctaButton}
             onPress={() => router.push('/')}
           >
-            <Text style={styles.ctaText}>Start Free 7-Day Trial</Text>
+            <Text style={styles.ctaText}>Start Free 14-Day Trial</Text>
             <Ionicons name="arrow-forward" size={18} color="#3A3A3A" />
           </TouchableOpacity>
 
