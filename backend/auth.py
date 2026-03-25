@@ -90,7 +90,7 @@ async def signup(user_data: UserCreate):
     # Create new user
     user_id = str(uuid.uuid4())
     trial_start = datetime.utcnow()
-    trial_ends = trial_start + timedelta(days=7)
+    trial_ends = trial_start + timedelta(days=14)
     
     user = User(
         id=user_id,
