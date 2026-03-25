@@ -155,6 +155,8 @@ export default function HomeScreen() {
         preferencesAPI.get(),
         nudgeAPI.getPending(),
         subscriptionAPI.getStatus(),
+        adaptiveNudgeAPI.checkMilestones(),
+        adaptiveNudgeAPI.getPersonalizedNudges(),
       ]);
 
       setAnchorAction(prefs.anchor_action || 'close one loop');
