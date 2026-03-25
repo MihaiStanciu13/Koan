@@ -3,6 +3,7 @@ import * as Notifications from 'expo-notifications';
 import * as Device from 'expo-device';
 import { Platform, Alert } from 'react-native';
 import { nudgeAPI } from '../services/api';
+import { storage } from '../services/storage';
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
