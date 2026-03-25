@@ -132,6 +132,14 @@ export default function HomeScreen() {
     }
   };
 
+  const checkNudgeMilestone = async () => {
+    try {
+      await adaptiveNudgeAPI.checkMilestones();
+    } catch (error) {
+      console.error('Failed to check nudge milestone:', error);
+    }
+  };
+
   const startPulseAnimation = () => {
     Animated.loop(
       Animated.sequence([
