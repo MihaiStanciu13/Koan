@@ -158,6 +158,23 @@ export default function HomeScreen() {
     ).start();
   };
 
+  const checkNudgeMilestone = async () => {
+    try {
+      const hasSeenMilestone = await AsyncStorage.getItem('seen5thNudgeMilestone');
+      if (hasSeenMilestone) return;
+      
+      // Get total nudge count
+      const nudgeCount = await nudgeAPI.getCount();
+      
+      if (nudgeCount >= 5) {
+        setShow5thNudgeMilestone(true);
+        await AsyncStorage.setItem('seen5thNudgeMilestone', 'true');
+      }
+    } catch (error) {
+      console.error('Failed to check nudge milestone:', error);
+    }
+  };
+
   const loadData = async () => {
     try {
       const [prefs, nudges, subscription, fallback] = await Promise.all([
