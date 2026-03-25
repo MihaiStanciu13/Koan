@@ -67,6 +67,7 @@ export default function HomeScreen() {
   const [learningPhase, setLearningPhase] = useState(0); // Track which phase of learning we're in
   const [currentHint, setCurrentHint] = useState(0);
   const [showWelcomeVideo, setShowWelcomeVideo] = useState(false);
+  const [show5thNudgeMilestone, setShow5thNudgeMilestone] = useState(false);
   
   // Animation for pulsing dot
   const pulseAnim = useRef(new Animated.Value(1)).current;
