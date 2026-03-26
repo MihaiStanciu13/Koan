@@ -8,12 +8,14 @@ import {
   Switch,
   TextInput,
   Alert,
+  Modal,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useAuth } from '../../contexts/AuthContext';
 import { preferencesAPI, subscriptionAPI } from '../../services/api';
+import api from '../../services/api';
 import * as WebBrowser from 'expo-web-browser';
 
 const WORKPLACE_TOOLS = [
@@ -60,6 +62,7 @@ export default function SettingsScreen() {
   const [connectedTools, setConnectedTools] = useState<string[]>([]);
   const [microMode, setMicroMode] = useState('standard');
   const [anchorAction, setAnchorAction] = useState('close one loop');
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   
   
 
@@ -145,7 +148,7 @@ export default function SettingsScreen() {
 
   const initiateGoogleCalendarOAuth = async () => {
     try {
-      const redirectUri = 'https://focus-coach-8.preview.emergentagent.com';
+      const redirectUri = 'https://koan-dev-build.preview.emergentagent.com';
       const clientId = process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID || 'YOUR_GOOGLE_CLIENT_ID';
       
       const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?` +
@@ -202,24 +205,18 @@ export default function SettingsScreen() {
 
   
 
-  const handleLogout = async () => {
-    Alert.alert('Log Out', 'Are you sure you want to log out?', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Log Out',
-        style: 'destructive',
-        onPress: async () => {
-          try {
-            await logout();
-            // Navigation will be handled automatically by the index.tsx state machine
-            // No manual navigation needed - the useEffect will detect user === null
-          } catch (error) {
-            console.error('Logout error:', error);
-            Alert.alert('Error', 'Failed to log out. Please try again.');
-          }
-        },
-      },
-    ]);
+  const handleLogout = () => {
+    setShowLogoutConfirm(true);
+  };
+
+  const confirmLogout = async () => {
+    setShowLogoutConfirm(false);
+    try {
+      await logout();
+      // The (tabs)/_layout.tsx auth guard will redirect to landing
+    } catch (error) {
+      console.error('Logout error:', error);
+    }
   };
 
   return (
@@ -401,7 +398,34 @@ export default function SettingsScreen() {
         </View>
       </ScrollView>
 
-      
+      {/* Logout Confirmation Modal */}
+      <Modal
+        visible={showLogoutConfirm}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setShowLogoutConfirm(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Log Out</Text>
+            <Text style={styles.modalMessage}>Are you sure you want to log out?</Text>
+            <View style={styles.modalButtons}>
+              <TouchableOpacity
+                style={styles.modalCancelButton}
+                onPress={() => setShowLogoutConfirm(false)}
+              >
+                <Text style={styles.modalCancelText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.modalLogoutButton}
+                onPress={confirmLogout}
+              >
+                <Text style={styles.modalLogoutText}>Log Out</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -589,5 +613,62 @@ const styles = StyleSheet.create({
     color: '#3A3A3A',
     opacity: 0.6,
     textAlign: 'center',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  modalContent: {
+    backgroundColor: '#FAFDFA',
+    borderRadius: 16,
+    padding: 24,
+    width: '100%',
+    maxWidth: 320,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#3A3A3A',
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  modalMessage: {
+    fontSize: 14,
+    color: '#3A3A3A',
+    opacity: 0.7,
+    textAlign: 'center',
+    marginBottom: 24,
+  },
+  modalButtons: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  modalCancelButton: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#E6E6E4',
+    alignItems: 'center',
+  },
+  modalCancelText: {
+    fontSize: 15,
+    fontWeight: '500',
+    color: '#3A3A3A',
+  },
+  modalLogoutButton: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 8,
+    backgroundColor: '#EA4335',
+    alignItems: 'center',
+  },
+  modalLogoutText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#FFFFFF',
   },
 });

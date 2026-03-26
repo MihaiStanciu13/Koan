@@ -16,7 +16,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter, Redirect } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import * as LocalAuthentication from 'expo-local-authentication';
 import * as SecureStore from 'expo-secure-store';
 import { useAuth } from '../contexts/AuthContext';
@@ -54,9 +54,10 @@ function LoginScreen({ onSwitchToSignup }: any) {
         
         if (savedEmail && savedPassword) {
           setLoading(true);
+          // Mark onboarding complete before login to avoid race condition
+          await storage.setOnboardingComplete();
           await login(savedEmail, savedPassword);
-          // Login always goes to tabs (skip onboarding check)
-          router.replace('/(tabs)');
+          // Navigation handled by useEffect in Index
         } else {
           Alert.alert('No Saved Credentials', 'Please log in with email and password first');
         }
@@ -75,6 +76,10 @@ function LoginScreen({ onSwitchToSignup }: any) {
     }
     setLoading(true);
     try {
+      // Mark onboarding complete BEFORE login to avoid race condition
+      // (login sets user state → triggers useEffect → checkOnboardingAndNavigate)
+      await storage.setOnboardingComplete();
+      
       await login(email, password);
       
       // Save credentials for biometric login (only on successful login)
@@ -82,9 +87,7 @@ function LoginScreen({ onSwitchToSignup }: any) {
         await SecureStore.setItemAsync('biometric_email', email);
         await SecureStore.setItemAsync('biometric_password', password);
       }
-      
-      // Login always goes to tabs (returning users skip onboarding)
-      router.replace('/(tabs)');
+      // Navigation is handled by useEffect in Index when user state changes
     } catch (error: any) {
       Alert.alert('Login Failed', error.response?.data?.detail || 'Invalid credentials');
     } finally {
@@ -360,10 +363,6 @@ function LandingPageScreen({ onGetStarted, onSignIn }: any) {
     </SafeAreaView>
   );
 }
-      <StatusBar style="dark" />
-    </SafeAreaView>
-  );
-}
 
 // Main App Router
 export default function Index() {
@@ -371,7 +370,17 @@ export default function Index() {
   const [showLogin, setShowLogin] = useState<boolean | null>(null); // null = landing, true = login, false = signup
   const [checkingOnboarding, setCheckingOnboarding] = useState(false);
   const router = useRouter();
+  const params = useLocalSearchParams<{ auth?: string }>();
   const previousUserRef = useRef(user);
+
+  // Handle URL query params (e.g., from learn-more screen /?auth=login or /?auth=signup)
+  useEffect(() => {
+    if (params.auth === 'login') {
+      setShowLogin(true);
+    } else if (params.auth === 'signup') {
+      setShowLogin(false);
+    }
+  }, [params.auth]);
 
   // Handle navigation when user state changes
   useEffect(() => {
@@ -383,8 +392,6 @@ export default function Index() {
         // User JUST logged out (was logged in, now not), reset to landing page
         setShowLogin(null);
         setCheckingOnboarding(false);
-        // CRITICAL: Reset navigation stack on native - only on logout
-        router.replace('/');
       }
     }
     // Update the ref
@@ -441,7 +448,7 @@ export default function Index() {
 
   // User is NOT logged in - show landing/login/signup
   if (showLogin === null) {
-    return <LandingPageScreen onGetStarted={() => setShowLogin(false)} />;
+    return <LandingPageScreen onGetStarted={() => setShowLogin(false)} onSignIn={() => setShowLogin(true)} />;
   }
 
   return showLogin ? (

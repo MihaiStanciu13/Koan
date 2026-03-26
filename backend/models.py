@@ -73,6 +73,7 @@ class PreferencesUpdate(BaseModel):
     whisper_mode: Optional[bool] = None
     anchor_action: Optional[str] = None
     anchor_actions: Optional[List[Dict]] = None
+    connected_tools: Optional[List[str]] = None
     notification_enabled: Optional[bool] = None
     nudge_style: Optional[str] = None
     quiet_hours_enabled: Optional[bool] = None

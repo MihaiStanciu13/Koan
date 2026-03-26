@@ -47,11 +47,9 @@ export const storage = {
     }
   },
   
-  // Clear auth only (for logout)
+  // Clear auth only (for logout) - keep onboarding & UI flags
   clearAuth: async () => {
     await AsyncStorage.removeItem('auth_token');
     await AsyncStorage.removeItem('user');
-    await AsyncStorage.removeItem('onboarding_complete');
-    await AsyncStorage.removeItem('hasSeenWelcomeVideo');
   },
 };
