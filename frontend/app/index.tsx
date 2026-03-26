@@ -21,9 +21,10 @@ import * as LocalAuthentication from 'expo-local-authentication';
 import * as SecureStore from 'expo-secure-store';
 import { useAuth } from '../contexts/AuthContext';
 import { storage } from '../services/storage';
+import SplashScreen from './splash';
 
 // Login Screen with Koan Branding
-function LoginScreen({ onSwitchToSignup }: any) {
+function LoginScreen({ onSwitchToSignup, onBack }: any) {
   const router = useRouter();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -51,7 +52,7 @@ function LoginScreen({ onSwitchToSignup }: any) {
       if (result.success) {
         const savedEmail = await SecureStore.getItemAsync('biometric_email');
         const savedPassword = await SecureStore.getItemAsync('biometric_password');
-        
+
         if (savedEmail && savedPassword) {
           setLoading(true);
           // Mark onboarding complete before login to avoid race condition
@@ -77,11 +78,10 @@ function LoginScreen({ onSwitchToSignup }: any) {
     setLoading(true);
     try {
       // Mark onboarding complete BEFORE login to avoid race condition
-      // (login sets user state → triggers useEffect → checkOnboardingAndNavigate)
       await storage.setOnboardingComplete();
-      
+
       await login(email, password);
-      
+
       // Save credentials for biometric login (only on successful login)
       if (biometricAvailable) {
         await SecureStore.setItemAsync('biometric_email', email);
@@ -99,6 +99,13 @@ function LoginScreen({ onSwitchToSignup }: any) {
     <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <SafeAreaView style={styles.authContainer}>
+          {/* Back button */}
+          {onBack && (
+            <TouchableOpacity onPress={onBack} style={styles.backButton}>
+              <Text style={styles.backButtonText}>← Back</Text>
+            </TouchableOpacity>
+          )}
+
           {/* Logo / Brand Mark */}
           <View style={styles.logoContainer}>
             <View style={styles.logoSymbol}>
@@ -162,7 +169,6 @@ function LoginScreen({ onSwitchToSignup }: any) {
 
 // Signup Screen with Koan Branding
 function SignupScreen({ onSwitchToLogin, onBack }: any) {
-  const router = useRouter();
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -267,98 +273,77 @@ function SignupScreen({ onSwitchToLogin, onBack }: any) {
   );
 }
 
-// Landing Page Screen (simplified for returning logged-out users)
+// Landing Page Screen — minimal, for returning logged-out users
 function LandingPageScreen({ onGetStarted, onSignIn }: any) {
-  const router = useRouter();
   const pulseAnim = useRef(new Animated.Value(1)).current;
   const opacityAnim = useRef(new Animated.Value(0.3)).current;
 
   useEffect(() => {
-    // Subtle pulsing animation for the dot
     Animated.loop(
       Animated.sequence([
         Animated.parallel([
-          Animated.timing(pulseAnim, {
-            toValue: 1.2,
-            duration: 3000,
-            useNativeDriver: true,
-          }),
-          Animated.timing(opacityAnim, {
-            toValue: 0.6,
-            duration: 3000,
-            useNativeDriver: true,
-          }),
+          Animated.timing(pulseAnim, { toValue: 1.2, duration: 3000, useNativeDriver: true }),
+          Animated.timing(opacityAnim, { toValue: 0.6, duration: 3000, useNativeDriver: true }),
         ]),
         Animated.parallel([
-          Animated.timing(pulseAnim, {
-            toValue: 1,
-            duration: 3000,
-            useNativeDriver: true,
-          }),
-          Animated.timing(opacityAnim, {
-            toValue: 0.3,
-            duration: 3000,
-            useNativeDriver: true,
-          }),
+          Animated.timing(pulseAnim, { toValue: 1, duration: 3000, useNativeDriver: true }),
+          Animated.timing(opacityAnim, { toValue: 0.3, duration: 3000, useNativeDriver: true }),
         ]),
       ])
     ).start();
   }, []);
-  
+
   return (
     <SafeAreaView style={styles.container}>
-      <View style={styles.landingScroll}>
-        {/* Centered content */}
-        <View style={styles.landingHero}>
-          {/* Animated dot */}
-          <View style={styles.dotContainer}>
-            <Animated.View style={[styles.dotHalo, { 
-              transform: [{ scale: pulseAnim }],
-              opacity: opacityAnim,
-            }]} />
-            <View style={styles.dotCenter} />
-          </View>
-
-          <Text style={styles.brandName}>Koan</Text>
-          
-          <Text style={styles.heroTitle}>
-            Everything you need to know,{'\n'}you already know.
-          </Text>
-          
-          <Text style={styles.heroSubtitle}>
-            We just help you remember.
-          </Text>
-
-          {/* Three pills */}
-          <View style={styles.pillsContainer}>
-            <View style={styles.pill}>
-              <Text style={styles.pillText}>No dashboards</Text>
-            </View>
-            <Text style={styles.pillDivider}>·</Text>
-            <View style={styles.pill}>
-              <Text style={styles.pillText}>No streaks</Text>
-            </View>
-            <Text style={styles.pillDivider}>·</Text>
-            <View style={styles.pill}>
-              <Text style={styles.pillText}>No noise</Text>
-            </View>
-          </View>
-
-          {/* CTAs */}
-          <TouchableOpacity style={styles.ctaButton} onPress={onGetStarted}>
-            <Text style={styles.ctaButtonText}>Start free trial</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity onPress={onSignIn} style={styles.linkButton}>
-            <Text style={styles.linkText}>Already have an account? Sign in</Text>
-          </TouchableOpacity>
-
-          {/* Learn more link */}
-          <TouchableOpacity onPress={() => router.push('/learn-more')}>
-            <Text style={styles.learnMoreLink}>Learn more about Koan ↓</Text>
-          </TouchableOpacity>
-        </View>
+      {/* Koan brand — top left */}
+      <View style={styles.landingHeader}>
+        <Text style={styles.landingBrandWord}>Koan</Text>
       </View>
+
+      {/* Centered hero content */}
+      <View style={styles.landingHero}>
+        {/* Animated dot */}
+        <View style={styles.dotContainer}>
+          <Animated.View
+            style={[
+              styles.dotHalo,
+              { transform: [{ scale: pulseAnim }], opacity: opacityAnim },
+            ]}
+          />
+          <View style={styles.dotCenter} />
+        </View>
+
+        <Text style={styles.heroTitle}>
+          Everything you need to know,{'\n'}you already know.
+        </Text>
+
+        <Text style={styles.heroSubtitle}>We just help you remember.</Text>
+
+        {/* Three pills */}
+        <View style={styles.pillsContainer}>
+          <View style={styles.pill}>
+            <Text style={styles.pillText}>No dashboards</Text>
+          </View>
+          <Text style={styles.pillDivider}>·</Text>
+          <View style={styles.pill}>
+            <Text style={styles.pillText}>No streaks</Text>
+          </View>
+          <Text style={styles.pillDivider}>·</Text>
+          <View style={styles.pill}>
+            <Text style={styles.pillText}>No noise</Text>
+          </View>
+        </View>
+
+        {/* CTAs */}
+        <TouchableOpacity style={styles.ctaButton} onPress={onGetStarted}>
+          <Text style={styles.ctaButtonText}>Start free trial</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity onPress={onSignIn} style={styles.linkButton}>
+          <Text style={styles.linkText}>Already have an account? Sign in</Text>
+        </TouchableOpacity>
+      </View>
+
       <StatusBar style="dark" />
     </SafeAreaView>
   );
@@ -368,10 +353,12 @@ function LandingPageScreen({ onGetStarted, onSignIn }: any) {
 export default function Index() {
   const { user, loading } = useAuth();
   const [showLogin, setShowLogin] = useState<boolean | null>(null); // null = landing, true = login, false = signup
+  const [showSplash, setShowSplash] = useState(false);
   const [checkingOnboarding, setCheckingOnboarding] = useState(false);
   const router = useRouter();
   const params = useLocalSearchParams<{ auth?: string }>();
   const previousUserRef = useRef(user);
+  const splashChecked = useRef(false);
 
   // Handle URL query params (e.g., from learn-more screen /?auth=login or /?auth=signup)
   useEffect(() => {
@@ -382,32 +369,41 @@ export default function Index() {
     }
   }, [params.auth]);
 
+  // Check whether to show splash (first open only, for logged-out users)
+  useEffect(() => {
+    if (!loading && !user && !splashChecked.current) {
+      splashChecked.current = true;
+      storage.hasSplashSeen().then((seen) => {
+        if (!seen) {
+          setShowSplash(true);
+          storage.setSplashSeen();
+        }
+      });
+    }
+  }, [loading, user]);
+
   // Handle navigation when user state changes
   useEffect(() => {
     if (!loading) {
       if (user) {
-        // User is logged in, check onboarding
         checkOnboardingAndNavigate();
       } else if (previousUserRef.current !== null && user === null) {
-        // User JUST logged out (was logged in, now not), reset to landing page
+        // User just logged out — reset to landing page
         setShowLogin(null);
         setCheckingOnboarding(false);
       }
     }
-    // Update the ref
     previousUserRef.current = user;
   }, [user, loading]);
 
   const checkOnboardingAndNavigate = async () => {
-    // Prevent multiple simultaneous checks
     if (checkingOnboarding) return;
-    
+
     setCheckingOnboarding(true);
     try {
-      // Add a small delay to ensure AsyncStorage is ready on native
-      await new Promise(resolve => setTimeout(resolve, 50));
+      await new Promise((resolve) => setTimeout(resolve, 50));
       const onboardingComplete = await storage.isOnboardingComplete();
-      
+
       if (onboardingComplete) {
         router.replace('/(tabs)');
       } else {
@@ -415,7 +411,6 @@ export default function Index() {
       }
     } catch (error) {
       console.error('Navigation error:', error);
-      // Fallback to onboarding if there's an error
       router.replace('/onboarding');
     } finally {
       setCheckingOnboarding(false);
@@ -434,7 +429,7 @@ export default function Index() {
     );
   }
 
-  // User is logged in - show loading while navigating
+  // User is logged in — show loading while navigating
   if (user) {
     return (
       <View style={[styles.container, styles.centered]}>
@@ -446,9 +441,27 @@ export default function Index() {
     );
   }
 
-  // User is NOT logged in - show landing/login/signup
+  // First-time user — show splash
+  if (showSplash) {
+    return (
+      <SplashScreen
+        onDone={() => setShowSplash(false)}
+        onBegin={() => {
+          setShowSplash(false);
+          setShowLogin(false); // false = signup
+        }}
+      />
+    );
+  }
+
+  // User is NOT logged in — show landing/login/signup
   if (showLogin === null) {
-    return <LandingPageScreen onGetStarted={() => setShowLogin(false)} onSignIn={() => setShowLogin(true)} />;
+    return (
+      <LandingPageScreen
+        onGetStarted={() => setShowLogin(false)}
+        onSignIn={() => setShowLogin(true)}
+      />
+    );
   }
 
   return showLogin ? (
@@ -569,12 +582,52 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '600',
   },
-  // Landing page styles - Minimal & Calm
-  landingScroll: {
-    paddingBottom: 40,
+  backButton: {
+    position: 'absolute',
+    top: 20,
+    left: 22,
+    zIndex: 10,
+  },
+  backButtonText: {
+    fontSize: 12,
+    color: '#3A3A3A',
+    opacity: 0.6,
+  },
+  trialBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: '#D9F7EB',
+    borderRadius: 8,
+    paddingVertical: 9,
+    paddingHorizontal: 12,
+    marginBottom: 16,
+  },
+  trialDot: {
+    width: 5,
+    height: 5,
+    borderRadius: 2.5,
+    backgroundColor: '#5FAD8E',
+  },
+  trialBannerText: {
+    fontSize: 11,
+    fontWeight: '300',
+    color: '#3A3A3A',
+  },
+  // Landing page
+  landingHeader: {
+    paddingHorizontal: 24,
+    paddingTop: 12,
+  },
+  landingBrandWord: {
+    fontFamily: 'Georgia',
+    fontSize: 18,
+    fontWeight: '400',
+    color: '#3A3A3A',
+    letterSpacing: 0.3,
   },
   landingHero: {
-    minHeight: Dimensions.get('window').height - 80,
+    flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 32,
@@ -616,159 +669,6 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginBottom: 48,
   },
-  ctaButton: {
-    backgroundColor: '#A8D7F0',
-    paddingHorizontal: 32,
-    paddingVertical: 14,
-    borderRadius: 8,
-    marginTop: 32,
-  },
-  ctaButtonText: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#3A3A3A',
-  },
-  ctaSubtext: {
-    fontSize: 13,
-    color: '#3A3A3A',
-    opacity: 0.5,
-    marginTop: 12,
-  },
-  whatSection: {
-    alignItems: 'center',
-    paddingHorizontal: 32,
-    paddingTop: 48,
-    paddingBottom: 24,
-    backgroundColor: '#FAFDFA',
-  },
-  whatTitle: {
-    fontSize: 20,
-    fontWeight: '600',
-    color: '#3A3A3A',
-    textAlign: 'center',
-    marginBottom: 16,
-    letterSpacing: -0.3,
-  },
-  whatSubtitle: {
-    fontSize: 15,
-    color: '#3A3A3A',
-    opacity: 0.6,
-    textAlign: 'center',
-    lineHeight: 24,
-  },
-  howSection: {
-    paddingHorizontal: 32,
-    paddingTop: 16,
-    paddingBottom: 48,
-  },
-  scrollIndicator: {
-    position: 'absolute',
-    bottom: 32,
-    alignSelf: 'center',
-  },
-  scrollIndicatorMiddle: {
-    alignItems: 'center',
-    marginTop: 32,
-  },
-  howCard: {
-    backgroundColor: '#D9F7EB',
-    borderRadius: 8,
-    padding: 24,
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: '#E6E6E4',
-  },
-  howCardTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#3A3A3A',
-    marginBottom: 12,
-  },
-  howCardText: {
-    fontSize: 14,
-    color: '#3A3A3A',
-    opacity: 0.7,
-    lineHeight: 21,
-  },
-  pricingSection: {
-    alignItems: 'center',
-    paddingVertical: 64,
-    paddingHorizontal: 32,
-  },
-  pricingAmount: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#3A3A3A',
-    marginBottom: 8,
-  },
-  pricingCancel: {
-    fontSize: 14,
-    color: '#3A3A3A',
-    opacity: 0.6,
-    marginBottom: 24,
-  },
-  pricingPrivacy: {
-    fontSize: 11,
-    color: '#3A3A3A',
-    opacity: 0.5,
-    textAlign: 'center',
-    lineHeight: 16,
-  },
-  footer: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingVertical: 32,
-    gap: 12,
-  },
-  footerLink: {
-    fontSize: 13,
-    color: '#3A3A3A',
-    opacity: 0.5,
-  },
-  footerDivider: {
-    fontSize: 13,
-    color: '#3A3A3A',
-    opacity: 0.3,
-  },
-  backButton: {
-    position: 'absolute',
-    top: 20,
-    left: 22,
-    zIndex: 10,
-  },
-  backButtonText: {
-    fontSize: 12,
-    color: '#3A3A3A',
-    opacity: 0.6,
-  },
-  trialBanner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    backgroundColor: '#D9F7EB',
-    borderRadius: 8,
-    paddingVertical: 9,
-    paddingHorizontal: 12,
-    marginBottom: 16,
-  },
-  trialDot: {
-    width: 5,
-    height: 5,
-    borderRadius: 2.5,
-    backgroundColor: '#5FAD8E',
-  },
-  trialBannerText: {
-    fontSize: 11,
-    fontWeight: '300',
-    color: '#3A3A3A',
-  },
-  learnMoreLink: {
-    fontSize: 11,
-    color: 'rgba(95,173,142,0.7)',
-    textAlign: 'center',
-    marginTop: 12,
-  },
   pillsContainer: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -790,5 +690,17 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: '#3A3A3A',
     opacity: 0.4,
+  },
+  ctaButton: {
+    backgroundColor: '#A8D7F0',
+    paddingHorizontal: 32,
+    paddingVertical: 14,
+    borderRadius: 8,
+    marginTop: 32,
+  },
+  ctaButtonText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#3A3A3A',
   },
 });

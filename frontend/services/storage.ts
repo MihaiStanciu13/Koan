@@ -33,6 +33,15 @@ export const storage = {
     return complete === 'true';
   },
   
+  // Splash
+  setSplashSeen: async () => {
+    await AsyncStorage.setItem('splash_seen', 'true');
+  },
+  hasSplashSeen: async (): Promise<boolean> => {
+    const seen = await AsyncStorage.getItem('splash_seen');
+    return seen === 'true';
+  },
+
   // Clear all
   clearAll: async () => {
     try {

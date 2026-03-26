@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -7,7 +7,8 @@ import {
   FlatList,
   Dimensions,
   Alert,
-  Switch,
+  TextInput,
+  Animated,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -17,56 +18,83 @@ import * as Notifications from 'expo-notifications';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
+const SUGGESTED_ANCHORS = [
+  'Close one loop',
+  'Take three deep breaths',
+  'Write down one thought',
+  'Drink a glass of water',
+  'Stand and stretch',
+  'Clear one notification',
+];
+
 const ONBOARDING_DATA = [
   {
     id: '1',
-    icon: 'leaf-outline',
-    title: 'Welcome to Koan',
-    description: 'A different kind of productivity app',
-    features: [
-      'No constant pings',
-      'No tracking or dashboards',
-      'Just gentle nudges',
-      'At the right moments',
-    ],
-  },
-  {
-    id: '2',
-    icon: 'notifications-outline',
+    isNotificationStep: true,
     title: 'Koan works through small, subtle moments',
-    description: 'Most of Koan\'s magic happens through short, gentle notifications delivered at the right time. They\'re quiet, respectful, and designed to help you realign - not interrupt.',
+    description:
+      "Most of Koan's magic happens through short, gentle notifications delivered at the right time. They're quiet, respectful, and designed to help you realign — not interrupt.",
     features: [
       { icon: 'volume-off', text: 'Silent by default' },
       { icon: 'time-outline', text: 'Delivered at the right time' },
       { icon: 'shield-outline', text: 'Private and respectful' },
     ],
-    isNotificationStep: true,
+  },
+  {
+    id: '2',
+    isAnchorStep: true,
+    title: 'Set your anchor',
+    description: 'A small, repeatable action that grounds your day. You can change it anytime in Settings.',
   },
   {
     id: '3',
-    icon: 'heart-outline',
-    title: 'Choose Your Mode',
-    description: 'Select how you want to experience Koan',
-    isModeSelection: true,
+    isExpectStep: true,
+    title: 'Now Koan begins to listen.',
   },
 ];
 
-export default function OnboardingNew() {
+export default function Onboarding() {
   const router = useRouter();
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [selectedMode, setSelectedMode] = useState('standard');
+  const [showInterstitial, setShowInterstitial] = useState(false);
+  const [anchorText, setAnchorText] = useState('');
   const flatListRef = useRef<FlatList>(null);
-  const hasNavigatedToLanding = useRef(false);
+  const pulseAnim = useRef(new Animated.Value(1)).current;
 
-  const handleNext = async () => {
+  useEffect(() => {
+    // Breathing dot for step 3
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulseAnim, { toValue: 1.16, duration: 2500, useNativeDriver: true }),
+        Animated.timing(pulseAnim, { toValue: 1, duration: 2500, useNativeDriver: true }),
+      ])
+    ).start();
+  }, []);
+
+  const requestNotifications = async () => {
+    try {
+      await Notifications.requestPermissionsAsync();
+    } catch (error) {
+      console.error('Failed to request notifications:', error);
+    }
+    setShowInterstitial(true);
+  };
+
+  const skipNotifications = () => {
+    setShowInterstitial(true);
+  };
+
+  const handleInterstitialContinue = () => {
+    setShowInterstitial(false);
+    setCurrentIndex(1);
+    flatListRef.current?.scrollToIndex({ index: 1, animated: true });
+  };
+
+  const handleNext = () => {
     if (currentIndex < ONBOARDING_DATA.length - 1) {
       const nextIndex = currentIndex + 1;
       setCurrentIndex(nextIndex);
       flatListRef.current?.scrollToIndex({ index: nextIndex, animated: true });
-    } else {
-      // Complete onboarding
-      await storage.setOnboardingComplete();
-      router.replace('/(tabs)');
     }
   };
 
@@ -75,30 +103,9 @@ export default function OnboardingNew() {
     router.replace('/(tabs)');
   };
 
-  const requestNotifications = async () => {
-    try {
-      const { status } = await Notifications.requestPermissionsAsync();
-      
-      if (status === 'granted') {
-        Alert.alert(
-          'Notifications Enabled', 
-          'You can adjust notification settings anytime in Settings.',
-          [{ text: 'OK', onPress: () => handleNext() }]
-        );
-      } else if (status === 'denied') {
-        Alert.alert(
-          'Notifications Disabled', 
-          'You can enable them later in Settings.',
-          [{ text: 'OK', onPress: () => handleNext() }]
-        );
-      } else {
-        // User dismissed without choosing
-        handleNext();
-      }
-    } catch (error) {
-      console.error('Failed to request notifications:', error);
-      handleNext();
-    }
+  const handleLetsGo = async () => {
+    await storage.setOnboardingComplete();
+    router.replace('/(tabs)');
   };
 
   const onViewableItemsChanged = useRef(({ viewableItems }: any) => {
@@ -107,98 +114,168 @@ export default function OnboardingNew() {
     }
   }).current;
 
-  const renderOnboardingCard = ({ item, index }: any) => {
-    return (
-      <View style={styles.card}>
-        <View style={styles.cardContent}>
-          <Ionicons name={item.icon} size={64} color="#A8D7F0" />
-          <Text style={styles.title}>{item.title}</Text>
-          <Text style={styles.description}>{item.description}</Text>
-
-          {/* Step 1: Features List */}
-          {item.id === '1' && (
-            <View style={styles.featureList}>
-              {item.features.map((feature: string, idx: number) => (
-                <View key={idx} style={styles.featureItem}>
-                  <Ionicons name="checkmark-circle" size={20} color="#5FAD8E" />
-                  <Text style={styles.featureText}>{feature}</Text>
-                </View>
-              ))}
-            </View>
-          )}
-
-          {/* Step 2: Notification Features */}
-          {item.isNotificationStep && (
-            <>
-              <View style={styles.notificationFeatures}>
-                {item.features.map((feature: any, idx: number) => (
-                  <View key={idx} style={styles.featureRow}>
-                    <Ionicons name={feature.icon} size={20} color="#5FAD8E" />
-                    <Text style={styles.featureRowText}>{feature.text}</Text>
-                  </View>
-                ))}
-              </View>
-
-              <TouchableOpacity
-                style={styles.enableButton}
-                onPress={() => {
-                  Alert.alert(
-                    'Enable Notifications?',
-                    'Koan sends gentle, silent notifications at the right moments. You can adjust settings anytime.',
-                    [
-                      { text: 'Not Now', style: 'cancel', onPress: () => handleNext() },
-                      { text: 'Enable', onPress: requestNotifications }
-                    ]
-                  );
-                }}
-              >
-                <Text style={styles.enableButtonText}>Enable Notifications</Text>
-              </TouchableOpacity>
-
-              <Text style={styles.subtleText}>You can choose how subtle they are.</Text>
-            </>
-          )}
-
-          {/* Step 3: Mode Selection */}
-          {item.isModeSelection && (
-            <View style={styles.modeContainer}>
-              <ModeCard
-                icon="flame-outline"
-                title="Standard Mode"
-                description="Smart nudges based on patterns"
-                selected={selectedMode === 'standard'}
-                onPress={() => setSelectedMode('standard')}
-              />
-              <ModeCard
-                icon="volume-low-outline"
-                title="Whisper Mode"
-                description="Ultra-rare, low-frequency nudges"
-                selected={selectedMode === 'whisper'}
-                onPress={() => setSelectedMode('whisper')}
-              />
-            </View>
-          )}
-        </View>
-      </View>
-    );
-  };
-
-  return (
-    <SafeAreaView style={styles.container}>
-      {/* Progress Indicator */}
-      <View style={styles.progressContainer}>
-        {ONBOARDING_DATA.map((_, index) => (
+  const renderProgressDots = () => (
+    <View style={styles.progressContainer}>
+      {ONBOARDING_DATA.map((_, index) => {
+        const isActive = index === currentIndex;
+        const isDone = index < currentIndex;
+        return (
           <View
             key={index}
             style={[
               styles.progressDot,
-              index === currentIndex && styles.progressDotActive,
+              isDone && styles.progressDotDone,
+              isActive && styles.progressDotActive,
             ]}
           />
-        ))}
-      </View>
+        );
+      })}
+    </View>
+  );
 
-      {/* Swipeable Cards */}
+  const renderOnboardingCard = ({ item }: any) => {
+    // Step 1 — Notifications
+    if (item.isNotificationStep) {
+      return (
+        <View style={styles.card}>
+          <View style={styles.cardContent}>
+            <Text style={styles.title}>{item.title}</Text>
+            <Text style={styles.description}>{item.description}</Text>
+
+            <View style={styles.notificationFeatures}>
+              {item.features.map((feature: any, idx: number) => (
+                <View key={idx} style={styles.featureRow}>
+                  <Ionicons name={feature.icon} size={20} color="#5FAD8E" />
+                  <Text style={styles.featureRowText}>{feature.text}</Text>
+                </View>
+              ))}
+            </View>
+
+            <TouchableOpacity style={styles.enableButton} onPress={requestNotifications}>
+              <Text style={styles.enableButtonText}>Enable notifications</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity onPress={skipNotifications} style={styles.skipLinkContainer}>
+              <Text style={styles.skipLinkText}>Skip for now</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      );
+    }
+
+    // Step 2 — Anchor action
+    if (item.isAnchorStep) {
+      return (
+        <View style={styles.card}>
+          <View style={styles.cardContent}>
+            <Text style={styles.title}>{item.title}</Text>
+            <Text style={styles.description}>{item.description}</Text>
+
+            <View style={styles.suggestionsGrid}>
+              {SUGGESTED_ANCHORS.map((suggestion, idx) => (
+                <TouchableOpacity
+                  key={idx}
+                  style={[styles.chip, anchorText === suggestion && styles.chipSelected]}
+                  onPress={() => setAnchorText(suggestion)}
+                >
+                  <Text style={[styles.chipText, anchorText === suggestion && styles.chipTextSelected]}>
+                    {suggestion}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            <View style={styles.anchorInputContainer}>
+              <TextInput
+                style={styles.anchorInput}
+                placeholder="Or type your own..."
+                placeholderTextColor="rgba(58,58,58,0.4)"
+                value={anchorText}
+                onChangeText={setAnchorText}
+              />
+            </View>
+          </View>
+        </View>
+      );
+    }
+
+    // Step 3 — What to expect
+    if (item.isExpectStep) {
+      return (
+        <View style={styles.card}>
+          <View style={styles.cardContent}>
+            {/* Pulsing dot */}
+            <Animated.View style={[styles.expectDotOuter, { transform: [{ scale: pulseAnim }] }]}>
+              <View style={styles.expectDotMid}>
+                <View style={styles.expectDotCore} />
+              </View>
+            </Animated.View>
+
+            <Text style={styles.expectTitle}>{item.title}</Text>
+            <Text style={styles.expectBody}>
+              For the next day or two, Koan is building your baseline. Here's what to expect.
+            </Text>
+
+            {/* Timeline */}
+            <View style={styles.timeline}>
+              {/* Event 1 */}
+              <View style={styles.timelineEvent}>
+                <View style={styles.timelineLeft}>
+                  <View style={[styles.timelineDot, styles.timelineDotActive]} />
+                  <View style={styles.timelineLine} />
+                </View>
+                <View style={styles.timelineRight}>
+                  <Text style={styles.timelineTime}>TODAY</Text>
+                  <Text style={styles.timelineTitle}>Your anchor reminder</Text>
+                  <Text style={styles.timelineSubtitle}>
+                    You'll receive your first reminder at 9:00 am tomorrow.
+                  </Text>
+                </View>
+              </View>
+
+              {/* Event 2 */}
+              <View style={styles.timelineEvent}>
+                <View style={styles.timelineLeft}>
+                  <View style={styles.timelineDot} />
+                  <View style={styles.timelineLine} />
+                </View>
+                <View style={styles.timelineRight}>
+                  <Text style={styles.timelineTime}>DAYS 1–2</Text>
+                  <Text style={styles.timelineTitle}>Pattern learning</Text>
+                  <Text style={styles.timelineSubtitle}>
+                    Koan watches quietly. No nudges yet — just listening.
+                  </Text>
+                </View>
+              </View>
+
+              {/* Event 3 */}
+              <View style={styles.timelineEvent}>
+                <View style={styles.timelineLeft}>
+                  <View style={styles.timelineDot} />
+                </View>
+                <View style={styles.timelineRight}>
+                  <Text style={styles.timelineTime}>WITHIN 48 HOURS</Text>
+                  <Text style={styles.timelineTitle}>Your first nudge</Text>
+                  <Text style={styles.timelineSubtitle}>
+                    When a pattern is clear enough to say something useful, Koan will.
+                  </Text>
+                </View>
+              </View>
+            </View>
+          </View>
+        </View>
+      );
+    }
+
+    return null;
+  };
+
+  return (
+    <SafeAreaView style={styles.container}>
+      {/* Progress dots (hidden under interstitial but rendered for layout) */}
+      {renderProgressDots()}
+
+      {/* Swipeable slides */}
       <FlatList
         ref={flatListRef}
         data={ONBOARDING_DATA}
@@ -207,51 +284,68 @@ export default function OnboardingNew() {
         horizontal
         pagingEnabled
         showsHorizontalScrollIndicator={false}
+        scrollEnabled={false}
         onViewableItemsChanged={onViewableItemsChanged}
         viewabilityConfig={{ itemVisiblePercentThreshold: 50 }}
-        scrollEventThrottle={16}
       />
 
-      {/* Bottom Navigation */}
-      <View style={styles.buttonContainer}>
-        <TouchableOpacity style={styles.skipButton} onPress={handleSkip}>
-          <Text style={styles.skipText}>Skip</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.nextButton} onPress={handleNext}>
-          <Text style={styles.nextText}>
-            {currentIndex === ONBOARDING_DATA.length - 1 ? 'Get Started' : 'Next'}
-          </Text>
-          <Ionicons name="arrow-forward" size={20} color="#FFFFFF" />
-        </TouchableOpacity>
-      </View>
+      {/* Bottom navigation */}
+      {!showInterstitial && (
+        <View style={styles.buttonContainer}>
+          {currentIndex === 2 ? (
+            // Step 3: Let's go only
+            <TouchableOpacity style={styles.letsGoButton} onPress={handleLetsGo}>
+              <Text style={styles.letsGoText}>Let's go</Text>
+            </TouchableOpacity>
+          ) : currentIndex === 1 ? (
+            // Step 2: Skip + Next
+            <>
+              <TouchableOpacity style={styles.skipButton} onPress={handleSkip}>
+                <Text style={styles.skipText}>Skip</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.nextButton} onPress={handleNext}>
+                <Text style={styles.nextText}>Next</Text>
+                <Ionicons name="arrow-forward" size={18} color="#FFFFFF" />
+              </TouchableOpacity>
+            </>
+          ) : null /* Step 1: navigation is in the card */}
+        </View>
+      )}
 
-      <Text style={styles.timeEstimate}>Takes about 30 seconds</Text>
+      {/* Interstitial overlay — absolute, full-screen, zIndex 10 */}
+      {showInterstitial && (
+        <View style={styles.interstitial}>
+          <Text style={styles.interstitialLabel}>HOW IT WORKS</Text>
+
+          <View style={styles.interstitialContent}>
+            <View style={styles.interstitialLine}>
+              <Text style={styles.interstitialLineTitle}>Koan watches quietly.</Text>
+              <Text style={styles.interstitialLineBody}>
+                Phone pickups, app switches, meeting density. Nothing personal. Nothing invasive.
+              </Text>
+            </View>
+            <View style={[styles.interstitialLine, styles.interstitialLineBorder]}>
+              <Text style={styles.interstitialLineTitle}>Patterns emerge.</Text>
+              <Text style={styles.interstitialLineBody}>
+                After a few days, your rhythm becomes clear — when you focus well, when you drift.
+              </Text>
+            </View>
+            <View style={[styles.interstitialLine, styles.interstitialLineBorder]}>
+              <Text style={styles.interstitialLineTitle}>A nudge arrives.</Text>
+              <Text style={styles.interstitialLineBody}>
+                Short. Calm. At exactly the right moment. Then silence again.
+              </Text>
+            </View>
+          </View>
+
+          <TouchableOpacity onPress={handleInterstitialContinue} style={styles.continueButton}>
+            <Text style={styles.continueText}>
+              Continue <Text style={styles.continueArrow}>→</Text>
+            </Text>
+          </TouchableOpacity>
+        </View>
+      )}
     </SafeAreaView>
-  );
-}
-
-function ModeCard({ icon, title, description, selected, onPress }: {
-  icon: string;
-  title: string;
-  description: string;
-  selected: boolean;
-  onPress: () => void;
-}) {
-  return (
-    <TouchableOpacity
-      style={[styles.modeCard, selected && styles.modeCardSelected]}
-      onPress={onPress}
-    >
-      <Ionicons
-        name={icon}
-        size={32}
-        color={selected ? '#5FAD8E' : '#3A3A3A'}
-      />
-      <Text style={[styles.modeTitle, selected && styles.modeTitleSelected]}>
-        {title}
-      </Text>
-      <Text style={styles.modeDescription}>{description}</Text>
-    </TouchableOpacity>
   );
 }
 
@@ -260,69 +354,58 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#FAFDFA',
   },
+  // Progress dots
   progressContainer: {
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
     paddingVertical: 20,
-    gap: 8,
+    gap: 6,
   },
   progressDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
+    width: 5,
+    height: 5,
+    borderRadius: 2.5,
     backgroundColor: '#E6E6E4',
+  },
+  progressDotDone: {
+    backgroundColor: 'rgba(95,173,142,0.4)',
+    width: 5,
   },
   progressDotActive: {
     backgroundColor: '#5FAD8E',
-    width: 24,
+    width: 20,
+    borderRadius: 10,
   },
+  // Cards (FlatList slides)
   card: {
     width: SCREEN_WIDTH,
     flex: 1,
-    justifyContent: 'center',
     paddingHorizontal: 32,
+    paddingTop: 8,
   },
   cardContent: {
+    flex: 1,
     alignItems: 'center',
-    justifyContent: 'center',
-    width: '100%',
   },
   title: {
-    fontSize: 28,
-    fontWeight: '700',
+    fontSize: 22,
+    fontWeight: '600',
     color: '#3A3A3A',
-    marginTop: 24,
     marginBottom: 12,
     textAlign: 'center',
-    width: '100%',
+    lineHeight: 30,
   },
   description: {
-    fontSize: 16,
+    fontSize: 13,
+    fontWeight: '300',
     color: '#3A3A3A',
-    opacity: 0.8,
+    opacity: 0.7,
     textAlign: 'center',
-    marginBottom: 32,
-    lineHeight: 24,
-    paddingHorizontal: 16,
+    marginBottom: 28,
+    lineHeight: 20,
   },
-  featureList: {
-    width: '80%',
-    gap: 16,
-    alignSelf: 'center',
-  },
-  featureItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'flex-start',
-    gap: 12,
-    paddingVertical: 8,
-  },
-  featureText: {
-    fontSize: 16,
-    color: '#5FAD8E',
-    fontWeight: '500',
-  },
+  // Notification step
   notificationFeatures: {
     width: '100%',
     backgroundColor: '#F5F5F5',
@@ -337,109 +420,290 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   featureRowText: {
-    fontSize: 15,
+    fontSize: 14,
+    fontWeight: '400',
     color: '#3A3A3A',
-    fontWeight: '500',
   },
   enableButton: {
     backgroundColor: '#5FAD8E',
-    paddingVertical: 16,
+    paddingVertical: 15,
     paddingHorizontal: 32,
     borderRadius: 12,
-    marginBottom: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    marginBottom: 14,
+    width: '100%',
+    alignItems: 'center',
   },
   enableButtonText: {
     color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '700',
-    textAlign: 'center',
-  },
-  subtleText: {
-    fontSize: 14,
-    color: '#3A3A3A',
-    opacity: 0.7,
-    textAlign: 'center',
-  },
-  modeContainer: {
-    width: '100%',
-    gap: 16,
-  },
-  modeCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    padding: 24,
-    alignItems: 'center',
-    borderWidth: 2,
-    borderColor: '#E6E6E4',
-  },
-  modeCardSelected: {
-    borderColor: '#5FAD8E',
-    backgroundColor: '#D9F7EB',
-  },
-  modeTitle: {
-    fontSize: 18,
+    fontSize: 15,
     fontWeight: '600',
-    color: '#3A3A3A',
-    marginTop: 12,
-    marginBottom: 4,
   },
-  modeTitleSelected: {
-    color: '#3A3A3A',
+  skipLinkContainer: {
+    paddingVertical: 8,
   },
-  modeDescription: {
-    fontSize: 14,
+  skipLinkText: {
+    fontSize: 13,
     color: '#3A3A3A',
-    opacity: 0.7,
+    opacity: 0.5,
     textAlign: 'center',
   },
+  // Anchor step
+  suggestionsGrid: {
+    width: '100%',
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginBottom: 16,
+  },
+  chip: {
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: '#E6E6E4',
+    backgroundColor: '#FFFFFF',
+  },
+  chipSelected: {
+    backgroundColor: '#D9F7EB',
+    borderColor: 'rgba(95,173,142,0.4)',
+  },
+  chipText: {
+    fontSize: 12,
+    fontWeight: '300',
+    color: '#3A3A3A',
+  },
+  chipTextSelected: {
+    color: '#5FAD8E',
+    fontWeight: '400',
+  },
+  anchorInputContainer: {
+    width: '100%',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#E6E6E4',
+    paddingHorizontal: 16,
+    paddingVertical: 4,
+  },
+  anchorInput: {
+    fontSize: 14,
+    color: '#3A3A3A',
+    paddingVertical: 12,
+  },
+  // Expect step (step 3)
+  expectDotOuter: {
+    width: 54,
+    height: 54,
+    borderRadius: 27,
+    backgroundColor: '#D9F7EB',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 14,
+    alignSelf: 'center',
+  },
+  expectDotMid: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: 'rgba(168,215,240,0.4)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  expectDotCore: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#A8D7F0',
+  },
+  expectTitle: {
+    fontFamily: 'Georgia',
+    fontSize: 21,
+    fontWeight: '500',
+    color: '#3A3A3A',
+    textAlign: 'center',
+    lineHeight: 28,
+    marginBottom: 8,
+  },
+  expectBody: {
+    fontSize: 12,
+    fontWeight: '300',
+    color: '#3A3A3A',
+    opacity: 0.6,
+    textAlign: 'center',
+    lineHeight: 21,
+    marginBottom: 18,
+  },
+  // Timeline
+  timeline: {
+    width: '100%',
+  },
+  timelineEvent: {
+    flexDirection: 'row',
+    gap: 14,
+    paddingVertical: 12,
+  },
+  timelineLeft: {
+    width: 20,
+    alignItems: 'center',
+    flexShrink: 0,
+    paddingTop: 2,
+  },
+  timelineDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#D9F7EB',
+    borderWidth: 1.5,
+    borderColor: '#A8D7F0',
+  },
+  timelineDotActive: {
+    backgroundColor: '#5FAD8E',
+    borderColor: '#5FAD8E',
+  },
+  timelineLine: {
+    width: 1,
+    flex: 1,
+    backgroundColor: '#E6E6E4',
+    marginVertical: 4,
+    minHeight: 14,
+  },
+  timelineRight: {
+    flex: 1,
+    paddingBottom: 4,
+  },
+  timelineTime: {
+    fontSize: 10,
+    fontWeight: '500',
+    letterSpacing: 0.06 * 10,
+    textTransform: 'uppercase',
+    color: '#5FAD8E',
+    marginBottom: 2,
+  },
+  timelineTitle: {
+    fontSize: 13,
+    fontWeight: '400',
+    color: '#3A3A3A',
+    marginBottom: 2,
+    lineHeight: 18,
+  },
+  timelineSubtitle: {
+    fontSize: 11,
+    fontWeight: '300',
+    color: '#3A3A3A',
+    opacity: 0.6,
+    lineHeight: 16,
+  },
+  // Bottom navigation
   buttonContainer: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     paddingHorizontal: 32,
-    marginTop: 16,
+    paddingBottom: 24,
+    paddingTop: 8,
     gap: 12,
   },
   skipButton: {
     flex: 1,
-    paddingVertical: 16,
+    paddingVertical: 15,
     alignItems: 'center',
     justifyContent: 'center',
   },
   skipText: {
-    color: '#888',
-    fontSize: 16,
-    fontWeight: '600',
+    color: '#3A3A3A',
+    opacity: 0.5,
+    fontSize: 15,
+    fontWeight: '500',
   },
   nextButton: {
     flex: 2,
     flexDirection: 'row',
     backgroundColor: '#5FAD8E',
-    paddingVertical: 16,
+    paddingVertical: 15,
     borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
   },
   nextText: {
     color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '700',
+    fontSize: 15,
+    fontWeight: '600',
   },
-  timeEstimate: {
-    textAlign: 'center',
-    color: '#666',
+  letsGoButton: {
+    flex: 1,
+    backgroundColor: '#5FAD8E',
+    paddingVertical: 15,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  letsGoText: {
+    color: '#FFFFFF',
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  // Interstitial overlay
+  interstitial: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: '#FAFDFA',
+    zIndex: 10,
+    paddingHorizontal: 40,
+    paddingTop: 40,
+    paddingBottom: 32,
+    justifyContent: 'space-between',
+  },
+  interstitialLabel: {
+    fontSize: 10,
+    fontWeight: '500',
+    letterSpacing: 0.14 * 10,
+    textTransform: 'uppercase',
+    color: '#5FAD8E',
+    opacity: 0.8,
+    alignSelf: 'center',
+    marginBottom: 40,
+  },
+  interstitialContent: {
+    flex: 1,
+    justifyContent: 'center',
+  },
+  interstitialLine: {
+    paddingVertical: 22,
+  },
+  interstitialLineBorder: {
+    borderTopWidth: 1,
+    borderTopColor: '#E6E6E4',
+  },
+  interstitialLineTitle: {
+    fontFamily: 'Georgia',
+    fontSize: 19,
+    fontStyle: 'italic',
+    fontWeight: '400',
+    color: '#3A3A3A',
+    marginBottom: 6,
+  },
+  interstitialLineBody: {
     fontSize: 12,
-    marginTop: 16,
-    marginBottom: 20,
+    fontWeight: '300',
+    color: '#3A3A3A',
+    opacity: 0.65,
+    lineHeight: 19,
+  },
+  continueButton: {
+    alignSelf: 'flex-end',
+    paddingVertical: 8,
+    paddingHorizontal: 4,
+  },
+  continueText: {
+    fontSize: 12,
+    color: '#3A3A3A',
+    opacity: 0.6,
+  },
+  continueArrow: {
+    color: '#5FAD8E',
+    fontSize: 14,
+    opacity: 1,
   },
 });
