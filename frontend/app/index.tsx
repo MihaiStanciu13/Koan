@@ -547,14 +547,14 @@ const styles = StyleSheet.create({
     fontSize: 15,
   },
   primaryButton: {
-    backgroundColor: '#A8D7F0',
+    backgroundColor: '#5FAD8E',
     paddingVertical: 16,
     borderRadius: 12,
     alignItems: 'center',
     marginTop: 8,
   },
   primaryButtonText: {
-    color: '#3A3A3A',
+    color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '600',
   },
@@ -692,7 +692,7 @@ const styles = StyleSheet.create({
     opacity: 0.4,
   },
   ctaButton: {
-    backgroundColor: '#A8D7F0',
+    backgroundColor: '#5FAD8E',
     paddingHorizontal: 32,
     paddingVertical: 14,
     borderRadius: 8,
@@ -701,6 +701,6 @@ const styles = StyleSheet.create({
   ctaButtonText: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#3A3A3A',
+    color: '#FFFFFF',
   },
 });
