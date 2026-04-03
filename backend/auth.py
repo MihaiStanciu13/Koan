@@ -155,3 +155,11 @@ async def get_me(current_user: User = Depends(get_current_user)):
         "subscription_status": current_user.subscription_status,
         "trial_ends": current_user.trial_ends
     }
+
+@router.delete("/account")
+async def delete_account(current_user: User = Depends(get_current_user)):
+    await db.users.delete_one({"id": current_user.id})
+    await db.preferences.delete_many({"user_id": current_user.id})
+    await db.behavior_events.delete_many({"user_id": current_user.id})
+    await db.nudges.delete_many({"user_id": current_user.id})
+    return {"message": "Account deleted"}

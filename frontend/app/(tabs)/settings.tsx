@@ -14,7 +14,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useAuth } from '../../contexts/AuthContext';
-import { preferencesAPI, subscriptionAPI } from '../../services/api';
+import { preferencesAPI, subscriptionAPI, authAPI } from '../../services/api';
 import api from '../../services/api';
 import * as WebBrowser from 'expo-web-browser';
 
@@ -213,10 +213,32 @@ export default function SettingsScreen() {
     setShowLogoutConfirm(false);
     try {
       await logout();
-      // The (tabs)/_layout.tsx auth guard will redirect to landing
     } catch (error) {
       console.error('Logout error:', error);
     }
+  };
+
+  const handleDeleteAccount = () => {
+    Alert.alert(
+      'Delete Account',
+      'Are you sure? This will permanently delete your account and all data.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await authAPI.deleteAccount();
+              await logout();
+            } catch (error) {
+              console.error('Delete account error:', error);
+              Alert.alert('Error', 'Failed to delete account. Please try again.');
+            }
+          },
+        },
+      ]
+    );
   };
 
   return (
@@ -230,7 +252,7 @@ export default function SettingsScreen() {
         {subscription && (
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Subscription</Text>
-            <View style={styles.card}>
+            <TouchableOpacity style={styles.card} onPress={() => router.push('/subscription')}>
               <View style={styles.subscriptionRow}>
                 <View>
                   <Text style={styles.subscriptionStatus}>
@@ -242,11 +264,14 @@ export default function SettingsScreen() {
                     </Text>
                   )}
                 </View>
-                <View style={styles.priceBadge}>
-                  <Text style={styles.priceText}>${subscription.monthly_price}/mo</Text>
+                <View style={styles.subscriptionRight}>
+                  <View style={styles.priceBadge}>
+                    <Text style={styles.priceText}>${subscription.monthly_price}/mo</Text>
+                  </View>
+                  <Ionicons name="chevron-forward" size={16} color="#3A3A3A" style={{ opacity: 0.4 }} />
                 </View>
               </View>
-            </View>
+            </TouchableOpacity>
           </View>
         )}
 
@@ -275,6 +300,17 @@ export default function SettingsScreen() {
               </View>
             </View>
           ))}
+        </View>
+
+        {/* Notifications */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Notifications</Text>
+          <TouchableOpacity style={styles.card} onPress={() => router.push('/nudge-settings')}>
+            <View style={styles.preferenceRow}>
+              <Text style={styles.preferenceName}>Nudge settings</Text>
+              <Ionicons name="chevron-forward" size={20} color="#3A3A3A" />
+            </View>
+          </TouchableOpacity>
         </View>
 
         {/* Micro-Mode */}
@@ -378,14 +414,23 @@ export default function SettingsScreen() {
         {/* Account */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Account</Text>
-          
+
           <View style={styles.card}>
             <Text style={styles.accountEmail}>{user?.email}</Text>
             <Text style={styles.accountName}>{user?.name}</Text>
           </View>
 
-          <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
-            <Text style={styles.logoutText}>Log Out</Text>
+          <TouchableOpacity style={styles.card} onPress={handleLogout}>
+            <View style={styles.preferenceRow}>
+              <Text style={styles.preferenceName}>Sign out</Text>
+              <Ionicons name="chevron-forward" size={20} color="#3A3A3A" style={{ opacity: 0.4 }} />
+            </View>
+          </TouchableOpacity>
+
+          <TouchableOpacity style={styles.card} onPress={handleDeleteAccount}>
+            <View style={styles.preferenceRow}>
+              <Text style={styles.deleteAccountText}>Delete account</Text>
+            </View>
           </TouchableOpacity>
         </View>
 
@@ -480,6 +525,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+  },
+  subscriptionRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
   },
   subscriptionStatus: {
     fontSize: 16,
@@ -585,18 +635,10 @@ const styles = StyleSheet.create({
     color: '#3A3A3A',
     opacity: 0.7,
   },
-  logoutButton: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    padding: 16,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#E6E6E4',
-  },
-  logoutText: {
+  deleteAccountText: {
     fontSize: 15,
-    fontWeight: '600',
-    color: '#EA4335',
+    fontWeight: '500',
+    color: '#E53535',
   },
   brandingSection: {
     alignItems: 'center',
