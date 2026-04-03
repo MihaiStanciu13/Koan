@@ -11,11 +11,14 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { nudgeAPI } from '../../services/api';
 import { format } from 'date-fns';
+import { useRouter } from 'expo-router';
 
 export default function NudgesScreen() {
+  const router = useRouter();
   const [nudges, setNudges] = useState<any[]>([]);
   const [refreshing, setRefreshing] = useState(false);
   const [expandedNudge, setExpandedNudge] = useState<string | null>(null);
+  const [patternsExpanded, setPatternsExpanded] = useState(false);
 
   useEffect(() => {
     loadNudges();
@@ -57,14 +60,26 @@ export default function NudgesScreen() {
             <View style={styles.emptyIcon}>
               <View style={styles.emptyDot} />
             </View>
-            <Text style={styles.emptyTitle}>No nudges yet</Text>
+            <Text style={styles.emptyTitle}>Koan is listening</Text>
             <Text style={styles.emptyText}>
-              Koan is observing your patterns. Your first nudge usually appears within 24–48
-              hours.
+              For the next 24–48 hours, Koan is building your baseline from phone usage patterns — pickup frequency, app switches, and session length.
             </Text>
-            <Text style={styles.emptySubtext}>
-              We're learning when you need a gentle reminder and when to stay quiet.
+            <Text style={styles.emptyText}>
+              Connect Google Calendar to unlock richer nudges based on your meeting load and energy patterns.
             </Text>
+            <TouchableOpacity style={styles.calendarButton} onPress={() => router.push('/settings')}>
+              <Text style={styles.calendarButtonText}>Connect Google Calendar</Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => setPatternsExpanded(v => !v)} style={styles.patternsToggle}>
+              <Text style={styles.patternsToggleText}>What patterns does Koan monitor? →</Text>
+            </TouchableOpacity>
+            {patternsExpanded && (
+              <View style={styles.patternsDetail}>
+                <Text style={styles.patternsDetailText}>
+                  Koan tracks three types of signals: <Text style={styles.patternsDetailBold}>phone pickups</Text> (how often and when you reach for your phone), <Text style={styles.patternsDetailBold}>app switches</Text> (how frequently you jump between apps, a proxy for scattered focus), and <Text style={styles.patternsDetailBold}>meeting load</Text> (when connected to Google Calendar — dense meeting blocks vs. open time — so nudges respect your energy across the day).
+                </Text>
+              </View>
+            )}
           </View>
         ) : (
           nudges.map((nudge) => (
@@ -174,15 +189,47 @@ const styles = StyleSheet.create({
     opacity: 0.7,
     textAlign: 'center',
     lineHeight: 21,
-    paddingHorizontal: 40,
-    marginBottom: 12,
+    paddingHorizontal: 16,
+    marginBottom: 16,
   },
-  emptySubtext: {
+  calendarButton: {
+    backgroundColor: '#5FAD8E',
+    borderRadius: 12,
+    paddingVertical: 14,
+    paddingHorizontal: 24,
+    alignItems: 'center',
+    width: '100%',
+    marginBottom: 14,
+  },
+  calendarButtonText: {
+    color: '#FFFFFF',
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  patternsToggle: {
+    paddingVertical: 4,
+    marginBottom: 8,
+  },
+  patternsToggleText: {
+    fontSize: 13,
+    color: '#5FAD8E',
+    opacity: 0.85,
+  },
+  patternsDetail: {
+    backgroundColor: '#F5F5F5',
+    borderRadius: 10,
+    padding: 16,
+    width: '100%',
+  },
+  patternsDetailText: {
     fontSize: 13,
     color: '#3A3A3A',
-    opacity: 0.5,
-    textAlign: 'center',
-    paddingHorizontal: 40,
+    opacity: 0.75,
+    lineHeight: 20,
+  },
+  patternsDetailBold: {
+    fontWeight: '600',
+    opacity: 1,
   },
   nudgeCard: {
     backgroundColor: '#FFFFFF',
