@@ -269,7 +269,7 @@ export default function SettingsScreen() {
                 <Switch
                   value={connectedTools.includes(tool.id)}
                   onValueChange={() => toggleWorkplaceTool(tool.id)}
-                  trackColor={{ false: '#E6E6E4', true: '#A8D7F0' }}
+                  trackColor={{ false: '#E6E6E4', true: '#5FAD8E' }}
                   thumbColor={'#FFFFFF'}
                 />
               </View>
@@ -299,7 +299,7 @@ export default function SettingsScreen() {
                   <Text style={styles.modeDescription}>{mode.description}</Text>
                 </View>
                 {microMode === mode.value && (
-                  <Ionicons name="checkmark-circle" size={24} color="#A8D7F0" />
+                  <Ionicons name="checkmark-circle" size={24} color="#5FAD8E" />
                 )}
               </View>
             </TouchableOpacity>
@@ -351,7 +351,7 @@ export default function SettingsScreen() {
               <Switch
                 value={whisperMode}
                 onValueChange={toggleWhisperMode}
-                trackColor={{ false: '#E6E6E4', true: '#A8D7F0' }}
+                trackColor={{ false: '#E6E6E4', true: '#5FAD8E' }}
                 thumbColor={'#FFFFFF'}
               />
             </View>
@@ -368,7 +368,7 @@ export default function SettingsScreen() {
               <Switch
                 value={notificationsEnabled}
                 onValueChange={toggleNotifications}
-                trackColor={{ false: '#E6E6E4', true: '#A8D7F0' }}
+                trackColor={{ false: '#E6E6E4', true: '#5FAD8E' }}
                 thumbColor={'#FFFFFF'}
               />
             </View>
@@ -473,7 +473,7 @@ const styles = StyleSheet.create({
     borderColor: '#E6E6E4',
   },
   cardSelected: {
-    borderColor: '#A8D7F0',
+    borderColor: '#5FAD8E',
     backgroundColor: '#D9F7EB',
   },
   subscriptionRow: {

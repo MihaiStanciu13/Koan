@@ -403,7 +403,7 @@ const styles = StyleSheet.create({
     width: 6,
     height: 6,
     borderRadius: 3,
-    backgroundColor: '#A8D7F0',
+    backgroundColor: '#5FAD8E',
     marginRight: 10,
   },
   trialText: {
@@ -416,7 +416,7 @@ const styles = StyleSheet.create({
     padding: 20,
     marginBottom: 16,
     borderWidth: 1,
-    borderColor: '#A8D7F0',
+    borderColor: '#5FAD8E',
   },
   learningContent: {
     flexDirection: 'row',
@@ -435,7 +435,7 @@ const styles = StyleSheet.create({
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: '#A8D7F0',
+    backgroundColor: '#5FAD8E',
   },
   learningText: {
     fontSize: 15,
@@ -459,7 +459,7 @@ const styles = StyleSheet.create({
     width: 6,
     height: 6,
     borderRadius: 3,
-    backgroundColor: '#A8D7F0',
+    backgroundColor: '#5FAD8E',
     marginRight: 8,
   },
   hintLabel: {
@@ -523,7 +523,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#A8D7F0',
+    backgroundColor: '#5FAD8E',
     paddingVertical: 14,
     borderRadius: 8,
     gap: 8,
@@ -548,7 +548,7 @@ const styles = StyleSheet.create({
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: '#A8D7F0',
+    backgroundColor: '#5FAD8E',
   },
   nudgeContent: {
     flex: 1,

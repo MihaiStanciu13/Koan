@@ -183,7 +183,7 @@ const styles = StyleSheet.create({
     padding: 24,
     marginBottom: 16,
     borderWidth: 1,
-    borderColor: '#A8D7F0',
+    borderColor: '#E6E6E4',
     alignItems: 'center',
   },
   narrativeIcon: {
@@ -199,7 +199,7 @@ const styles = StyleSheet.create({
     width: 10,
     height: 10,
     borderRadius: 5,
-    backgroundColor: '#A8D7F0',
+    backgroundColor: '#5FAD8E',
   },
   narrativeText: {
     fontSize: 16,
@@ -240,7 +240,7 @@ const styles = StyleSheet.create({
     width: 6,
     height: 6,
     borderRadius: 3,
-    backgroundColor: '#A8D7F0',
+    backgroundColor: '#5FAD8E',
     marginRight: 12,
   },
   patternText: {

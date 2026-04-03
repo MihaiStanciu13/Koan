@@ -156,7 +156,7 @@ const styles = StyleSheet.create({
     width: 12,
     height: 12,
     borderRadius: 6,
-    backgroundColor: '#A8D7F0',
+    backgroundColor: '#5FAD8E',
   },
   emptyTitle: {
     fontSize: 18,
@@ -203,7 +203,7 @@ const styles = StyleSheet.create({
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: '#A8D7F0',
+    backgroundColor: '#5FAD8E',
     marginRight: 12,
   },
   nudgeHeaderText: {

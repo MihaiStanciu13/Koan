@@ -90,7 +90,7 @@ export default function NudgeSettingsScreen() {
               <Ionicons
                 name="volume-off"
                 size={24}
-                color={nudgeStyle === 'silent' ? '#A8D7F0' : '#3A3A3A'}
+                color={nudgeStyle === 'silent' ? '#5FAD8E' : '#3A3A3A'}
               />
               <View style={styles.styleText}>
                 <View style={styles.styleTitleRow}>
@@ -110,7 +110,7 @@ export default function NudgeSettingsScreen() {
               </View>
             </View>
             {nudgeStyle === 'silent' && (
-              <Ionicons name="checkmark-circle" size={24} color="#A8D7F0" />
+              <Ionicons name="checkmark-circle" size={24} color="#5FAD8E" />
             )}
           </TouchableOpacity>
 
@@ -126,7 +126,7 @@ export default function NudgeSettingsScreen() {
               <Ionicons
                 name="notifications-outline"
                 size={24}
-                color={nudgeStyle === 'subtle' ? '#A8D7F0' : '#3A3A3A'}
+                color={nudgeStyle === 'subtle' ? '#5FAD8E' : '#3A3A3A'}
               />
               <View style={styles.styleText}>
                 <Text style={[
@@ -141,7 +141,7 @@ export default function NudgeSettingsScreen() {
               </View>
             </View>
             {nudgeStyle === 'subtle' && (
-              <Ionicons name="checkmark-circle" size={24} color="#A8D7F0" />
+              <Ionicons name="checkmark-circle" size={24} color="#5FAD8E" />
             )}
           </TouchableOpacity>
 
@@ -157,7 +157,7 @@ export default function NudgeSettingsScreen() {
               <Ionicons
                 name="time-outline"
                 size={24}
-                color={nudgeStyle === 'time-sensitive' ? '#A8D7F0' : '#3A3A3A'}
+                color={nudgeStyle === 'time-sensitive' ? '#5FAD8E' : '#3A3A3A'}
               />
               <View style={styles.styleText}>
                 <Text style={[
@@ -172,7 +172,7 @@ export default function NudgeSettingsScreen() {
               </View>
             </View>
             {nudgeStyle === 'time-sensitive' && (
-              <Ionicons name="checkmark-circle" size={24} color="#A8D7F0" />
+              <Ionicons name="checkmark-circle" size={24} color="#5FAD8E" />
             )}
           </TouchableOpacity>
         </View>
@@ -187,7 +187,7 @@ export default function NudgeSettingsScreen() {
           <View style={styles.card}>
             <View style={styles.quietHoursRow}>
               <View style={styles.quietHoursLeft}>
-                <Ionicons name="moon-outline" size={24} color="#A8D7F0" />
+                <Ionicons name="moon-outline" size={24} color="#5FAD8E" />
                 <View style={styles.quietHoursText}>
                   <Text style={styles.quietHoursTitle}>Enable Quiet Hours</Text>
                   <Text style={styles.quietHoursTime}>
@@ -198,7 +198,7 @@ export default function NudgeSettingsScreen() {
               <Switch
                 value={quietHoursEnabled}
                 onValueChange={toggleQuietHours}
-                trackColor={{ false: '#E6E6E4', true: '#A8D7F0' }}
+                trackColor={{ false: '#E6E6E4', true: '#5FAD8E' }}
                 thumbColor={'#FFFFFF'}
               />
             </View>
@@ -298,7 +298,7 @@ const styles = StyleSheet.create({
     borderColor: '#E6E6E4',
   },
   styleCardSelected: {
-    borderColor: '#A8D7F0',
+    borderColor: '#5FAD8E',
     backgroundColor: '#D9F7EB',
   },
   styleLeft: {
@@ -325,7 +325,7 @@ const styles = StyleSheet.create({
     color: '#3A3A3A',
   },
   recommendedBadge: {
-    backgroundColor: '#A8D7F0',
+    backgroundColor: '#5FAD8E',
     paddingHorizontal: 8,
     paddingVertical: 2,
     borderRadius: 4,
@@ -333,7 +333,7 @@ const styles = StyleSheet.create({
   recommendedText: {
     fontSize: 11,
     fontWeight: '600',
-    color: '#3A3A3A',
+    color: '#FFFFFF',
   },
   styleDescription: {
     fontSize: 14,

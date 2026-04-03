@@ -152,7 +152,7 @@ function LoginScreen({ onSwitchToSignup, onBack }: any) {
 
           {biometricAvailable && (
             <TouchableOpacity style={styles.biometricButton} onPress={handleBiometricLogin} disabled={loading}>
-              <Ionicons name="finger-print" size={24} color="#A8D7F0" />
+              <Ionicons name="finger-print" size={24} color="#5FAD8E" />
               <Text style={styles.biometricText}>Use Face ID / Touch ID</Text>
             </TouchableOpacity>
           )}
@@ -424,7 +424,7 @@ export default function Index() {
         <View style={styles.logoSymbol}>
           <View style={styles.logoDot} />
         </View>
-        <ActivityIndicator size="large" color="#A8D7F0" style={{ marginTop: 20 }} />
+        <ActivityIndicator size="large" color="#5FAD8E" style={{ marginTop: 20 }} />
       </View>
     );
   }
@@ -436,7 +436,7 @@ export default function Index() {
         <View style={styles.logoSymbol}>
           <View style={styles.logoDot} />
         </View>
-        <ActivityIndicator size="large" color="#A8D7F0" style={{ marginTop: 20 }} />
+        <ActivityIndicator size="large" color="#5FAD8E" style={{ marginTop: 20 }} />
       </View>
     );
   }
@@ -505,7 +505,7 @@ const styles = StyleSheet.create({
     width: 12,
     height: 12,
     borderRadius: 6,
-    backgroundColor: '#A8D7F0',
+    backgroundColor: '#5FAD8E',
   },
   brandName: {
     fontSize: 32,
@@ -645,13 +645,13 @@ const styles = StyleSheet.create({
     width: 60,
     height: 60,
     borderRadius: 30,
-    backgroundColor: '#A8D7F0',
+    backgroundColor: '#5FAD8E',
   },
   dotCenter: {
     width: 12,
     height: 12,
     borderRadius: 6,
-    backgroundColor: '#A8D7F0',
+    backgroundColor: '#5FAD8E',
   },
   heroTitle: {
     fontSize: 24,

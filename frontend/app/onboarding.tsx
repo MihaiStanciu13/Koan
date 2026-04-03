@@ -513,7 +513,7 @@ const styles = StyleSheet.create({
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: '#A8D7F0',
+    backgroundColor: '#5FAD8E',
   },
   expectTitle: {
     fontFamily: 'Georgia',
@@ -554,7 +554,7 @@ const styles = StyleSheet.create({
     borderRadius: 4,
     backgroundColor: '#D9F7EB',
     borderWidth: 1.5,
-    borderColor: '#A8D7F0',
+    borderColor: '#5FAD8E',
   },
   timelineDotActive: {
     backgroundColor: '#5FAD8E',

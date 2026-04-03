@@ -187,7 +187,7 @@ function FeatureCard({ icon, title, description }: { icon: any; title: string; d
   return (
     <View style={styles.featureCard}>
       <View style={styles.featureIcon}>
-        <Ionicons name={icon} size={24} color="#A8D7F0" />
+        <Ionicons name={icon} size={24} color="#5FAD8E" />
       </View>
       <View style={styles.featureContent}>
         <Text style={styles.featureTitle}>{title}</Text>
@@ -251,7 +251,7 @@ const styles = StyleSheet.create({
     width: 16,
     height: 16,
     borderRadius: 8,
-    backgroundColor: '#A8D7F0',
+    backgroundColor: '#5FAD8E',
   },
   brandName: {
     fontSize: 40,
@@ -277,7 +277,7 @@ const styles = StyleSheet.create({
   ctaButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#A8D7F0',
+    backgroundColor: '#5FAD8E',
     paddingHorizontal: 32,
     paddingVertical: 16,
     borderRadius: 12,
@@ -286,7 +286,7 @@ const styles = StyleSheet.create({
   ctaText: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#3A3A3A',
+    color: '#FFFFFF',
   },
   trialNote: {
     fontSize: 13,
@@ -367,7 +367,7 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: '#A8D7F0',
+    backgroundColor: '#D9F7EB',
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 16,
@@ -375,7 +375,7 @@ const styles = StyleSheet.create({
   stepNumberText: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#3A3A3A',
+    color: '#5FAD8E',
   },
   stepContent: {
     flex: 1,
@@ -403,7 +403,7 @@ const styles = StyleSheet.create({
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: '#A8D7F0',
+    backgroundColor: '#5FAD8E',
     marginRight: 16,
   },
   modeContent: {
@@ -426,7 +426,7 @@ const styles = StyleSheet.create({
     padding: 32,
     alignItems: 'center',
     borderWidth: 2,
-    borderColor: '#A8D7F0',
+    borderColor: '#5FAD8E',
   },
   pricingAmount: {
     fontSize: 48,
@@ -442,7 +442,7 @@ const styles = StyleSheet.create({
   pricingTrial: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#A8D7F0',
+    color: '#5FAD8E',
     marginBottom: 8,
   },
   pricingNote: {

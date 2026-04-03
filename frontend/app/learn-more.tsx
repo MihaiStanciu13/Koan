@@ -227,7 +227,7 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   heroTitle: {
-    fontFamily: 'serif',
+    fontFamily: 'Georgia',
     fontSize: 20,
     fontWeight: '400',
     lineHeight: 27,
@@ -373,7 +373,7 @@ const styles = StyleSheet.create({
   pricingCard: {
     backgroundColor: '#FFFFFF',
     borderWidth: 1.5,
-    borderColor: '#A8D7F0',
+    borderColor: '#5FAD8E',
     borderRadius: 14,
     padding: 20,
     alignItems: 'center',
@@ -419,7 +419,7 @@ const styles = StyleSheet.create({
     width: 4,
     height: 4,
     borderRadius: 2,
-    backgroundColor: '#A8D7F0',
+    backgroundColor: '#5FAD8E',
   },
   featureText: {
     flex: 1,
