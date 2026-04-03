@@ -683,9 +683,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#FAFDFA',
     zIndex: 10,
     paddingHorizontal: 40,
-    paddingTop: 40,
-    paddingBottom: 32,
-    justifyContent: 'space-between',
+    justifyContent: 'center',
   },
   interstitialLabel: {
     fontSize: 10,
@@ -695,14 +693,11 @@ const styles = StyleSheet.create({
     color: '#5FAD8E',
     opacity: 0.8,
     alignSelf: 'center',
-    marginBottom: 40,
+    marginBottom: 20,
   },
-  interstitialContent: {
-    flex: 1,
-    justifyContent: 'center',
-  },
+  interstitialContent: {},
   interstitialLine: {
-    paddingVertical: 22,
+    paddingVertical: 18,
   },
   interstitialLineBorder: {
     borderTopWidth: 1,
@@ -724,7 +719,9 @@ const styles = StyleSheet.create({
     lineHeight: 19,
   },
   continueButton: {
-    alignSelf: 'flex-end',
+    position: 'absolute',
+    bottom: 40,
+    right: 40,
     paddingVertical: 8,
     paddingHorizontal: 4,
   },

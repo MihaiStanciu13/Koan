@@ -48,6 +48,7 @@ export default function NudgesScreen() {
       </View>
 
       <ScrollView
+        style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
       >
@@ -103,13 +104,13 @@ export default function NudgesScreen() {
             </TouchableOpacity>
           ))
         )}
-
-        <View style={styles.philosophyCard}>
-          <Text style={styles.philosophyText}>
-            You know the next step. We just help you remember.
-          </Text>
-        </View>
       </ScrollView>
+
+      <View style={styles.philosophyCard}>
+        <Text style={styles.philosophyText}>
+          You know the next step. We just help you remember.
+        </Text>
+      </View>
     </SafeAreaView>
   );
 }
@@ -134,14 +135,17 @@ const styles = StyleSheet.create({
     color: '#3A3A3A',
     opacity: 0.6,
   },
+  scrollView: {
+    flex: 1,
+  },
   scrollContent: {
     padding: 20,
     paddingTop: 0,
-    paddingBottom: 40,
+    paddingBottom: 16,
   },
   emptyState: {
     alignItems: 'center',
-    paddingVertical: 60,
+    paddingVertical: 24,
   },
   emptyIcon: {
     width: 64,
@@ -251,7 +255,8 @@ const styles = StyleSheet.create({
     backgroundColor: '#D9F7EB',
     borderRadius: 12,
     padding: 20,
-    marginTop: 20,
+    marginHorizontal: 20,
+    marginBottom: 20,
   },
   philosophyText: {
     fontSize: 14,
