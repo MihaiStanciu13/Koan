@@ -1,0 +1,13 @@
+diff --git a/node_modules/expo-modules-core/ios/JSI/EXJavaScriptRuntime.h b/node_modules/expo-modules-core/ios/JSI/EXJavaScriptRuntime.h
+index 9ddf31e..3b4775f 100644
+--- a/node_modules/expo-modules-core/ios/JSI/EXJavaScriptRuntime.h
++++ b/node_modules/expo-modules-core/ios/JSI/EXJavaScriptRuntime.h
+@@ -53,7 +53,7 @@ NS_SWIFT_NAME(JavaScriptRuntime)
+ 
+ - (nonnull instancetype)initWithRuntime:(jsi::Runtime &)runtime;
+ 
+-- (nonnull instancetype)initWithRuntime:(jsi::Runtime &)runtime callInvoker:(std::shared_ptr<react::CallInvoker>)callInvoker;
++- (nonnull instancetype)initWithRuntime:(jsi::Runtime &)runtime callInvoker:(std::shared_ptr<react::RuntimeSchedulerCallInvoker>)callInvoker;
+ 
+ /**
+  Returns the underlying runtime object.
