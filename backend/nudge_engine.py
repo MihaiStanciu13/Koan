@@ -4,7 +4,7 @@ from typing import Dict, Optional
 import uuid
 import logging
 import os
-from emergentintegrations.llm.chat import LlmChat, UserMessage
+import anthropic
 from models import Nudge, MicroMode
 
 logger = logging.getLogger(__name__)
@@ -93,22 +93,29 @@ async def generate_nudge_content(nudge_type: str, context: Dict, preferences: Op
             context["anchor_action"] = preferences.get("anchor_action", "close one loop")
             prompt_text = template["prompt"].format(**context)
         
-        # Initialize LLM Chat
-        api_key = os.getenv("EMERGENT_LLM_KEY")
-        chat = LlmChat(
-            api_key=api_key,
-            session_id=f"nudge_{nudge_type}_{datetime.utcnow().timestamp()}",
-            system_message="You are a subtle behavioral coach. Create brief, calm, professional nudges without clichés or motivational phrases. Be direct and respectful."
-        ).with_model("openai", "gpt-4o-mini")
-        
+        # Initialize Anthropic client
+        api_key = os.getenv("ANTHROPIC_API_KEY")
+        client = anthropic.AsyncAnthropic(api_key=api_key)
+        system_prompt = "You are a subtle behavioral coach. Create brief, calm, professional nudges without clichés or motivational phrases. Be direct and respectful."
+
         # Generate message
-        message_user_msg = UserMessage(text=prompt_text)
-        message = await chat.send_message(message_user_msg)
-        
+        message_response = await client.messages.create(
+            model="claude-3-5-haiku-20241022",
+            max_tokens=100,
+            system=system_prompt,
+            messages=[{"role": "user", "content": prompt_text}]
+        )
+        message = message_response.content[0].text
+
         # Generate explanation (why this nudge)
         explanation_prompt = f"In 20-30 words, explain why we're sending this nudge: {message}. Focus on the behavioral pattern observed."
-        explanation_user_msg = UserMessage(text=explanation_prompt)
-        explanation = await chat.send_message(explanation_user_msg)
+        explanation_response = await client.messages.create(
+            model="claude-3-5-haiku-20241022",
+            max_tokens=100,
+            system=system_prompt,
+            messages=[{"role": "user", "content": explanation_prompt}]
+        )
+        explanation = explanation_response.content[0].text
         
         return message.strip(), explanation.strip()
     except Exception as e:

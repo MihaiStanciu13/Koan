@@ -2,7 +2,7 @@ from motor.motor_asyncio import AsyncIOMotorDatabase
 from datetime import datetime, timedelta
 from typing import List, Dict
 import os
-from emergentintegrations.llm.chat import LlmChat, UserMessage
+import anthropic
 import logging
 
 logger = logging.getLogger(__name__)
@@ -99,16 +99,16 @@ async def generate_weekly_narrative(patterns: List[str], nudge_count: int) -> st
         
 Create a single, calm, insightful sentence (15-25 words) about what worked well or could be adjusted. No metrics, no clichés, just a subtle observation."""
         
-        api_key = os.getenv("EMERGENT_LLM_KEY")
-        chat = LlmChat(
-            api_key=api_key,
-            session_id=f"narrative_{datetime.utcnow().timestamp()}",
-            system_message="You are a subtle behavioral analyst. Create brief, insightful observations without motivational clichés."
-        ).with_model("openai", "gpt-4o-mini")
-        
-        user_message = UserMessage(text=prompt)
-        narrative = await chat.send_message(user_message)
-        
+        api_key = os.getenv("ANTHROPIC_API_KEY")
+        client = anthropic.AsyncAnthropic(api_key=api_key)
+        response = await client.messages.create(
+            model="claude-3-5-haiku-20241022",
+            max_tokens=100,
+            system="You are a subtle behavioral analyst. Create brief, insightful observations without motivational clichés.",
+            messages=[{"role": "user", "content": prompt}]
+        )
+        narrative = response.content[0].text
+
         return narrative.strip()
     except Exception as e:
         logger.error(f"Error generating narrative: {str(e)}")
