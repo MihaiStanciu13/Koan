@@ -68,6 +68,7 @@ export default function HomeScreen() {
   const [currentHint, setCurrentHint] = useState(0);
   const [showWelcomeVideo, setShowWelcomeVideo] = useState(false);
   const [show5thNudgeMilestone, setShow5thNudgeMilestone] = useState(false);
+  const [calendarConnected, setCalendarConnected] = useState(false);
   
   // Animation for pulsing dot
   const pulseAnim = useRef(new Animated.Value(1)).current;
@@ -177,6 +178,7 @@ export default function HomeScreen() {
       ]);
 
       setAnchorAction(prefs.anchor_action || 'close one loop');
+      setCalendarConnected(!!prefs.google_calendar_connected);
       // Load anchor actions array
       if (prefs.anchor_actions && Array.isArray(prefs.anchor_actions)) {
         const enabledActions = prefs.anchor_actions.filter((a: any) => a.enabled && a.text);
@@ -346,6 +348,46 @@ export default function HomeScreen() {
                 </View>
               </View>
             ))}
+          </View>
+        )}
+
+        {/* Calendar / Week card */}
+        {calendarConnected ? (
+          <View style={styles.weekCard}>
+            <Text style={styles.weekLabel}>THIS WEEK</Text>
+            <View style={styles.weekRow}>
+              <View style={[styles.weekDot, styles.weekDotGreen]} />
+              <Text style={styles.weekRowText}>Focus blocks</Text>
+              <Text style={styles.weekRowValue}>3 detected</Text>
+            </View>
+            <View style={styles.weekDivider} />
+            <View style={styles.weekRow}>
+              <View style={[styles.weekDot, styles.weekDotAmber]} />
+              <Text style={styles.weekRowText}>Late sessions</Text>
+              <Text style={styles.weekRowValue}>2 this week</Text>
+            </View>
+            <View style={styles.weekDivider} />
+            <View style={styles.weekRow}>
+              <View style={[styles.weekDot, styles.weekDotGreen]} />
+              <Text style={styles.weekRowText}>Anchor completed</Text>
+              <Text style={styles.weekRowValue}>5 of 7 days</Text>
+            </View>
+          </View>
+        ) : (
+          <View style={styles.calendarCard}>
+            <View style={styles.calendarCardHeader}>
+              <View style={styles.calendarDot} />
+              <Text style={styles.calendarCardTitle}>Koan is learning from your phone</Text>
+            </View>
+            <Text style={styles.calendarCardSubtitle}>
+              Connect Google Calendar to unlock pattern detection based on your meetings and energy levels.
+            </Text>
+            <TouchableOpacity
+              style={styles.calendarButton}
+              onPress={() => router.push('/settings')}
+            >
+              <Text style={styles.calendarButtonText}>Connect Google Calendar</Text>
+            </TouchableOpacity>
           </View>
         )}
 
@@ -563,6 +605,99 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#3A3A3A',
     opacity: 0.5,
+  },
+  calendarCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    padding: 20,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#E6E6E4',
+  },
+  calendarCardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+    gap: 8,
+  },
+  calendarDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#5FAD8E',
+  },
+  calendarCardTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#3A3A3A',
+  },
+  calendarCardSubtitle: {
+    fontSize: 13,
+    color: '#3A3A3A',
+    opacity: 0.65,
+    lineHeight: 19,
+    marginBottom: 16,
+  },
+  calendarButton: {
+    backgroundColor: '#5FAD8E',
+    borderRadius: 10,
+    paddingVertical: 13,
+    alignItems: 'center',
+  },
+  calendarButtonText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  weekCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    padding: 20,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#E6E6E4',
+  },
+  weekLabel: {
+    fontSize: 10,
+    fontWeight: '500',
+    letterSpacing: 1.2,
+    textTransform: 'uppercase',
+    color: '#5FAD8E',
+    marginBottom: 16,
+  },
+  weekRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 2,
+  },
+  weekDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 3.5,
+    marginRight: 10,
+  },
+  weekDotGreen: {
+    backgroundColor: '#5FAD8E',
+  },
+  weekDotAmber: {
+    backgroundColor: '#E8A838',
+  },
+  weekRowText: {
+    flex: 1,
+    fontSize: 14,
+    color: '#3A3A3A',
+    fontFamily: 'Georgia',
+  },
+  weekRowValue: {
+    fontSize: 13,
+    color: '#3A3A3A',
+    opacity: 0.55,
+    fontWeight: '400',
+  },
+  weekDivider: {
+    height: 1,
+    backgroundColor: '#F0F0EE',
+    marginVertical: 10,
   },
   philosophyCard: {
     backgroundColor: '#D9F7EB',
