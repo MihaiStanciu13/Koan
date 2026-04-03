@@ -8,9 +8,9 @@
     "userInterfaceStyle": "light",
     "scheme": "koan",
     "splash": {
-      "image": "./assets/splash.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#FAFDFA"
+      "image": "./assets/images/splash.png",
+      "backgroundColor": "#4A9678",
+      "resizeMode": "contain"
     },
     "assetBundlePatterns": [
       "**/*"
@@ -22,7 +22,7 @@
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#FAFDFA"
+        "backgroundColor": "#4A9678"
       },
       "package": "com.koan.app"
     },

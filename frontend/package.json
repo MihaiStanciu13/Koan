@@ -16,6 +16,7 @@
     "date-fns": "^4.1.0",
     "expo": "~55.0.8",
     "expo-constants": "~55.0.9",
+    "expo-device": "^55.0.10",
     "expo-font": "~55.0.4",
     "expo-linking": "~55.0.8",
     "expo-local-authentication": "~55.0.9",
