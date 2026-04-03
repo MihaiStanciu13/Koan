@@ -7,13 +7,13 @@ import {
   FlatList,
   Dimensions,
   Alert,
-  TextInput,
   Animated,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { storage } from '../services/storage';
+import { preferencesAPI } from '../services/api';
 import * as Notifications from 'expo-notifications';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -25,6 +25,10 @@ const SUGGESTED_ANCHORS = [
   'Drink a glass of water',
   'Stand and stretch',
   'Clear one notification',
+  'Review your top priority for tomorrow',
+  'Take a 5-minute walk',
+  'Do a 5 minute meditation.',
+  'Write down one thing you\'re grateful for',
 ];
 
 const ONBOARDING_DATA = [
@@ -57,7 +61,7 @@ export default function Onboarding() {
   const router = useRouter();
   const [currentIndex, setCurrentIndex] = useState(0);
   const [showInterstitial, setShowInterstitial] = useState(false);
-  const [anchorText, setAnchorText] = useState('');
+  const [selectedAnchors, setSelectedAnchors] = useState<string[]>([]);
   const flatListRef = useRef<FlatList>(null);
   const pulseAnim = useRef(new Animated.Value(1)).current;
 
@@ -96,6 +100,31 @@ export default function Onboarding() {
       setCurrentIndex(nextIndex);
       flatListRef.current?.scrollToIndex({ index: nextIndex, animated: true });
     }
+  };
+
+  const toggleAnchor = (suggestion: string) => {
+    setSelectedAnchors(prev => {
+      if (prev.includes(suggestion)) {
+        return prev.filter(a => a !== suggestion);
+      }
+      if (prev.length >= 3) return prev;
+      return [...prev, suggestion];
+    });
+  };
+
+  const handleAnchorContinue = async () => {
+    try {
+      const defaultTimes = ['09:00', '14:00', '18:00'];
+      const anchor_actions = selectedAnchors.map((text, i) => ({
+        text,
+        time: defaultTimes[i],
+        enabled: true,
+      }));
+      await preferencesAPI.update({ anchor_actions });
+    } catch (error) {
+      console.error('Failed to save anchors from onboarding:', error);
+    }
+    handleNext();
   };
 
   const handleSkip = async () => {
@@ -171,28 +200,28 @@ export default function Onboarding() {
             <Text style={styles.title}>{item.title}</Text>
             <Text style={styles.description}>{item.description}</Text>
 
+            {selectedAnchors.length > 0 && (
+              <Text style={styles.anchorSelectionHint}>
+                {selectedAnchors.length}/3 selected
+              </Text>
+            )}
+
             <View style={styles.suggestionsGrid}>
               {SUGGESTED_ANCHORS.map((suggestion, idx) => (
                 <TouchableOpacity
                   key={idx}
-                  style={[styles.chip, anchorText === suggestion && styles.chipSelected]}
-                  onPress={() => setAnchorText(suggestion)}
+                  style={[
+                    styles.chip,
+                    selectedAnchors.includes(suggestion) && styles.chipSelected,
+                    selectedAnchors.length >= 3 && !selectedAnchors.includes(suggestion) && styles.chipDisabled,
+                  ]}
+                  onPress={() => toggleAnchor(suggestion)}
                 >
-                  <Text style={[styles.chipText, anchorText === suggestion && styles.chipTextSelected]}>
+                  <Text style={[styles.chipText, selectedAnchors.includes(suggestion) && styles.chipTextSelected]}>
                     {suggestion}
                   </Text>
                 </TouchableOpacity>
               ))}
-            </View>
-
-            <View style={styles.anchorInputContainer}>
-              <TextInput
-                style={styles.anchorInput}
-                placeholder="Or type your own..."
-                placeholderTextColor="rgba(58,58,58,0.4)"
-                value={anchorText}
-                onChangeText={setAnchorText}
-              />
             </View>
           </View>
         </View>
@@ -298,13 +327,17 @@ export default function Onboarding() {
               <Text style={styles.letsGoText}>Let's go</Text>
             </TouchableOpacity>
           ) : currentIndex === 1 ? (
-            // Step 2: Skip + Next
+            // Step 2: Skip + Continue
             <>
               <TouchableOpacity style={styles.skipButton} onPress={handleSkip}>
                 <Text style={styles.skipText}>Skip</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={styles.nextButton} onPress={handleNext}>
-                <Text style={styles.nextText}>Next</Text>
+              <TouchableOpacity
+                style={[styles.nextButton, selectedAnchors.length === 0 && styles.nextButtonDisabled]}
+                onPress={handleAnchorContinue}
+                disabled={selectedAnchors.length === 0}
+              >
+                <Text style={styles.nextText}>Continue</Text>
                 <Ionicons name="arrow-forward" size={18} color="#FFFFFF" />
               </TouchableOpacity>
             </>
@@ -476,19 +509,15 @@ const styles = StyleSheet.create({
     color: '#5FAD8E',
     fontWeight: '400',
   },
-  anchorInputContainer: {
-    width: '100%',
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#E6E6E4',
-    paddingHorizontal: 16,
-    paddingVertical: 4,
+  chipDisabled: {
+    opacity: 0.4,
   },
-  anchorInput: {
-    fontSize: 14,
-    color: '#3A3A3A',
-    paddingVertical: 12,
+  anchorSelectionHint: {
+    fontSize: 12,
+    fontWeight: '400',
+    color: '#5FAD8E',
+    alignSelf: 'flex-start',
+    marginBottom: 8,
   },
   // Expect step (step 3)
   expectDotOuter: {
@@ -622,6 +651,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
+  },
+  nextButtonDisabled: {
+    backgroundColor: '#B0D9C7',
   },
   nextText: {
     color: '#FFFFFF',
