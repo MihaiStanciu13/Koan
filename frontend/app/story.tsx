@@ -11,121 +11,154 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 const PARAGRAPHS = [
   "My grandparents lived past ninety.",
-  "They never tracked their steps. Never counted calories. Never wore a watch that measured their sleep.",
+  "They never tracked their steps. Never counted calories. Never wore a watch that measured their sleep. Did word puzzles and looked up words in dictionaries.",
   "They moved every day. Ate real food. Went to bed when it got dark. Did word puzzles and looked up words in dictionaries. Had people they loved nearby.",
   "They lived moderately. They lived well.",
   "In the highlands of Sardinia, in the Greek island of Icaria, in the blue zones scattered across the world — people live this way well into their hundreds. Not because of supplements or routines. Because of rhythm.",
   "Our ancestors lived this way too. They walked long distances. Ate what the season offered. Rested when the light faded. Stress was short and sharp — not the slow, chronic kind we carry now.",
   "Somewhere along the way, we made this complicated.",
   "Koan is a small attempt to make it simple again.",
-  "—",
 ];
 
-const FADE_DURATION = 800;
-const GAP_BETWEEN = 400;
+const TYPING_SPEED = 22;
+
+function delayAfterChar(char: string, nextChar?: string): number {
+  if (char === '.' || char === '!' || char === '?') return 320;
+  if (char === ',') return 120;
+  // em dash is a single unicode char '—'
+  if (char === '—') return 200;
+  return TYPING_SPEED;
+}
 
 interface StoryProps {
   onContinue: () => void;
 }
 
 export default function Story({ onContinue }: StoryProps) {
-  const [animationComplete, setAnimationComplete] = useState(false);
-
-  const paragraphAnims = useRef(
-    PARAGRAPHS.map(() => new Animated.Value(0))
-  ).current;
+  const [completedParagraphs, setCompletedParagraphs] = useState<string[]>([]);
+  const [currentParagraphIndex, setCurrentParagraphIndex] = useState(0);
+  const [currentText, setCurrentText] = useState('');
+  const [done, setDone] = useState(false);
   const continueAnim = useRef(new Animated.Value(0)).current;
-  const animationRef = useRef<Animated.CompositeAnimation | null>(null);
-  // Ref for synchronous check inside handleScreenTap (state update is async)
-  const isCompleteRef = useRef(false);
 
-  useEffect(() => {
-    runAnimation();
-    return () => {
-      animationRef.current?.stop();
-    };
-  }, []);
+  const scrollRef = useRef<ScrollView>(null);
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const runAnimation = () => {
-    const sequence: Animated.CompositeAnimation[] = [];
+  // Refs for use inside closures
+  const doneRef = useRef(false);
+  const skippedRef = useRef(false);
 
-    PARAGRAPHS.forEach((_, i) => {
-      if (i > 0) sequence.push(Animated.delay(GAP_BETWEEN));
-      sequence.push(
-        Animated.timing(paragraphAnims[i], {
-          toValue: 1,
-          duration: FADE_DURATION,
-          useNativeDriver: true,
-        })
-      );
-    });
-
-    sequence.push(Animated.delay(GAP_BETWEEN));
-    sequence.push(
-      Animated.timing(continueAnim, {
-        toValue: 1,
-        duration: 600,
-        useNativeDriver: true,
-      })
-    );
-
-    const anim = Animated.sequence(sequence);
-    animationRef.current = anim;
-    anim.start(({ finished }) => {
-      if (finished) {
-        isCompleteRef.current = true;
-        setAnimationComplete(true);
-      }
-    });
+  const clearTimer = () => {
+    if (timeoutRef.current !== null) {
+      clearTimeout(timeoutRef.current);
+      timeoutRef.current = null;
+    }
   };
 
+  const showContinue = () => {
+    Animated.timing(continueAnim, {
+      toValue: 1,
+      duration: 600,
+      useNativeDriver: true,
+    }).start();
+    doneRef.current = true;
+    setDone(true);
+  };
+
+  useEffect(() => {
+    if (skippedRef.current) return;
+
+    const paragraph = PARAGRAPHS[currentParagraphIndex];
+    if (!paragraph) return;
+
+    let charIndex = currentText.length;
+
+    const typeNext = () => {
+      if (skippedRef.current) return;
+
+      if (charIndex >= paragraph.length) {
+        // Paragraph done — pause then advance
+        timeoutRef.current = setTimeout(() => {
+          if (skippedRef.current) return;
+          const nextIndex = currentParagraphIndex + 1;
+          setCompletedParagraphs(prev => [...prev, paragraph]);
+          setCurrentText('');
+          if (nextIndex >= PARAGRAPHS.length) {
+            setCurrentParagraphIndex(nextIndex);
+            showContinue();
+          } else {
+            setCurrentParagraphIndex(nextIndex);
+          }
+        }, 600);
+        return;
+      }
+
+      const char = paragraph[charIndex];
+      const nextChar = paragraph[charIndex + 1];
+      const delay = charIndex === 0 ? TYPING_SPEED : delayAfterChar(paragraph[charIndex - 1], char);
+
+      timeoutRef.current = setTimeout(() => {
+        if (skippedRef.current) return;
+        charIndex++;
+        setCurrentText(paragraph.slice(0, charIndex));
+      }, delay);
+    };
+
+    typeNext();
+
+    return () => clearTimer();
+  }, [currentText, currentParagraphIndex]);
+
+  useEffect(() => {
+    scrollRef.current?.scrollToEnd({ animated: false });
+  }, [currentText, completedParagraphs, done]);
+
   const skipToEnd = () => {
-    animationRef.current?.stop();
-    animationRef.current = null;
-    paragraphAnims.forEach(a => a.setValue(1));
-    continueAnim.setValue(1);
-    isCompleteRef.current = true;
-    setAnimationComplete(true);
+    skippedRef.current = true;
+    clearTimer();
+    setCompletedParagraphs(PARAGRAPHS);
+    setCurrentText('');
+    setCurrentParagraphIndex(PARAGRAPHS.length);
+    showContinue();
   };
 
   const handleScreenTap = () => {
-    if (!isCompleteRef.current) {
+    if (!doneRef.current) {
       skipToEnd();
-    } else {
-      onContinue();
     }
   };
+
+  const isTypingDone = currentParagraphIndex >= PARAGRAPHS.length;
 
   return (
     <TouchableWithoutFeedback onPress={handleScreenTap}>
       <SafeAreaView style={styles.container}>
         <ScrollView
+          ref={scrollRef}
           contentContainerStyle={styles.scrollContent}
-          scrollEnabled={animationComplete}
-          // Prevent scroll gesture from consuming the tap during animation
+          scrollEnabled
           scrollEventThrottle={16}
         >
-          {PARAGRAPHS.map((text, i) => (
-            <Animated.Text
-              key={i}
-              style={[
-                text === '—' ? styles.separator : styles.paragraph,
-                i > 0 && styles.paragraphSpacing,
-                { opacity: paragraphAnims[i] },
-              ]}
-            >
+          {completedParagraphs.map((text, i) => (
+            <Text key={i} style={styles.paragraph}>
               {text}
-            </Animated.Text>
+            </Text>
           ))}
-        </ScrollView>
 
-        {/* Continue button — absolutely pinned to bottom-right, inside safe area */}
-        <Animated.View
-          style={[styles.continueWrapper, { opacity: continueAnim }]}
-          pointerEvents="none"
-        >
-          <Text style={styles.continueText}>Continue →</Text>
-        </Animated.View>
+          {!isTypingDone && currentText.length > 0 && (
+            <Text style={styles.paragraph}>
+              {currentText}
+            </Text>
+          )}
+
+          {done && (
+            <Animated.View style={{ opacity: continueAnim, alignItems: 'flex-end', marginTop: 8 }}>
+              <Text style={styles.continueText} onPress={onContinue}>
+                Continue →
+              </Text>
+            </Animated.View>
+          )}
+        </ScrollView>
       </SafeAreaView>
     </TouchableWithoutFeedback>
   );
@@ -138,7 +171,6 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     flexGrow: 1,
-    justifyContent: 'center',
     paddingVertical: 60,
     paddingHorizontal: 36,
   },
@@ -148,26 +180,11 @@ const styles = StyleSheet.create({
     fontSize: 17,
     lineHeight: 28,
     color: '#3A3A3A',
-    textAlign: 'center',
-  },
-  paragraphSpacing: {
-    marginTop: 28,
-  },
-  separator: {
-    fontFamily: 'Georgia',
-    fontSize: 17,
-    color: '#3A3A3A',
-    opacity: 0.3,
-    textAlign: 'center',
-  },
-  continueWrapper: {
-    position: 'absolute',
-    bottom: 32,
-    right: 32,
+    textAlign: 'left',
+    marginBottom: 24,
   },
   continueText: {
     fontSize: 12,
     color: '#5FAD8E',
-    opacity: 0.7,
   },
 });
