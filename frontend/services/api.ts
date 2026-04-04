@@ -157,6 +157,28 @@ export const adaptiveNudgeAPI = {
   },
 };
 
+export const calendarAPI = {
+  getAuthUrl: () =>
+    api.get('/integrations/calendar/auth-url').then(r => r.data),
+  getStatus: () =>
+    api.get('/integrations/calendar/status').then(r => r.data),
+  disconnect: () =>
+    api.delete('/integrations/calendar/disconnect').then(r => r.data),
+  getToday: () =>
+    api.get('/integrations/calendar/today').then(r => r.data),
+};
+
+export const microsoftAPI = {
+  getAuthUrl: () =>
+    api.get('/integrations/microsoft/auth-url').then(r => r.data),
+  getStatus: () =>
+    api.get('/integrations/microsoft/status').then(r => r.data),
+  disconnect: () =>
+    api.delete('/integrations/microsoft/disconnect').then(r => r.data),
+  getToday: () =>
+    api.get('/integrations/microsoft/today').then(r => r.data),
+};
+
 export const healthAPI = {
   recordSignal: (data: any) =>
     api.post('/health/signals', data).then(r => r.data),

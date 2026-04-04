@@ -14,7 +14,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useAuth } from '../../contexts/AuthContext';
-import { preferencesAPI, subscriptionAPI, authAPI, calendarAPI } from '../../services/api';
+import { preferencesAPI, subscriptionAPI, authAPI, calendarAPI, microsoftAPI } from '../../services/api';
 import * as WebBrowser from 'expo-web-browser';
 
 const WORKPLACE_TOOLS = [
@@ -88,6 +88,13 @@ export default function SettingsScreen() {
           prev.includes('gcalendar') ? prev : [...prev, 'gcalendar']
         );
       }
+
+      const msStatus = await microsoftAPI.getStatus();
+      if (msStatus.connected) {
+        setConnectedTools(prev =>
+          prev.includes('microsoft365') ? prev : [...prev, 'microsoft365']
+        );
+      }
     } catch (error) {
       console.error('Failed to load settings:', error);
     }
@@ -128,15 +135,46 @@ export default function SettingsScreen() {
         // Connect with OAuth
         await initiateGoogleCalendarOAuth();
       }
+    } else if (toolId === 'microsoft365') {
+      if (connectedTools.includes('microsoft365')) {
+        try {
+          await microsoftAPI.disconnect();
+          const newTools = connectedTools.filter(t => t !== 'microsoft365');
+          setConnectedTools(newTools);
+          await updatePreference('connected_tools', newTools);
+          Alert.alert('Disconnected', 'Microsoft 365 has been disconnected.');
+        } catch (error) {
+          Alert.alert('Error', 'Failed to disconnect Microsoft 365.');
+        }
+      } else {
+        try {
+          const { auth_url } = await microsoftAPI.getAuthUrl();
+          const result = await WebBrowser.openAuthSessionAsync(
+            auth_url,
+            'koan://microsoft-connected'
+          );
+          if (result.type === 'success') {
+            const status = await microsoftAPI.getStatus();
+            if (status.connected) {
+              const newTools = [...connectedTools, 'microsoft365'];
+              setConnectedTools(newTools);
+              await updatePreference('connected_tools', newTools);
+              Alert.alert('Connected', 'Microsoft 365 connected successfully.');
+            }
+          }
+        } catch (error) {
+          Alert.alert('Error', 'Could not connect Microsoft 365. Please try again.');
+        }
+      }
     } else {
       // Mock for other tools
       const newTools = connectedTools.includes(toolId)
         ? connectedTools.filter(t => t !== toolId)
         : [...connectedTools, toolId];
-      
+
       setConnectedTools(newTools);
       await updatePreference('connected_tools', newTools);
-      
+
       const tool = WORKPLACE_TOOLS.find(t => t.id === toolId);
       if (newTools.includes(toolId) && tool) {
         Alert.alert('Connected', `${tool.name} connected. Full integration coming soon.`);
