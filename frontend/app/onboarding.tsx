@@ -83,6 +83,16 @@ export default function Onboarding() {
   const requestNotifications = async () => {
     try {
       await Notifications.requestPermissionsAsync();
+      const tokenData = await Notifications.getExpoPushTokenAsync();
+      const authToken = await storage.getAuthToken();
+      await fetch(`${process.env.EXPO_PUBLIC_BACKEND_URL}/api/user/push-token`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${authToken}`,
+        },
+        body: JSON.stringify({ push_token: tokenData.data }),
+      }).catch(() => {}); // fail silently
     } catch (error) {
       console.error('Failed to request notifications:', error);
     }
