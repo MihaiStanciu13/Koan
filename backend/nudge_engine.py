@@ -190,3 +190,98 @@ async def mark_nudge_opened(db: AsyncIOMotorDatabase, nudge_id: str):
         {"id": nudge_id},
         {"$set": {"opened": True}}
     )
+
+async def check_health_signal_triggers(db, user_id: str, signal: dict) -> Optional[dict]:
+    """
+    Evaluate a health signal snapshot and generate a nudge if a pattern warrants it.
+    Returns a nudge dict or None.
+    Each trigger checks a specific condition and maps to a research-grounded principle.
+    """
+    prefs = await db.preferences.find_one({"user_id": user_id}) or {}
+    micro_mode = prefs.get("micro_mode", "standard")
+    if micro_mode == "whisper":
+        return None  # whisper mode suppresses health nudges
+
+    # Get last 7 days of signals for trend detection
+    cutoff = (datetime.utcnow() - timedelta(days=7)).strftime("%Y-%m-%d")
+    recent = await db.health_signals.find(
+        {"user_id": user_id, "date": {"$gte": cutoff}},
+        sort=[("date", -1)]
+    ).to_list(7)
+
+    nudge_message = None
+    nudge_type = None
+    explanation = None
+
+    # Trigger 1: First pickup getting earlier or later than baseline
+    if signal.get("first_pickup_time") and len(recent) >= 3:
+        pickups = [r.get("first_pickup_time") for r in recent if r.get("first_pickup_time")]
+        if len(pickups) >= 3:
+            # If first pickup is before 7am for 3+ days
+            early_pickups = sum(1 for p in pickups if p < "07:00")
+            if early_pickups >= 3:
+                nudge_message = "Your phone has been the first thing you reach for before the day has even started. The first 30 minutes belong to you."
+                nudge_type = "morning_boundary"
+                explanation = "First phone pickup detected before 7am for 3 or more consecutive days."
+
+    # Trigger 2: Steps declining over 4+ days
+    if not nudge_message and len(recent) >= 4:
+        step_counts = [r.get("steps") for r in recent[:4] if r.get("steps")]
+        if len(step_counts) == 4 and all(step_counts[i] > step_counts[i+1] for i in range(3)):
+            nudge_message = "Movement has been fading this week. It doesn't need to be exercise — a walk after dinner counts more than you think."
+            nudge_type = "movement_drift"
+            explanation = "Step count has declined for 4 consecutive days."
+
+    # Trigger 3: Sleep timing inconsistent (bedtime varying >90 min)
+    if not nudge_message and signal.get("sleep_start") and len(recent) >= 3:
+        sleep_starts = [r.get("sleep_start") for r in recent if r.get("sleep_start")]
+        if len(sleep_starts) >= 3:
+            times = [int(t.replace(":", "")) for t in sleep_starts]
+            if max(times) - min(times) > 130:
+                nudge_message = "Your sleep schedule has been shifting. Consistency matters more than duration — your body clock notices the drift before you do."
+                nudge_type = "sleep_consistency"
+                explanation = "Bedtime has varied by more than 90 minutes across recent nights."
+
+    # Trigger 4: Screen time high + steps low on same day
+    if not nudge_message:
+        if signal.get("total_screen_time_minutes", 0) > 240 and signal.get("steps", 0) < 3000:
+            nudge_message = "A long day on screens, a short day on your feet. Even a 10-minute walk resets more than you'd expect."
+            nudge_type = "sedentary_screen"
+            explanation = "Screen time exceeded 4 hours while step count was below 3000."
+
+    # Trigger 5: Social media disproportionate vs total screen time
+    if not nudge_message:
+        total = signal.get("total_screen_time_minutes", 0)
+        social = signal.get("social_media_minutes", 0)
+        if total > 0 and social / total > 0.5 and social > 60:
+            nudge_message = "More than half of today's screen time was social media. That's not connection — that's drift."
+            nudge_type = "attention_drift"
+            explanation = "Social media accounted for over 50% of total screen time."
+
+    if not nudge_message:
+        return None
+
+    # Check we haven't sent a nudge of this type recently
+    recent_nudge = await db.nudges.find_one({
+        "user_id": user_id,
+        "nudge_type": nudge_type,
+        "created_at": {"$gte": datetime.utcnow() - timedelta(hours=24)}
+    })
+    if recent_nudge:
+        return None
+
+    # Create nudge directly with pre-formed content (no AI generation needed)
+    nudge_style = prefs.get("nudge_style", "silent")
+    nudge_id = str(uuid.uuid4())
+    nudge = Nudge(
+        id=nudge_id,
+        user_id=user_id,
+        nudge_type=nudge_type,
+        message=nudge_message,
+        explanation=explanation,
+        delivered=False,
+        silent=(nudge_style == "silent"),
+    )
+    await db.nudges.insert_one(nudge.dict())
+    logger.info(f"Created health-signal nudge {nudge_id} (type={nudge_type}) for user {user_id}")
+    return nudge.dict()

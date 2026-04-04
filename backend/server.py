@@ -16,7 +16,7 @@ from auth import router as auth_router, get_current_user
 from behavioral_monitor import router as behavior_router
 from subscription import router as subscription_router
 from models import User, Preferences, PreferencesUpdate, Nudge, NudgeResponse, HealthSignalCreate
-from nudge_engine import get_pending_nudges, mark_nudge_delivered, mark_nudge_opened, create_nudge
+from nudge_engine import get_pending_nudges, mark_nudge_delivered, mark_nudge_opened, create_nudge, check_health_signal_triggers
 from pattern_detector import detect_weekly_patterns, learn_quiet_periods
 
 # Configure logging
@@ -413,6 +413,8 @@ async def record_health_signal(
         {"$set": doc},
         upsert=True
     )
+    # Evaluate health triggers and create a nudge if warranted
+    await check_health_signal_triggers(db, current_user.id, doc)
     return {"status": "ok"}
 
 @api_router.get("/health/signals")
