@@ -369,7 +369,7 @@ export default function Onboarding() {
             <View style={styles.interstitialLine}>
               <Text style={styles.interstitialLineTitle}>Koan watches quietly.</Text>
               <Text style={styles.interstitialLineBody}>
-                Phone pickups, app switches, meeting density. Nothing personal. Nothing invasive.
+                Health signals, phone pickups, app switches, meeting density. Nothing personal. Nothing invasive.
               </Text>
             </View>
             <View style={[styles.interstitialLine, styles.interstitialLineBorder]}>

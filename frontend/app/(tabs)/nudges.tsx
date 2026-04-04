@@ -64,11 +64,15 @@ export default function NudgesScreen() {
             <Text style={styles.emptyText}>
               For the next 24–48 hours, Koan is building your baseline from phone usage patterns — pickup frequency, app switches, and session length.
             </Text>
-            <Text style={styles.emptyText}>
-              Connect Google Calendar to unlock richer nudges based on your meeting load and energy patterns.
-            </Text>
-            <TouchableOpacity style={styles.calendarButton} onPress={() => router.push('/settings')}>
-              <Text style={styles.calendarButtonText}>Connect Google Calendar</Text>
+            <Text style={styles.toolsLabel}>Connect your tools to unlock richer nudges:</Text>
+            <TouchableOpacity style={styles.toolButton} onPress={() => router.push('/settings')}>
+              <Text style={styles.toolButtonText}>Google Calendar</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.toolButton} onPress={() => router.push('/settings')}>
+              <Text style={styles.toolButtonText}>Microsoft 365</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.toolButton} onPress={() => router.push('/settings')}>
+              <Text style={styles.toolButtonText}>Slack</Text>
             </TouchableOpacity>
             <TouchableOpacity onPress={() => setPatternsExpanded(v => !v)} style={styles.patternsToggle}>
               <Text style={styles.patternsToggleText}>What patterns does Koan monitor? →</Text>
@@ -192,19 +196,28 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     marginBottom: 16,
   },
-  calendarButton: {
-    backgroundColor: '#5FAD8E',
-    borderRadius: 12,
-    paddingVertical: 14,
-    paddingHorizontal: 24,
-    alignItems: 'center',
-    width: '100%',
-    marginBottom: 14,
+  toolsLabel: {
+    fontSize: 13,
+    color: '#3A3A3A',
+    opacity: 0.6,
+    alignSelf: 'flex-start',
+    marginBottom: 8,
+    paddingHorizontal: 16,
   },
-  calendarButtonText: {
-    color: '#FFFFFF',
-    fontSize: 15,
-    fontWeight: '600',
+  toolButton: {
+    width: '100%',
+    paddingVertical: 10,
+    borderWidth: 1,
+    borderColor: '#E6E6E4',
+    borderRadius: 8,
+    alignItems: 'center',
+    marginBottom: 8,
+    backgroundColor: 'transparent',
+  },
+  toolButtonText: {
+    fontSize: 13,
+    color: '#3A3A3A',
+    fontWeight: '400',
   },
   patternsToggle: {
     paddingVertical: 4,

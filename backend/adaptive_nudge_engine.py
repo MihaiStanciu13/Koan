@@ -29,6 +29,7 @@ only when signals and user patterns indicate the moment is appropriate.
 """
 
 import logging
+import random
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Tuple
 from dataclasses import dataclass
@@ -150,7 +151,21 @@ class AdaptiveNudgeEngine:
         # Check global constraints first
         if not await self._can_send_nudge(user_id, signal.timestamp):
             return None
-            
+
+        # Apply user preference filters
+        preferences = await self.db.preferences.find_one({"user_id": user_id})
+        if preferences:
+            micro_mode = preferences.get("micro_mode", "standard")
+            # Travel mode: suppress all adaptive nudges
+            if micro_mode == "travel":
+                return None
+            # Focus mode: suppress all adaptive nudges (no anchor reminders in adaptive engine)
+            if micro_mode == "focus":
+                return None
+            # Whisper mode: deliver only 1 in 3 nudges (~70% suppression)
+            if preferences.get("whisper_mode", False) and random.random() > 0.333:
+                return None
+
         # Get adaptive weight for this signal type
         weight = await self._get_signal_weight(user_id, signal.signal_type, signal.timestamp)
         
@@ -165,6 +180,7 @@ class AdaptiveNudgeEngine:
             message = await self._select_nudge_message(user_id, signal.signal_type)
             
             # Create nudge
+            nudge_style = preferences.get("nudge_style", "silent") if preferences else "silent"
             nudge = {
                 "user_id": user_id,
                 "signal_type": signal.signal_type,
@@ -172,6 +188,7 @@ class AdaptiveNudgeEngine:
                 "score": score,
                 "timestamp": signal.timestamp,
                 "metadata": signal.metadata,
+                "silent": nudge_style == "silent",
             }
             
             # Record this nudge
@@ -199,9 +216,18 @@ class AdaptiveNudgeEngine:
         if hours_since_last >= self.FALLBACK_NUDGE_THRESHOLD_HOURS:
             # Check if we can send nudge now
             if await self._can_send_nudge(user_id, datetime.utcnow()):
-                import random
+                # Apply user preference filters
+                preferences = await self.db.preferences.find_one({"user_id": user_id})
+                if preferences:
+                    micro_mode = preferences.get("micro_mode", "standard")
+                    if micro_mode in ("travel", "focus"):
+                        return None
+                    if preferences.get("whisper_mode", False) and random.random() > 0.333:
+                        return None
+
+                nudge_style = preferences.get("nudge_style", "silent") if preferences else "silent"
                 message = random.choice(FALLBACK_NUDGES)
-                
+
                 nudge = {
                     "user_id": user_id,
                     "signal_type": "fallback",
@@ -209,6 +235,7 @@ class AdaptiveNudgeEngine:
                     "score": 0.5,
                     "timestamp": datetime.utcnow(),
                     "metadata": {"type": "fallback"},
+                    "silent": nudge_style == "silent",
                 }
                 
                 await self._record_nudge(user_id, nudge)
@@ -335,10 +362,8 @@ class AdaptiveNudgeEngine:
         fresh_messages = [m for m in messages if m not in recent_messages]
         
         if fresh_messages:
-            import random
             return random.choice(fresh_messages)
-        
-        import random
+
         return random.choice(messages)
     
     async def _record_nudge(self, user_id: str, nudge: Dict):
