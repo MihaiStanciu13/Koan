@@ -104,3 +104,53 @@ class WeeklyNarrative(BaseModel):
     narrative: str
     patterns_detected: List[str] = []
     created_at: datetime = Field(default_factory=datetime.utcnow)
+
+# Health Signal Models
+class HealthSignal(BaseModel):
+    user_id: str
+    date: str  # YYYY-MM-DD
+    recorded_at: datetime = Field(default_factory=datetime.utcnow)
+    # Movement
+    steps: Optional[int] = None
+    walking_running_distance_km: Optional[float] = None
+    flights_climbed: Optional[int] = None
+    exercise_minutes: Optional[int] = None
+    active_energy_kcal: Optional[float] = None
+    # Sleep
+    sleep_duration_minutes: Optional[int] = None
+    sleep_start: Optional[str] = None
+    sleep_end: Optional[str] = None
+    # Phone behaviour
+    first_pickup_time: Optional[str] = None
+    total_pickups: Optional[int] = None
+    total_screen_time_minutes: Optional[int] = None
+    social_media_minutes: Optional[int] = None
+    productivity_minutes: Optional[int] = None
+    notification_count: Optional[int] = None
+    # Body (wearable, optional)
+    resting_heart_rate: Optional[int] = None
+    hrv_ms: Optional[float] = None
+    # Location (opt-in)
+    location_variety: Optional[int] = None  # distinct places visited
+    time_outdoors_minutes: Optional[int] = None
+
+class HealthSignalCreate(BaseModel):
+    date: str
+    steps: Optional[int] = None
+    walking_running_distance_km: Optional[float] = None
+    flights_climbed: Optional[int] = None
+    exercise_minutes: Optional[int] = None
+    active_energy_kcal: Optional[float] = None
+    sleep_duration_minutes: Optional[int] = None
+    sleep_start: Optional[str] = None
+    sleep_end: Optional[str] = None
+    first_pickup_time: Optional[str] = None
+    total_pickups: Optional[int] = None
+    total_screen_time_minutes: Optional[int] = None
+    social_media_minutes: Optional[int] = None
+    productivity_minutes: Optional[int] = None
+    notification_count: Optional[int] = None
+    resting_heart_rate: Optional[int] = None
+    hrv_ms: Optional[float] = None
+    location_variety: Optional[int] = None
+    time_outdoors_minutes: Optional[int] = None

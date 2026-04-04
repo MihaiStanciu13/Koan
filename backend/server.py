@@ -15,7 +15,7 @@ load_dotenv(ROOT_DIR / '.env')
 from auth import router as auth_router, get_current_user
 from behavioral_monitor import router as behavior_router
 from subscription import router as subscription_router
-from models import User, Preferences, PreferencesUpdate, Nudge, NudgeResponse
+from models import User, Preferences, PreferencesUpdate, Nudge, NudgeResponse, HealthSignalCreate
 from nudge_engine import get_pending_nudges, mark_nudge_delivered, mark_nudge_opened, create_nudge
 from pattern_detector import detect_weekly_patterns, learn_quiet_periods
 
@@ -396,6 +396,40 @@ async def get_personalized_nudges_endpoint(
             })
     
     return {"personalized_nudges": personalized_nudges}
+
+# Health signal endpoints
+@api_router.post("/health/signals")
+async def record_health_signal(
+    signal: HealthSignalCreate,
+    current_user: User = Depends(get_current_user)
+):
+    """Receive daily health signal snapshot from the mobile app"""
+    from datetime import datetime as dt
+    doc = signal.dict()
+    doc["user_id"] = current_user.id
+    doc["recorded_at"] = dt.utcnow()
+    await db.health_signals.update_one(
+        {"user_id": current_user.id, "date": signal.date},
+        {"$set": doc},
+        upsert=True
+    )
+    return {"status": "ok"}
+
+@api_router.get("/health/signals")
+async def get_health_signals(
+    days: int = 7,
+    current_user: User = Depends(get_current_user)
+):
+    """Get recent health signals for the current user"""
+    from datetime import datetime as dt, timedelta
+    cutoff = (dt.utcnow() - timedelta(days=days)).strftime("%Y-%m-%d")
+    signals = await db.health_signals.find(
+        {"user_id": current_user.id, "date": {"$gte": cutoff}},
+        sort=[("date", -1)]
+    ).to_list(days)
+    for s in signals:
+        s["_id"] = str(s["_id"])
+    return {"signals": signals}
 
 # Pattern detection endpoints
 @api_router.get("/patterns/weekly")
