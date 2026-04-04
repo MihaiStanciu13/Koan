@@ -14,7 +14,7 @@
 #   - whisper_mode: skips nudge if any nudge sent in the last 4 hours
 #   - micro_mode FOCUS: only focus_mode and anchor_action nudges
 #   - micro_mode MEETING: only meeting_recovery and anchor_action nudges
-#   - micro_mode TRAVEL: only anchor_action nudges
+#   - micro_mode WHISPER: anchor_action nudges only (travel or high-pressure periods)
 #   - micro_mode STANDARD: all nudge types allowed
 #
 # Data used: MongoDB collections `nudges` (created/delivered/opened state) and
@@ -161,9 +161,9 @@ def should_send_nudge(nudge_type: str, micro_mode: str) -> bool:
     if micro_mode == MicroMode.MEETING:
         return nudge_type in ["meeting_recovery", "anchor_action"]
 
-    # Travel mode: suppress all nudges entirely
-    if micro_mode == MicroMode.TRAVEL:
-        return False
+    # Whisper mode: anchor reminders only (for travel or high-pressure periods)
+    if micro_mode == MicroMode.WHISPER:
+        return nudge_type == "anchor_action"
     
     # Standard mode: all nudges allowed
     return True

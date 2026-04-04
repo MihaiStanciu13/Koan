@@ -41,9 +41,9 @@ const MICRO_MODES = [
     description: 'Recovery nudges between meetings',
   },
   {
-    value: 'travel',
-    name: 'Travel Mode',
-    description: 'Ultra-rare, essential nudges only',
+    value: 'whisper',
+    name: 'Whisper',
+    description: 'Ultra-rare nudges, anchor reminders only — for travel or high-pressure periods',
   },
 ];
 
@@ -55,7 +55,6 @@ export default function SettingsScreen() {
   const [loading, setLoading] = useState(false);
   
   // Local states
-  const [whisperMode, setWhisperMode] = useState(false);
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
   const [connectedTools, setConnectedTools] = useState<string[]>([]);
   const [microMode, setMicroMode] = useState('standard');
@@ -69,6 +68,7 @@ export default function SettingsScreen() {
   }, []);
 
   const loadSettings = async () => {
+    if (!user) return;
     try {
       const [prefs, sub] = await Promise.all([
         preferencesAPI.get(),
@@ -78,7 +78,6 @@ export default function SettingsScreen() {
       setPreferences(prefs);
       setSubscription(sub);
       
-      setWhisperMode(prefs.whisper_mode || false);
       setNotificationsEnabled(prefs.notification_enabled ?? true);
       setConnectedTools(prefs.connected_tools || []);
       setMicroMode(prefs.micro_mode || 'standard');
@@ -97,11 +96,6 @@ export default function SettingsScreen() {
     }
   };
 
-  const toggleWhisperMode = async () => {
-    const newValue = !whisperMode;
-    setWhisperMode(newValue);
-    await updatePreference('whisper_mode', newValue);
-  };
 
   const toggleNotifications = async () => {
     const newValue = !notificationsEnabled;
@@ -360,23 +354,6 @@ export default function SettingsScreen() {
             </View>
           </TouchableOpacity>
           
-          <View style={styles.card}>
-            <View style={styles.preferenceRow}>
-              <View style={styles.preferenceLeft}>
-                <Text style={styles.preferenceName}>Whisper Mode</Text>
-                <Text style={styles.preferenceDescription}>
-                  Ultra-rare, low-frequency nudges
-                </Text>
-              </View>
-              <Switch
-                value={whisperMode}
-                onValueChange={toggleWhisperMode}
-                trackColor={{ false: '#E6E6E4', true: '#5FAD8E' }}
-                thumbColor={'#FFFFFF'}
-              />
-            </View>
-          </View>
-
           <View style={styles.card}>
             <View style={styles.preferenceRow}>
               <View style={styles.preferenceLeft}>

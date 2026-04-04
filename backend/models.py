@@ -7,7 +7,7 @@ class MicroMode(str, Enum):
     STANDARD = "standard"
     FOCUS = "focus"
     MEETING = "meeting"
-    TRAVEL = "travel"
+    WHISPER = "whisper"
 
 class SubscriptionStatus(str, Enum):
     TRIAL = "trial"

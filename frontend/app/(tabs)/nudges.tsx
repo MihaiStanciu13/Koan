@@ -12,9 +12,11 @@ import { Ionicons } from '@expo/vector-icons';
 import { nudgeAPI } from '../../services/api';
 import { format } from 'date-fns';
 import { useRouter } from 'expo-router';
+import { useAuth } from '../../contexts/AuthContext';
 
 export default function NudgesScreen() {
   const router = useRouter();
+  const { user } = useAuth();
   const [nudges, setNudges] = useState<any[]>([]);
   const [refreshing, setRefreshing] = useState(false);
   const [expandedNudge, setExpandedNudge] = useState<string | null>(null);
@@ -25,6 +27,7 @@ export default function NudgesScreen() {
   }, []);
 
   const loadNudges = async () => {
+    if (!user) return;
     try {
       const response = await nudgeAPI.getPending();
       setNudges(response.nudges || []);

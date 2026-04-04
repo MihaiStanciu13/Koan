@@ -157,7 +157,7 @@ class AdaptiveNudgeEngine:
         if preferences:
             micro_mode = preferences.get("micro_mode", "standard")
             # Travel mode: suppress all adaptive nudges
-            if micro_mode == "travel":
+            if micro_mode == "whisper":
                 return None
             # Focus mode: suppress all adaptive nudges (no anchor reminders in adaptive engine)
             if micro_mode == "focus":
@@ -220,7 +220,7 @@ class AdaptiveNudgeEngine:
                 preferences = await self.db.preferences.find_one({"user_id": user_id})
                 if preferences:
                     micro_mode = preferences.get("micro_mode", "standard")
-                    if micro_mode in ("travel", "focus"):
+                    if micro_mode in ("whisper", "focus"):
                         return None
                     if preferences.get("whisper_mode", False) and random.random() > 0.333:
                         return None

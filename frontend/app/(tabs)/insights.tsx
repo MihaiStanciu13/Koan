@@ -9,8 +9,10 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { patternsAPI, behaviorAPI } from '../../services/api';
 import { format } from 'date-fns';
+import { useAuth } from '../../contexts/AuthContext';
 
 export default function InsightsScreen() {
+  const { user } = useAuth();
   const [refreshing, setRefreshing] = useState(false);
   const [narrative, setNarrative] = useState('');
   const [patternsDetected, setPatternsDetected] = useState<string[]>([]);
@@ -22,6 +24,7 @@ export default function InsightsScreen() {
   }, []);
 
   const loadInsights = async () => {
+    if (!user) return;
     try {
       const [patterns, behaviorSummary] = await Promise.all([
         patternsAPI.getWeekly(),

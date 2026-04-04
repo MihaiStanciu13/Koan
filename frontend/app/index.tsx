@@ -682,14 +682,14 @@ const styles = StyleSheet.create({
     color: '#3A3A3A',
     opacity: 0.6,
     textAlign: 'center',
-    marginBottom: 48,
+    marginBottom: 24,
   },
   pillsContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 24,
-    marginBottom: 32,
+    marginTop: 8,
+    marginBottom: 24,
     gap: 8,
   },
   pill: {
@@ -711,7 +711,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 32,
     paddingVertical: 14,
     borderRadius: 8,
-    marginTop: 32,
+    marginTop: 16,
   },
   ctaButtonText: {
     fontSize: 15,
