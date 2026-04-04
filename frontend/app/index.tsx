@@ -22,6 +22,7 @@ import * as SecureStore from 'expo-secure-store';
 import { useAuth } from '../contexts/AuthContext';
 import { storage } from '../services/storage';
 import SplashScreen from './splash';
+import StoryScreen from './story';
 
 // Login Screen with Koan Branding
 function LoginScreen({ onSwitchToSignup, onBack }: any) {
@@ -354,6 +355,7 @@ export default function Index() {
   const { user, loading } = useAuth();
   const [showLogin, setShowLogin] = useState<boolean | null>(null); // null = landing, true = login, false = signup
   const [showSplash, setShowSplash] = useState(false);
+  const [showStory, setShowStory] = useState(false);
   const [checkingOnboarding, setCheckingOnboarding] = useState(false);
   const router = useRouter();
   const params = useLocalSearchParams<{ auth?: string }>();
@@ -448,7 +450,19 @@ export default function Index() {
         onDone={() => setShowSplash(false)}
         onBegin={() => {
           setShowSplash(false);
-          setShowLogin(false); // false = signup
+          setShowStory(true);
+        }}
+      />
+    );
+  }
+
+  // First-time user — show story after splash
+  if (showStory) {
+    return (
+      <StoryScreen
+        onContinue={() => {
+          setShowStory(false);
+          setShowLogin(false);
         }}
       />
     );
