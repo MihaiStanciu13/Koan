@@ -23,10 +23,6 @@ const PARAGRAPHS = [
 const TYPING_SPEED = 22;
 
 function delayAfterChar(char: string, nextChar?: string): number {
-  if (char === '.' || char === '!' || char === '?') return 320;
-  if (char === ',') return 120;
-  // em dash is a single unicode char '—'
-  if (char === '—') return 200;
   return TYPING_SPEED;
 }
 
