@@ -26,6 +26,7 @@ from typing import Dict, Optional
 import uuid
 import logging
 import os
+import random
 import anthropic
 from models import Nudge, MicroMode
 
@@ -64,13 +65,9 @@ async def create_nudge(db: AsyncIOMotorDatabase, user_id: str, nudge_type: str, 
         # Check if user is in Whisper Mode (fewer nudges)
         preferences = await db.preferences.find_one({"user_id": user_id})
         if preferences and preferences.get("whisper_mode", False):
-            # In whisper mode, only send high-priority nudges occasionally
-            recent_nudges = await db.nudges.count_documents({
-                "user_id": user_id,
-                "created_at": {"$gte": datetime.utcnow() - timedelta(hours=4)}
-            })
-            if recent_nudges > 0:
-                logger.info(f"Skipping nudge for user {user_id} in whisper mode")
+            # Whisper mode: deliver only 1 in 3 nudges (~70% suppression)
+            if random.random() > 0.333:
+                logger.info(f"Skipping nudge for user {user_id} in whisper mode (1-in-3 delivery)")
                 return None
         
         # Check nudge frequency based on micro-mode
@@ -82,6 +79,7 @@ async def create_nudge(db: AsyncIOMotorDatabase, user_id: str, nudge_type: str, 
         # Generate nudge content using AI
         message, explanation = await generate_nudge_content(nudge_type, context, preferences)
         
+        nudge_style = preferences.get("nudge_style", "silent") if preferences else "silent"
         nudge_id = str(uuid.uuid4())
         nudge = Nudge(
             id=nudge_id,
@@ -89,7 +87,8 @@ async def create_nudge(db: AsyncIOMotorDatabase, user_id: str, nudge_type: str, 
             nudge_type=nudge_type,
             message=message,
             explanation=explanation,
-            delivered=False
+            delivered=False,
+            silent=(nudge_style == "silent"),
         )
         
         await db.nudges.insert_one(nudge.dict())
@@ -154,17 +153,17 @@ async def generate_nudge_content(nudge_type: str, context: Dict, preferences: Op
 
 def should_send_nudge(nudge_type: str, micro_mode: str) -> bool:
     """Determine if nudge should be sent based on micro-mode"""
-    # Focus mode: only focus-related nudges
+    # Focus mode: anchor reminders only — suppress all other nudges
     if micro_mode == MicroMode.FOCUS:
-        return nudge_type in ["focus_mode", "anchor_action"]
-    
+        return nudge_type == "anchor_action"
+
     # Meeting mode: prioritize meeting recovery
     if micro_mode == MicroMode.MEETING:
         return nudge_type in ["meeting_recovery", "anchor_action"]
-    
-    # Travel mode: minimal nudges
+
+    # Travel mode: suppress all nudges entirely
     if micro_mode == MicroMode.TRAVEL:
-        return nudge_type == "anchor_action"
+        return False
     
     # Standard mode: all nudges allowed
     return True

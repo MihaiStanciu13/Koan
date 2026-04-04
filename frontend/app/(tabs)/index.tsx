@@ -377,16 +377,28 @@ export default function HomeScreen() {
           <View style={styles.calendarCard}>
             <View style={styles.calendarCardHeader}>
               <View style={styles.calendarDot} />
-              <Text style={styles.calendarCardTitle}>Koan is learning from your phone</Text>
+              <Text style={styles.calendarCardTitle}>Koan learns from your tools</Text>
             </View>
             <Text style={styles.calendarCardSubtitle}>
-              Connect Google Calendar to unlock pattern detection based on your meetings and energy levels.
+              Connect your calendar and communication tools to unlock pattern detection based on your meetings and energy levels.
             </Text>
             <TouchableOpacity
               style={styles.calendarButton}
               onPress={() => router.push('/settings')}
             >
               <Text style={styles.calendarButtonText}>Connect Google Calendar</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.calendarButtonOutline}
+              onPress={() => router.push('/settings')}
+            >
+              <Text style={styles.calendarButtonOutlineText}>Connect Microsoft 365</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.calendarButtonOutline}
+              onPress={() => router.push('/settings')}
+            >
+              <Text style={styles.calendarButtonOutlineText}>Connect Slack</Text>
             </TouchableOpacity>
           </View>
         )}
@@ -646,6 +658,20 @@ const styles = StyleSheet.create({
   },
   calendarButtonText: {
     color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  calendarButtonOutline: {
+    borderRadius: 10,
+    paddingVertical: 13,
+    alignItems: 'center',
+    marginTop: 8,
+    borderWidth: 1,
+    borderColor: '#5FAD8E',
+    backgroundColor: 'transparent',
+  },
+  calendarButtonOutlineText: {
+    color: '#5FAD8E',
     fontSize: 14,
     fontWeight: '600',
   },

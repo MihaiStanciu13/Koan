@@ -19,11 +19,9 @@ import api from '../../services/api';
 import * as WebBrowser from 'expo-web-browser';
 
 const WORKPLACE_TOOLS = [
-  { id: 'gmail', name: 'Gmail', icon: 'mail-outline', color: '#EA4335' },
-  { id: 'outlook', name: 'Outlook', icon: 'mail-outline', color: '#0078D4' },
-  { id: 'slack', name: 'Slack', icon: 'chatbubble-outline', color: '#4A154B' },
-  { id: 'teams', name: 'Microsoft Teams', icon: 'people-outline', color: '#6264A7' },
   { id: 'gcalendar', name: 'Google Calendar', icon: 'calendar-outline', color: '#4285F4' },
+  { id: 'microsoft365', name: 'Microsoft 365', icon: 'people-outline', color: '#0078D4' },
+  { id: 'slack', name: 'Slack', icon: 'chatbubble-outline', color: '#4A154B' },
 ];
 
 const MICRO_MODES = [
@@ -139,10 +137,10 @@ export default function SettingsScreen() {
       setConnectedTools(newTools);
       await updatePreference('connected_tools', newTools);
       
-      Alert.alert(
-        'Mock Connection',
-        `${toolId} ${newTools.includes(toolId) ? 'connected' : 'disconnected'}. This is a mock integration for MVP testing.`
-      );
+      const tool = WORKPLACE_TOOLS.find(t => t.id === toolId);
+      if (newTools.includes(toolId) && tool) {
+        Alert.alert('Connected', `${tool.name} connected. Full integration coming soon.`);
+      }
     }
   };
 
@@ -278,9 +276,6 @@ export default function SettingsScreen() {
         {/* Workplace Connections */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Workplace Connections</Text>
-          <Text style={styles.sectionSubtitle}>
-            Connect tools to detect patterns (mocked for MVP)
-          </Text>
           
           {WORKPLACE_TOOLS.map((tool) => (
             <View key={tool.id} style={styles.card}>
@@ -300,17 +295,6 @@ export default function SettingsScreen() {
               </View>
             </View>
           ))}
-        </View>
-
-        {/* Notifications */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Notifications</Text>
-          <TouchableOpacity style={styles.card} onPress={() => router.push('/nudge-settings')}>
-            <View style={styles.preferenceRow}>
-              <Text style={styles.preferenceName}>Nudge settings</Text>
-              <Ionicons name="chevron-forward" size={20} color="#3A3A3A" />
-            </View>
-          </TouchableOpacity>
         </View>
 
         {/* Micro-Mode */}

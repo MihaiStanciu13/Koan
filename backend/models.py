@@ -91,6 +91,7 @@ class Nudge(BaseModel):
     delivered: bool = False
     opened: bool = False
     action_taken: Optional[str] = None
+    silent: bool = False  # True when nudge_style is "silent" — delivered without sound
 
 class NudgeResponse(BaseModel):
     nudge_id: str

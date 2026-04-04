@@ -11,7 +11,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 const PARAGRAPHS = [
   "My grandparents lived past ninety.",
-  "They never tracked their steps. Never counted calories. Never wore a watch that measured their sleep. Did word puzzles and looked up words in dictionaries.",
+  "They never tracked their steps. Never counted calories. Never wore a watch that measured their sleep.",
   "They moved every day. Ate real food. Went to bed when it got dark. Did word puzzles and looked up words in dictionaries. Had people they loved nearby.",
   "They lived moderately. They lived well.",
   "In the highlands of Sardinia, in the Greek island of Icaria, in the blue zones scattered across the world — people live this way well into their hundreds. Not because of supplements or routines. Because of rhythm.",

@@ -85,9 +85,6 @@ export default function SplashScreen({ onDone, onBegin }: SplashScreenProps) {
               Everything you need to know,{'\n'}
               <Text style={styles.taglineAccent}>you already know.</Text>
             </Text>
-            <Text style={styles.subtitle}>
-              Subtle nudges. Rare nudges.{'\n'}Nothing more.
-            </Text>
           </Animated.View>
         </View>
 
@@ -155,7 +152,7 @@ const styles = StyleSheet.create({
     width: 72,
     height: 72,
     borderRadius: 36,
-    backgroundColor: '#D9F7EB',
+    backgroundColor: '#A8D4BC',
   },
   dotCore: {
     width: 14,
