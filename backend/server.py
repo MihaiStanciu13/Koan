@@ -17,7 +17,7 @@ from behavioral_monitor import router as behavior_router
 from subscription import router as subscription_router
 from models import User, Preferences, PreferencesUpdate, Nudge, NudgeResponse, HealthSignalCreate
 from nudge_engine import get_pending_nudges, mark_nudge_delivered, mark_nudge_opened, create_nudge, check_health_signal_triggers
-from pattern_detector import detect_weekly_patterns, learn_quiet_periods
+from pattern_detector import PatternDetector, detect_weekly_patterns, learn_quiet_periods
 
 # Configure logging
 logging.basicConfig(
@@ -180,6 +180,37 @@ async def get_nudge_count(current_user: User = Depends(get_current_user)):
     """Get total count of nudges sent to user"""
     count = await db.nudges.count_documents({"user_id": current_user.id})
     return {"count": count}
+
+# Pattern-based nudge — GET, so no conflict with POST parameterised routes,
+# but kept here alongside other static nudge routes for clarity
+@api_router.get("/nudges/pattern-nudge")
+async def get_pattern_nudge(
+    current_user: User = Depends(get_current_user)
+):
+    """Get the highest priority nudge based on current patterns."""
+    import uuid
+    from models import MicroMode
+    detector = PatternDetector(db)
+    nudge_data = await detector.get_priority_nudge(current_user.id)
+    if not nudge_data:
+        return {"nudge": None}
+
+    # Create nudge directly with library content (pre-formed message + principle)
+    prefs = await db.preferences.find_one({"user_id": current_user.id}) or {}
+    nudge_style = prefs.get("nudge_style", "silent")
+    nudge_id = str(uuid.uuid4())
+    from models import Nudge
+    nudge = Nudge(
+        id=nudge_id,
+        user_id=current_user.id,
+        nudge_type=nudge_data["category"],
+        message=nudge_data["message"],
+        explanation=nudge_data["principle"],
+        delivered=False,
+        silent=(nudge_style == "silent"),
+    )
+    await db.nudges.insert_one(nudge.dict())
+    return {"nudge": nudge.dict()}
 
 # Static route MUST come before parameterised routes of the same method
 @api_router.post("/nudges/trigger-anchor")
@@ -413,8 +444,9 @@ async def record_health_signal(
         {"$set": doc},
         upsert=True
     )
-    # Evaluate health triggers and create a nudge if warranted
-    await check_health_signal_triggers(db, current_user.id, doc)
+    # Evaluate patterns and create a nudge if warranted
+    detector = PatternDetector(db)
+    await detector.get_priority_nudge(current_user.id)
     return {"status": "ok"}
 
 @api_router.get("/health/signals")
@@ -439,8 +471,9 @@ async def get_weekly_patterns(
     current_user: User = Depends(get_current_user)
 ):
     """Get weekly pattern narrative"""
-    patterns = await detect_weekly_patterns(db, current_user.id)
-    return patterns
+    detector = PatternDetector(db)
+    result = await detector.detect_weekly_patterns(current_user.id)
+    return result
 
 @api_router.post("/patterns/learn-quiet-periods")
 async def trigger_quiet_period_learning(

@@ -93,6 +93,8 @@ export const nudgeAPI = {
     const response = await api.post('/nudges/trigger-anchor');
     return response.data;
   },
+  getPatternNudge: () =>
+    api.get('/nudges/pattern-nudge').then(r => r.data),
 };
 
 export const preferencesAPI = {

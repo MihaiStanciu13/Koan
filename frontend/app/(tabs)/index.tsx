@@ -183,11 +183,12 @@ export default function HomeScreen() {
   const loadData = async () => {
     if (!user) return;
     try {
-      const [prefs, nudges, subscription, fallback] = await Promise.all([
+      const [prefs, nudges, subscription, fallback, patternResult] = await Promise.all([
         preferencesAPI.get(),
         nudgeAPI.getPending(),
         subscriptionAPI.getStatus(),
         adaptiveNudgeAPI.checkFallback().catch(() => null), // Optional fallback check
+        nudgeAPI.getPatternNudge().catch(() => null),       // Pattern-based nudge
       ]);
 
       setAnchorAction(prefs.anchor_action || 'close one loop');
@@ -197,14 +198,22 @@ export default function HomeScreen() {
         const enabledActions = prefs.anchor_actions.filter((a: any) => a.enabled && a.text);
         setAnchorActions(enabledActions);
       }
-      
+
       let allNudges = nudges.nudges || [];
-      
+
       // Add fallback nudge if returned
       if (fallback && fallback.nudge) {
         allNudges = [fallback.nudge, ...allNudges];
       }
-      
+
+      // Add pattern-based nudge if returned and not already present
+      if (patternResult && patternResult.nudge) {
+        const alreadyPresent = allNudges.some((n: any) => n.id === patternResult.nudge.id);
+        if (!alreadyPresent) {
+          allNudges = [patternResult.nudge, ...allNudges];
+        }
+      }
+
       setPendingNudges(allNudges);
       setTrialDays(subscription.trial_days_remaining || 0);
       
