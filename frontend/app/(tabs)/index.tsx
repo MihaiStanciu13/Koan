@@ -169,6 +169,7 @@ export default function HomeScreen() {
   };
 
   const loadData = async () => {
+    if (!user) return;
     try {
       const [prefs, nudges, subscription, fallback] = await Promise.all([
         preferencesAPI.get(),
