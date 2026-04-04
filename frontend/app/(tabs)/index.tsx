@@ -383,10 +383,10 @@ export default function HomeScreen() {
               Connect your calendar and communication tools to unlock pattern detection based on your meetings and energy levels.
             </Text>
             <TouchableOpacity
-              style={styles.calendarButton}
+              style={styles.calendarButtonOutline}
               onPress={() => router.push('/settings')}
             >
-              <Text style={styles.calendarButtonText}>Connect Google Calendar</Text>
+              <Text style={styles.calendarButtonOutlineText}>Connect Google Calendar</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={styles.calendarButtonOutline}
@@ -651,13 +651,16 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   calendarButton: {
-    backgroundColor: '#5FAD8E',
     borderRadius: 10,
     paddingVertical: 13,
     alignItems: 'center',
+    marginTop: 8,
+    borderWidth: 1,
+    borderColor: '#5FAD8E',
+    backgroundColor: 'transparent',
   },
   calendarButtonText: {
-    color: '#FFFFFF',
+    color: '#5FAD8E',
     fontSize: 14,
     fontWeight: '600',
   },

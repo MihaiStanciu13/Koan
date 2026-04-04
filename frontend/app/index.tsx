@@ -392,6 +392,7 @@ export default function Index() {
       } else if (previousUserRef.current !== null && user === null) {
         // User just logged out — reset to landing page
         setShowLogin(null);
+        setShowStory(false);
         setCheckingOnboarding(false);
       }
     }
