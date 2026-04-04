@@ -109,6 +109,22 @@ class PatternDetector:
             if all(h > baseline["avg_resting_hr"] * 1.1 for h in rhr_values[:3]):
                 triggered.append("stress_resting_hr_elevated")
 
+        # ── Calendar context ──
+        try:
+            user = await self.db.users.find_one({"_id": user_id})
+            if user and user.get("google_calendar_token"):
+                from google_calendar import get_meeting_density
+                density = await get_meeting_density(
+                    user["google_calendar_token"],
+                    user.get("google_calendar_refresh_token", "")
+                )
+                if density.get("back_to_back"):
+                    triggered.append("stress_back_to_back_meetings")
+                if density.get("meeting_minutes", 0) > 300:
+                    triggered.append("stress_heavy_meeting_day")
+        except Exception:
+            pass  # calendar unavailable, continue without it
+
         # ── Balance & rhythm ──
         is_weekend = datetime.utcnow().weekday() >= 5
         if is_weekend:
@@ -134,6 +150,8 @@ class PatternDetector:
         priority_order = [
             "stress_hrv_low",
             "stress_resting_hr_elevated",
+            "stress_back_to_back_meetings",
+            "stress_heavy_meeting_day",
             "sleep_timing_inconsistent",
             "sleep_duration_short",
             "sleep_late_night_phone",

@@ -142,6 +142,25 @@ NUDGE_LIBRARY = {
         ]
     },
 
+    "stress_back_to_back_meetings": {
+        "principle": "The mind needs transition time between focused demands — back-to-back meetings erode cognitive quality.",
+        "category": "recovery",
+        "longevity_factor": "stress_chronic",
+        "messages": [
+            "Back-to-back meetings today. Even two minutes between them changes what the next one costs you.",
+            "No gaps between meetings means no recovery between demands. That compounds.",
+        ]
+    },
+    "stress_heavy_meeting_day": {
+        "principle": "More than 5 hours of meetings in a day leaves no cognitive reserve for the rest of life.",
+        "category": "recovery",
+        "longevity_factor": "stress_chronic",
+        "messages": [
+            "A heavy meeting day. Tonight is for nothing in particular.",
+            "Five hours of meetings is a lot of being on. The evening doesn't need to be productive.",
+        ]
+    },
+
     # ── RHYTHM & BALANCE ─────────────────────────────────────────────────
     "rhythm_balanced_day": {
         "principle": "A balanced day — movement, rest, focus, social — is the oldest form of health.",
