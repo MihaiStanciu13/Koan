@@ -390,9 +390,10 @@ export default function Index() {
       if (user) {
         checkOnboardingAndNavigate();
       } else if (previousUserRef.current !== null && user === null) {
-        // User just logged out — reset to landing page
-        setShowLogin(null);
+        // User just logged out — reset all screen state to landing page
+        setShowSplash(false);
         setShowStory(false);
+        setShowLogin(null);
         setCheckingOnboarding(false);
       }
     }
