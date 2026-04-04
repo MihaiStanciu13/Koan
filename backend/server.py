@@ -1,4 +1,4 @@
-from fastapi import FastAPI, APIRouter, Depends, HTTPException
+from fastapi import FastAPI, APIRouter, Depends, HTTPException, Query
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient, AsyncIOMotorDatabase
@@ -181,6 +181,23 @@ async def get_nudge_count(current_user: User = Depends(get_current_user)):
     count = await db.nudges.count_documents({"user_id": current_user.id})
     return {"count": count}
 
+# Static route MUST come before parameterised routes of the same method
+@api_router.post("/nudges/trigger-anchor")
+async def trigger_anchor_nudge(
+    current_user: User = Depends(get_current_user)
+):
+    """Manually trigger an anchor action nudge"""
+    prefs = await db.preferences.find_one({"user_id": current_user.id})
+    anchor_action = prefs.get("anchor_action", "close one loop") if prefs else "close one loop"
+
+    nudge = await create_nudge(db, current_user.id, "anchor_action", {
+        "anchor_action": anchor_action
+    })
+
+    if nudge:
+        return {"status": "created", "nudge": nudge.dict()}
+    return {"status": "failed", "message": "Could not create nudge"}
+
 @api_router.post("/nudges/{nudge_id}/delivered")
 async def mark_delivered(
     nudge_id: str,
@@ -211,23 +228,6 @@ async def record_nudge_action(
         {"$set": {"action_taken": response.action}}
     )
     return {"status": "recorded"}
-
-# Manual nudge creation (for testing anchor actions)
-@api_router.post("/nudges/trigger-anchor")
-async def trigger_anchor_nudge(
-    current_user: User = Depends(get_current_user)
-):
-    """Manually trigger an anchor action nudge"""
-    prefs = await db.preferences.find_one({"user_id": current_user.id})
-    anchor_action = prefs.get("anchor_action", "close one loop") if prefs else "close one loop"
-    
-    nudge = await create_nudge(db, current_user.id, "anchor_action", {
-        "anchor_action": anchor_action
-    })
-    
-    if nudge:
-        return {"status": "created", "nudge": nudge.dict()}
-    return {"status": "failed", "message": "Could not create nudge"}
 
 # Adaptive Nudge Engine endpoints
 from adaptive_nudge_engine import AdaptiveNudgeEngine, Signal, SignalType
@@ -275,7 +275,7 @@ async def check_fallback_nudge_endpoint(
 @api_router.post("/adaptive-nudges/{nudge_id}/interaction")
 async def record_interaction(
     nudge_id: str,
-    action: str,
+    action: str = Query(...),
     current_user: User = Depends(get_current_user)
 ):
     """Record user interaction with adaptive nudge (dismissed, engaged, ignored)"""

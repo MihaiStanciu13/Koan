@@ -34,6 +34,7 @@ from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Tuple
 from dataclasses import dataclass
 from enum import Enum
+from bson import ObjectId
 
 logger = logging.getLogger(__name__)
 
@@ -140,7 +141,7 @@ class AdaptiveNudgeEngine:
     def __init__(self, db):
         self.db = db
         self.weights_collection = db["nudge_weights"]
-        self.nudge_history_collection = db["nudge_history"]
+        self.nudge_history_collection = db["nudges"]
         
     async def evaluate_signal(self, user_id: str, signal: Signal) -> Optional[Dict]:
         """
@@ -384,9 +385,15 @@ class AdaptiveNudgeEngine:
         Record user interaction with a nudge (dismissed, engaged, ignored).
         Updates adaptive weights based on user response.
         """
+        try:
+            oid = ObjectId(nudge_id)
+        except Exception:
+            logger.warning(f"record_nudge_interaction: invalid ObjectId '{nudge_id}'")
+            return
+
         # Update nudge record
         await self.nudge_history_collection.update_one(
-            {"_id": nudge_id, "user_id": user_id},
+            {"_id": oid, "user_id": user_id},
             {
                 "$set": {
                     action: True,
@@ -394,9 +401,9 @@ class AdaptiveNudgeEngine:
                 }
             }
         )
-        
+
         # Get nudge details
-        nudge = await self.nudge_history_collection.find_one({"_id": nudge_id})
+        nudge = await self.nudge_history_collection.find_one({"_id": oid})
         
         if not nudge:
             return
