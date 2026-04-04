@@ -5,15 +5,17 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  TextInput,
   Alert,
   Platform,
+  Modal,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { preferencesAPI } from '../services/api';
 import DateTimePicker from '@react-native-community/datetimepicker';
+
+const MAX_ANCHORS = 5;
 
 const SUGGESTED_ANCHORS = [
   'Close one loop',
@@ -34,11 +36,7 @@ interface AnchorAction {
 
 export default function AnchorActionsScreen() {
   const router = useRouter();
-  const [anchorActions, setAnchorActions] = useState<AnchorAction[]>([
-    { text: '', time: '09:00', enabled: false },
-    { text: '', time: '14:00', enabled: false },
-    { text: '', time: '18:00', enabled: false },
-  ]);
+  const [anchorActions, setAnchorActions] = useState<AnchorAction[]>([]);
   const [showSuggestions, setShowSuggestions] = useState<number | null>(null);
   const [showTimePicker, setShowTimePicker] = useState<number | null>(null);
   const [tempTime, setTempTime] = useState(new Date());
@@ -103,6 +101,11 @@ export default function AnchorActionsScreen() {
     }
   };
 
+  const addAnchorAction = () => {
+    if (anchorActions.length >= MAX_ANCHORS) return;
+    setAnchorActions(prev => [...prev, { text: '', time: '09:00', enabled: true }]);
+  };
+
   const getEnabledCount = () => {
     return anchorActions.filter(a => a.enabled && a.text.trim()).length;
   };
@@ -125,11 +128,11 @@ export default function AnchorActionsScreen() {
           <Ionicons name="boat-outline" size={32} color="#5FAD8E" />
           <Text style={styles.descriptionTitle}>What are Anchor Actions?</Text>
           <Text style={styles.descriptionText}>
-            Simple, repeatable actions that ground you throughout the day. 
-            Set 1-3 gentle reminders for moments that matter to you.
+            Simple, repeatable actions that ground you throughout the day.
+            Set up to 5 gentle reminders for moments that matter to you.
           </Text>
           <Text style={styles.enabledCount}>
-            {getEnabledCount()}/3 anchors active
+            {getEnabledCount()}/{MAX_ANCHORS} anchors active
           </Text>
         </View>
 
@@ -151,19 +154,16 @@ export default function AnchorActionsScreen() {
             </View>
 
             {/* Action Input */}
-            <View style={styles.inputContainer}>
-              <TextInput
-                style={styles.input}
-                placeholder="Choose or type an action..."
-                value={anchor.text}
-                onChangeText={(text) => updateAnchorAction(index, 'text', text)}
-                editable={anchor.enabled}
-                placeholderTextColor="#999"
-              />
-              <TouchableOpacity onPress={() => setShowSuggestions(showSuggestions === index ? null : index)}>
-                <Ionicons name="chevron-down" size={20} color="#3A3A3A" />
-              </TouchableOpacity>
-            </View>
+            <TouchableOpacity
+              style={styles.inputContainer}
+              onPress={() => setShowSuggestions(showSuggestions === index ? null : index)}
+              activeOpacity={0.7}
+            >
+              <Text style={[styles.inputText, !anchor.text && styles.inputPlaceholder]}>
+                {anchor.text || 'Choose an action...'}
+              </Text>
+              <Ionicons name="chevron-down" size={20} color="#3A3A3A" />
+            </TouchableOpacity>
 
             {/* Suggestions Dropdown */}
             {showSuggestions === index && (
@@ -185,7 +185,7 @@ export default function AnchorActionsScreen() {
               <View style={styles.timeContainer}>
                 <Ionicons name="time-outline" size={20} color="#5FAD8E" />
                 <Text style={styles.timeLabel}>Daily reminder at</Text>
-                <TouchableOpacity 
+                <TouchableOpacity
                   style={styles.timeInput}
                   onPress={() => {
                     const [hours, minutes] = anchor.time.split(':');
@@ -197,31 +197,18 @@ export default function AnchorActionsScreen() {
                 >
                   <Text style={styles.timeText}>{anchor.time}</Text>
                 </TouchableOpacity>
-                {showTimePicker === index && (
-                  <DateTimePicker
-                    value={tempTime}
-                    mode="time"
-                    is24Hour={true}
-                    display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-                    onChange={(event, selectedDate) => {
-                      if (Platform.OS === 'android') {
-                        setShowTimePicker(null);
-                      }
-                      if (selectedDate) {
-                        const hours = selectedDate.getHours().toString().padStart(2, '0');
-                        const minutes = selectedDate.getMinutes().toString().padStart(2, '0');
-                        updateAnchorAction(index, 'time', `${hours}:${minutes}`);
-                        if (Platform.OS === 'ios') {
-                          setShowTimePicker(null);
-                        }
-                      }
-                    }}
-                  />
-                )}
               </View>
             )}
           </View>
         ))}
+
+        {/* Add Anchor Row */}
+        {anchorActions.length < MAX_ANCHORS && (
+          <TouchableOpacity style={styles.addAnchorRow} onPress={addAnchorAction}>
+            <Ionicons name="add" size={20} color="#5FAD8E" />
+            <Text style={styles.addAnchorText}>Add anchor</Text>
+          </TouchableOpacity>
+        )}
 
         {/* Info Section */}
         <View style={styles.infoCard}>
@@ -232,6 +219,42 @@ export default function AnchorActionsScreen() {
           </Text>
         </View>
       </ScrollView>
+
+      {/* Time Picker Modal */}
+      <Modal
+        visible={showTimePicker !== null}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowTimePicker(null)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            <Text style={styles.modalTitle}>Set reminder time</Text>
+            <DateTimePicker
+              value={tempTime}
+              mode="time"
+              is24Hour={true}
+              display="spinner"
+              onChange={(event, selectedDate) => {
+                if (selectedDate) {
+                  setTempTime(selectedDate);
+                  if (showTimePicker !== null) {
+                    const hours = selectedDate.getHours().toString().padStart(2, '0');
+                    const minutes = selectedDate.getMinutes().toString().padStart(2, '0');
+                    updateAnchorAction(showTimePicker, 'time', `${hours}:${minutes}`);
+                  }
+                }
+              }}
+            />
+            <TouchableOpacity
+              style={styles.modalDoneButton}
+              onPress={() => setShowTimePicker(null)}
+            >
+              <Text style={styles.modalDoneText}>Done</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -331,10 +354,13 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     marginBottom: 12,
   },
-  input: {
+  inputText: {
     flex: 1,
     fontSize: 16,
     color: '#3A3A3A',
+  },
+  inputPlaceholder: {
+    color: '#999',
   },
   suggestionsContainer: {
     backgroundColor: '#F5F5F5',
@@ -376,6 +402,23 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#3A3A3A',
   },
+  addAnchorRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    borderWidth: 1,
+    borderColor: '#E6E6E4',
+    borderStyle: 'dashed',
+    borderRadius: 16,
+    paddingVertical: 16,
+    marginBottom: 16,
+  },
+  addAnchorText: {
+    fontSize: 14,
+    color: '#5FAD8E',
+    fontWeight: '500',
+  },
   infoCard: {
     flexDirection: 'row',
     gap: 12,
@@ -390,5 +433,39 @@ const styles = StyleSheet.create({
     color: '#3A3A3A',
     opacity: 0.8,
     lineHeight: 20,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.45)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
+    paddingTop: 24,
+    paddingBottom: 8,
+    paddingHorizontal: 24,
+    width: '85%',
+    alignItems: 'center',
+  },
+  modalTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#3A3A3A',
+    marginBottom: 8,
+  },
+  modalDoneButton: {
+    marginTop: 8,
+    marginBottom: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 40,
+    backgroundColor: '#5FAD8E',
+    borderRadius: 12,
+  },
+  modalDoneText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#FFFFFF',
   },
 });

@@ -60,15 +60,11 @@ const ONBOARDING_DATA = [
 export default function Onboarding() {
   const router = useRouter();
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [showInterstitial, setShowInterstitial] = useState(false);
+  const [showInterstitial, setShowInterstitial] = useState(true);
   const [selectedAnchors, setSelectedAnchors] = useState<string[]>([]);
   const flatListRef = useRef<FlatList>(null);
   const pulseAnim = useRef(new Animated.Value(1)).current;
 
-  useEffect(() => {
-    const t = setTimeout(() => setShowInterstitial(true), 300);
-    return () => clearTimeout(t);
-  }, []);
 
   useEffect(() => {
     // Breathing dot for step 3
@@ -128,6 +124,9 @@ export default function Onboarding() {
   };
 
   const handleAnchorContinue = async () => {
+    const nextIndex = 1;
+    setCurrentIndex(nextIndex);
+    flatListRef.current?.scrollToIndex({ index: nextIndex, animated: true });
     try {
       const defaultTimes = ['09:00', '14:00', '18:00'];
       const anchor_actions = selectedAnchors.map((text, i) => ({
@@ -139,9 +138,6 @@ export default function Onboarding() {
     } catch (error) {
       console.error('Failed to save anchors from onboarding:', error);
     }
-    const nextIndex = 1;
-    setCurrentIndex(nextIndex);
-    flatListRef.current?.scrollToIndex({ index: nextIndex, animated: true });
   };
 
   const handleSkip = async () => {

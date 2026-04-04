@@ -2,8 +2,7 @@ import React from 'react';
 import { Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../contexts/AuthContext';
-import { useRouter, useRootNavigationState } from 'expo-router';
-import { Platform } from 'react-native';
+import { useRouter } from 'expo-router';
 import { useEffect } from 'react';
 
 export default function TabLayout() {
@@ -13,12 +12,7 @@ export default function TabLayout() {
   // Auth guard: redirect to landing when not authenticated
   useEffect(() => {
     if (!loading && !user) {
-      if (Platform.OS === 'web') {
-        // On web, use window.location for a clean redirect that avoids route group ambiguity
-        window.location.href = '/';
-      } else {
-        router.replace('/');
-      }
+      router.replace('/');
     }
   }, [user, loading]);
 
