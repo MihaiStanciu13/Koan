@@ -8,6 +8,7 @@ import {
   RefreshControl,
   Alert,
   Animated,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -16,6 +17,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useNotifications } from '../../contexts/NotificationContext';
 import { nudgeAPI, behaviorAPI, preferencesAPI, subscriptionAPI, adaptiveNudgeAPI } from '../../services/api';
 import { startSignalCollection, stopSignalCollection, flushToBackend } from '../../services/signalCollector';
+import { requestHealthKitPermissions, collectAndSendHealthData } from '../../services/healthKit';
 import { format } from 'date-fns';
 import WelcomeVideoModal from '../../components/WelcomeVideoModal';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -86,6 +88,10 @@ export default function HomeScreen() {
 
     startSignalCollection();
     flushToBackend(); // send any pending signals from previous session
+
+    if (Platform.OS === 'ios') {
+      collectAndSendHealthData();
+    }
 
     return () => stopSignalCollection();
   }, []);

@@ -17,7 +17,11 @@
     ],
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.koan.app"
+      "bundleIdentifier": "com.koan.app",
+      "infoPlist": {
+        "NSHealthShareUsageDescription": "Koan uses health data to understand your movement, sleep, and energy patterns and deliver more relevant nudges.",
+        "NSHealthUpdateUsageDescription": "Koan does not write to Health."
+      }
     },
     "android": {
       "adaptiveIcon": {
