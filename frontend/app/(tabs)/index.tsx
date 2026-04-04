@@ -15,6 +15,7 @@ import { useRouter, useFocusEffect } from 'expo-router';
 import { useAuth } from '../../contexts/AuthContext';
 import { useNotifications } from '../../contexts/NotificationContext';
 import { nudgeAPI, behaviorAPI, preferencesAPI, subscriptionAPI, adaptiveNudgeAPI } from '../../services/api';
+import { startSignalCollection, stopSignalCollection, flushToBackend } from '../../services/signalCollector';
 import { format } from 'date-fns';
 import WelcomeVideoModal from '../../components/WelcomeVideoModal';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -78,10 +79,15 @@ export default function HomeScreen() {
     startPulseAnimation();
     determineLearningPhase();
     checkFirstVisit();
-    
+
     // Rotate hint daily
     const hint = new Date().getDate() % TODAY_HINTS.length;
     setCurrentHint(hint);
+
+    startSignalCollection();
+    flushToBackend(); // send any pending signals from previous session
+
+    return () => stopSignalCollection();
   }, []);
 
   // Reload data when screen comes into focus (e.g., after returning from anchor actions)
