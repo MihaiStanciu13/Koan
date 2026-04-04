@@ -1,4 +1,5 @@
 import React, { createContext, useState, useContext, useEffect } from 'react';
+import { router } from 'expo-router';
 import { authAPI, User } from '../services/api';
 import { storage } from '../services/storage';
 
@@ -52,11 +53,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const logout = async () => {
     setUser(null);
-    try {
-      await storage.removeAuthToken();
-    } catch (error) {
-      console.error('Logout error:', error);
-    }
+    await storage.removeAuthToken();
+    router.replace('/');
   };
 
   return (

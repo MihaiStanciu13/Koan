@@ -1,20 +1,8 @@
 import React from 'react';
 import { Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { useAuth } from '../../contexts/AuthContext';
-import { useRouter } from 'expo-router';
-import { useEffect } from 'react';
 
 export default function TabLayout() {
-  const { user, loading } = useAuth();
-  const router = useRouter();
-
-  // Auth guard: redirect to landing when not authenticated
-  useEffect(() => {
-    if (!loading && !user) {
-      router.replace('/');
-    }
-  }, [user, loading]);
 
   return (
     <Tabs
