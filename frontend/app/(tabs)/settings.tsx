@@ -14,8 +14,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useAuth } from '../../contexts/AuthContext';
-import { preferencesAPI, subscriptionAPI, authAPI } from '../../services/api';
-import api from '../../services/api';
+import { preferencesAPI, subscriptionAPI, authAPI, calendarAPI } from '../../services/api';
 import * as WebBrowser from 'expo-web-browser';
 
 const WORKPLACE_TOOLS = [
@@ -77,11 +76,18 @@ export default function SettingsScreen() {
 
       setPreferences(prefs);
       setSubscription(sub);
-      
+
       setNotificationsEnabled(prefs.notification_enabled ?? true);
       setConnectedTools(prefs.connected_tools || []);
       setMicroMode(prefs.micro_mode || 'standard');
       setAnchorAction(prefs.anchor_action || 'close one loop');
+
+      const calStatus = await calendarAPI.getStatus();
+      if (calStatus.connected) {
+        setConnectedTools(prev =>
+          prev.includes('gcalendar') ? prev : [...prev, 'gcalendar']
+        );
+      }
     } catch (error) {
       console.error('Failed to load settings:', error);
     }
@@ -109,7 +115,7 @@ export default function SettingsScreen() {
       if (connectedTools.includes('gcalendar')) {
         // Disconnect
         try {
-          await api.delete('/integrations/calendar/disconnect');
+          await calendarAPI.disconnect();
           const newTools = connectedTools.filter(t => t !== 'gcalendar');
           setConnectedTools(newTools);
           await updatePreference('connected_tools', newTools);
@@ -140,53 +146,24 @@ export default function SettingsScreen() {
 
   const initiateGoogleCalendarOAuth = async () => {
     try {
-      const redirectUri = 'https://koan-dev-build.preview.emergentagent.com';
-      const clientId = process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID || 'YOUR_GOOGLE_CLIENT_ID';
-      
-      const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?` +
-        `client_id=${clientId}&` +
-        `redirect_uri=${encodeURIComponent(redirectUri)}&` +
-        `response_type=code&` +
-        `scope=${encodeURIComponent('https://www.googleapis.com/auth/calendar.readonly')}&` +
-        `access_type=offline&` +
-        `prompt=consent`;
-      
-      const result = await WebBrowser.openAuthSessionAsync(authUrl, redirectUri);
-      
-      if (result.type === 'success' && result.url) {
-        const url = new URL(result.url);
-        const code = url.searchParams.get('code');
-        
-        if (code) {
-          // Exchange code for tokens (backend should handle this)
-          await handleOAuthCallback(code);
+      const { auth_url } = await calendarAPI.getAuthUrl();
+      const result = await WebBrowser.openAuthSessionAsync(
+        auth_url,
+        'koan://calendar-connected'
+      );
+      if (result.type === 'success') {
+        const status = await calendarAPI.getStatus();
+        if (status.connected) {
+          const newTools = [...connectedTools, 'gcalendar'];
+          setConnectedTools(newTools);
+          await updatePreference('connected_tools', newTools);
+          await updatePreference('google_calendar_connected', true);
+          Alert.alert('Connected', 'Google Calendar connected successfully.');
         }
       }
     } catch (error) {
       console.error('OAuth error:', error);
-      Alert.alert('Error', 'Failed to connect Google Calendar. Please try again.');
-    }
-  };
-
-  const handleOAuthCallback = async (code: string) => {
-    try {
-      // For MVP, we'll store a mock token
-      // In production, backend should exchange code for tokens
-      const mockToken = 'mock_google_calendar_token';
-      
-      await api.post('/integrations/calendar/connect', {
-        access_token: mockToken,
-        refresh_token: 'mock_refresh_token',
-      });
-      
-      const newTools = [...connectedTools, 'gcalendar'];
-      setConnectedTools(newTools);
-      await updatePreference('connected_tools', newTools);
-      
-      Alert.alert('Connected', 'Google Calendar connected successfully!');
-    } catch (error) {
-      console.error('Failed to save calendar tokens:', error);
-      Alert.alert('Error', 'Failed to complete Google Calendar connection.');
+      Alert.alert('Error', 'Could not connect Google Calendar. Please try again.');
     }
   };
 
