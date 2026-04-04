@@ -85,6 +85,9 @@ export default function SplashScreen({ onDone, onBegin }: SplashScreenProps) {
               Everything you need to know,{'\n'}
               <Text style={styles.taglineAccent}>you already know.</Text>
             </Text>
+            <Text style={styles.subtitle}>
+              Subtle nudges. Rare interruptions.{'\n'}Nothing more.
+            </Text>
           </Animated.View>
         </View>
 

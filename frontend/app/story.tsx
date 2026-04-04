@@ -112,10 +112,13 @@ export default function Story({ onContinue }: StoryProps) {
   const skipToEnd = () => {
     skippedRef.current = true;
     clearTimer();
-    setCompletedParagraphs(PARAGRAPHS);
-    setCurrentText('');
-    setCurrentParagraphIndex(PARAGRAPHS.length);
-    showContinue();
+    setTimeout(() => {
+      setCompletedParagraphs(PARAGRAPHS);
+      setCurrentText('');
+      setCurrentParagraphIndex(PARAGRAPHS.length);
+      showContinue();
+      scrollRef.current?.scrollToEnd({ animated: true });
+    }, 50);
   };
 
   const handleScreenTap = () => {
@@ -132,7 +135,7 @@ export default function Story({ onContinue }: StoryProps) {
         <ScrollView
           ref={scrollRef}
           contentContainerStyle={styles.scrollContent}
-          scrollEnabled
+          scrollEnabled={true}
           scrollEventThrottle={16}
         >
           {completedParagraphs.map((text, i) => (
