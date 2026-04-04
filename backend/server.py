@@ -1,4 +1,5 @@
 from fastapi import FastAPI, APIRouter, Depends, HTTPException, Query
+from typing import Optional
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient, AsyncIOMotorDatabase
@@ -114,57 +115,81 @@ async def update_push_token(
     return {"status": "updated", "push_token": token}
 
 # Google Calendar Integration endpoints
-from google_calendar import fetch_calendar_events
+from google_calendar import get_auth_url, exchange_code_for_tokens, get_meeting_density
 
-@api_router.post("/integrations/calendar/connect")
-async def connect_google_calendar(
-    tokens: dict,
+@api_router.get("/integrations/calendar/auth-url")
+async def get_calendar_auth_url(
     current_user: User = Depends(get_current_user)
 ):
-    """Save Google Calendar OAuth tokens"""
-    access_token = tokens.get("access_token")
-    refresh_token = tokens.get("refresh_token")
-    
-    if not access_token:
-        raise HTTPException(status_code=400, detail="access_token is required")
-    
-    update_data = {"google_calendar_token": access_token}
-    if refresh_token:
-        update_data["google_calendar_refresh_token"] = refresh_token
-    
-    await db.users.update_one(
-        {"_id": current_user.id},
-        {"$set": update_data}
-    )
-    
-    return {"status": "connected"}
+    """Returns the Google OAuth URL for the frontend to open."""
+    url = get_auth_url(user_id=current_user.id)
+    return {"auth_url": url}
 
-@api_router.get("/integrations/calendar/events")
-async def get_calendar_events(
-    current_user: User = Depends(get_current_user)
+@api_router.get("/integrations/calendar/callback")
+async def calendar_oauth_callback(
+    code: str,
+    state: Optional[str] = None,
 ):
-    """Fetch calendar events for meeting-based nudges"""
-    user = await db.users.find_one({"_id": current_user.id})
-    
-    if not user or not user.get("google_calendar_token"):
-        raise HTTPException(status_code=404, detail="Google Calendar not connected")
-    
-    access_token = user["google_calendar_token"]
-    events_data = await fetch_calendar_events(access_token)
-    
-    return events_data
+    """
+    Google redirects here after user grants permission.
+    Exchanges code for tokens and saves to user record.
+    Returns a redirect to a deep link the app can intercept.
+    """
+    from fastapi.responses import RedirectResponse
+    try:
+        tokens = await exchange_code_for_tokens(code)
+        # State contains the user_id we passed in the auth URL
+        if state:
+            await db.users.update_one(
+                {"_id": state},
+                {"$set": {
+                    "google_calendar_token": tokens["access_token"],
+                    "google_calendar_refresh_token": tokens["refresh_token"],
+                    "google_calendar_connected": True,
+                }}
+            )
+        return RedirectResponse(url="koan://calendar-connected")
+    except Exception as e:
+        print(f"OAuth callback error: {e}")
+        return RedirectResponse(url="koan://calendar-error")
 
 @api_router.delete("/integrations/calendar/disconnect")
-async def disconnect_google_calendar(
+async def disconnect_calendar(
     current_user: User = Depends(get_current_user)
 ):
-    """Disconnect Google Calendar"""
+    """Disconnect Google Calendar."""
     await db.users.update_one(
         {"_id": current_user.id},
-        {"$unset": {"google_calendar_token": "", "google_calendar_refresh_token": ""}}
+        {"$unset": {
+            "google_calendar_token": "",
+            "google_calendar_refresh_token": "",
+            "google_calendar_connected": "",
+        }}
     )
-    
     return {"status": "disconnected"}
+
+@api_router.get("/integrations/calendar/status")
+async def get_calendar_status(
+    current_user: User = Depends(get_current_user)
+):
+    """Check whether Google Calendar is connected."""
+    user = await db.users.find_one({"_id": current_user.id})
+    connected = bool(user and user.get("google_calendar_connected"))
+    return {"connected": connected}
+
+@api_router.get("/integrations/calendar/today")
+async def get_calendar_today(
+    current_user: User = Depends(get_current_user)
+):
+    """Get today's meeting density for the current user."""
+    user = await db.users.find_one({"_id": current_user.id})
+    if not user or not user.get("google_calendar_token"):
+        return {"connected": False}
+    density = await get_meeting_density(
+        user["google_calendar_token"],
+        user.get("google_calendar_refresh_token", "")
+    )
+    return {"connected": True, **density}
 
 # Nudge endpoints
 @api_router.get("/nudges/pending")

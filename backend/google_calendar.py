@@ -30,12 +30,13 @@ def create_oauth_flow() -> Flow:
     return flow
 
 
-def get_auth_url() -> str:
+def get_auth_url(user_id: str = "") -> str:
     flow = create_oauth_flow()
     auth_url, _ = flow.authorization_url(
         access_type="offline",
         include_granted_scopes="true",
-        prompt="consent"
+        prompt="consent",
+        state=user_id
     )
     return auth_url
 
