@@ -571,7 +571,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   anchorButtonText: {
-    color: '#3A3A3A',
+    color: '#FFFFFF',
     fontSize: 15,
     fontWeight: '600',
   },
