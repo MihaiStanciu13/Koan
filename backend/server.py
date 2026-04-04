@@ -191,6 +191,71 @@ async def get_calendar_today(
     )
     return {"connected": True, **density}
 
+# Microsoft 365 Calendar Integration endpoints
+from microsoft_calendar import (
+    get_auth_url as ms_get_auth_url,
+    exchange_code_for_tokens as ms_exchange_code,
+    get_meeting_density as ms_get_meeting_density,
+)
+
+@api_router.get("/integrations/microsoft/auth-url")
+async def get_microsoft_auth_url(current_user: User = Depends(get_current_user)):
+    url = ms_get_auth_url(user_id=current_user.id)
+    return {"auth_url": url}
+
+
+@api_router.get("/integrations/microsoft/callback")
+async def microsoft_oauth_callback(
+    code: str,
+    state: Optional[str] = None,
+):
+    from fastapi.responses import RedirectResponse
+    try:
+        tokens = await ms_exchange_code(code)
+        if state:
+            await db.users.update_one(
+                {"_id": state},
+                {"$set": {
+                    "microsoft_access_token": tokens["access_token"],
+                    "microsoft_refresh_token": tokens["refresh_token"],
+                    "microsoft_connected": True,
+                }}
+            )
+        return RedirectResponse(url="koan://microsoft-connected")
+    except Exception as e:
+        print(f"Microsoft OAuth callback error: {e}")
+        return RedirectResponse(url="koan://microsoft-error")
+
+
+@api_router.delete("/integrations/microsoft/disconnect")
+async def disconnect_microsoft(current_user: User = Depends(get_current_user)):
+    await db.users.update_one(
+        {"_id": current_user.id},
+        {"$unset": {
+            "microsoft_access_token": "",
+            "microsoft_refresh_token": "",
+            "microsoft_connected": "",
+        }}
+    )
+    return {"status": "disconnected"}
+
+
+@api_router.get("/integrations/microsoft/status")
+async def get_microsoft_status(current_user: User = Depends(get_current_user)):
+    user = await db.users.find_one({"_id": current_user.id})
+    connected = bool(user and user.get("microsoft_connected"))
+    return {"connected": connected}
+
+
+@api_router.get("/integrations/microsoft/today")
+async def get_microsoft_today(current_user: User = Depends(get_current_user)):
+    user = await db.users.find_one({"_id": current_user.id})
+    if not user or not user.get("microsoft_access_token"):
+        return {"connected": False}
+    density = await ms_get_meeting_density(user["microsoft_access_token"])
+    return {"connected": True, **density}
+
+
 # Nudge endpoints
 @api_router.get("/nudges/pending")
 async def get_pending_nudges_endpoint(
