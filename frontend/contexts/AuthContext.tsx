@@ -53,11 +53,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const logout = async () => {
     setUser(null);
     try {
-      await storage.clearAll();
-      setLoading(false);
+      await storage.removeAuthToken();
     } catch (error) {
-      console.error('Logout storage clear error:', error);
-      setLoading(false);
+      console.error('Logout error:', error);
     }
   };
 
