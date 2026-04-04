@@ -17,7 +17,7 @@ from auth import router as auth_router, get_current_user
 from behavioral_monitor import router as behavior_router
 from subscription import router as subscription_router
 from models import User, Preferences, PreferencesUpdate, Nudge, NudgeResponse, HealthSignalCreate
-from nudge_engine import get_pending_nudges, mark_nudge_delivered, mark_nudge_opened, create_nudge, check_health_signal_triggers
+from nudge_engine import get_pending_nudges, mark_nudge_delivered, mark_nudge_opened, create_nudge
 from pattern_detector import PatternDetector, detect_weekly_patterns, learn_quiet_periods
 
 # Configure logging

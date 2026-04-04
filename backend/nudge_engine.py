@@ -27,7 +27,10 @@ import uuid
 import logging
 import os
 import random
-import anthropic
+try:
+    import anthropic
+except ImportError:
+    anthropic = None
 from models import Nudge, MicroMode
 
 logger = logging.getLogger(__name__)
@@ -115,6 +118,8 @@ async def generate_nudge_content(nudge_type: str, context: Dict, preferences: Op
             prompt_text = template["prompt"].format(**context)
         
         # Initialize Anthropic client
+        if anthropic is None:
+            return None
         api_key = os.getenv("ANTHROPIC_API_KEY")
         client = anthropic.AsyncAnthropic(api_key=api_key)
         system_prompt = "You are a subtle behavioral coach. Create brief, calm, professional nudges without clichés or motivational phrases. Be direct and respectful."
