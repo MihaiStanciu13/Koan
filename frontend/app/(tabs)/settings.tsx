@@ -20,7 +20,6 @@ import * as WebBrowser from 'expo-web-browser';
 const WORKPLACE_TOOLS = [
   { id: 'gcalendar', name: 'Google Calendar', icon: 'calendar-outline', color: '#4285F4' },
   { id: 'microsoft365', name: 'Microsoft 365', icon: 'people-outline', color: '#0078D4' },
-  { id: 'slack', name: 'Slack', icon: 'chatbubble-outline', color: '#4A154B' },
 ];
 
 const MICRO_MODES = [

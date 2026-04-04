@@ -125,6 +125,20 @@ class PatternDetector:
         except Exception:
             pass  # calendar unavailable, continue without it
 
+        # ── Microsoft 365 Calendar context ──
+        try:
+            if user and user.get("microsoft_access_token"):
+                from microsoft_calendar import get_meeting_density as ms_density
+                ms_data = await ms_density(user["microsoft_access_token"])
+                if ms_data.get("back_to_back"):
+                    if "stress_back_to_back_meetings" not in triggered:
+                        triggered.append("stress_back_to_back_meetings")
+                if ms_data.get("meeting_minutes", 0) > 300:
+                    if "stress_heavy_meeting_day" not in triggered:
+                        triggered.append("stress_heavy_meeting_day")
+        except Exception:
+            pass
+
         # ── Balance & rhythm ──
         is_weekend = datetime.utcnow().weekday() >= 5
         if is_weekend:

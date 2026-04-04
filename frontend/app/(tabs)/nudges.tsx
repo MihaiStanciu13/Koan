@@ -74,9 +74,6 @@ export default function NudgesScreen() {
             <TouchableOpacity style={styles.toolButton} onPress={() => router.push('/settings')}>
               <Text style={styles.toolButtonText}>Microsoft 365</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.toolButton} onPress={() => router.push('/settings')}>
-              <Text style={styles.toolButtonText}>Slack</Text>
-            </TouchableOpacity>
             <TouchableOpacity onPress={() => setPatternsExpanded(v => !v)} style={styles.patternsToggle}>
               <Text style={styles.patternsToggleText}>What patterns does Koan monitor? →</Text>
             </TouchableOpacity>

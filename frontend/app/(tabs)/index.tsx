@@ -416,12 +416,6 @@ export default function HomeScreen() {
             >
               <Text style={styles.calendarButtonOutlineText}>Connect Microsoft 365</Text>
             </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.calendarButtonOutline}
-              onPress={() => router.push('/settings')}
-            >
-              <Text style={styles.calendarButtonOutlineText}>Connect Slack</Text>
-            </TouchableOpacity>
           </View>
         )}
 
