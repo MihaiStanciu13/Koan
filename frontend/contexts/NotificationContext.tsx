@@ -113,8 +113,7 @@ async function registerForPushNotificationsAsync() {
     const { status: existingStatus } = await Notifications.getPermissionsAsync();
     let finalStatus = existingStatus;
     if (existingStatus !== 'granted') {
-      const { status } = await Notifications.requestPermissionsAsync();
-      finalStatus = status;
+      return;
     }
     if (finalStatus !== 'granted') {
       Alert.alert('Permission Required', 'Enable notifications to receive behavioral nudges');

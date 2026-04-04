@@ -1,3 +1,26 @@
+# NUDGE LOGIC SUMMARY — adaptive_nudge_engine.py
+#
+# Signal types (9): EXCESSIVE_PICKUPS (>5 pickups in 10 min), LONG_SCREEN_SESSION
+# (>15 min continuous), RAPID_APP_SWITCHING (>4 switches in 60 sec),
+# EXTENDED_INACTIVITY (>45 min no motion), MORNING_UNLOCK (first unlock 2-4 min
+# after alarm/DND end), LATE_NIGHT_USE (screen activity after 22:00), BREAK_RETURN
+# (idle >20 min → >100 steps → unlock), RE_ENTRY_MOMENT (idle >60 min → unlock),
+# FOCUS_BOUNDARY (DND/Focus mode activated).
+#
+# Each signal has a strength (0.0–1.0) multiplied by an adaptive weight composed of:
+#   - base_weight (default 1.0)
+#   - pattern_multiplier (increases up to 1.5 when pattern is consistent)
+#   - effectiveness_multiplier (decreases on dismissals, increases on engagement)
+#   - time_of_day_multiplier (based on historical engagement at that hour)
+# Nudge fires when score = strength × total_weight > 0.6 threshold.
+#
+# Hard limits: max 3 nudges/day, min 60 min between nudges, quiet hours 23:00–07:00
+# (morning nudges allowed 07:00–08:00), 2h cooldown between similar nudges,
+# fallback nudge after 36h of silence.
+#
+# Data used: MongoDB collections `nudge_weights` (per-user per-signal weights)
+# and `nudge_history` (all fired nudges with dismissed/engaged flags).
+
 """
 Koan Adaptive Nudge Engine
 
