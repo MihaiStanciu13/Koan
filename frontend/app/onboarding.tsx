@@ -66,6 +66,11 @@ export default function Onboarding() {
   const pulseAnim = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
+    const t = setTimeout(() => setShowInterstitial(true), 300);
+    return () => clearTimeout(t);
+  }, []);
+
+  useEffect(() => {
     // Breathing dot for step 3
     Animated.loop(
       Animated.sequence([
@@ -81,17 +86,17 @@ export default function Onboarding() {
     } catch (error) {
       console.error('Failed to request notifications:', error);
     }
-    setShowInterstitial(true);
+    handleNext();
   };
 
   const skipNotifications = () => {
-    setShowInterstitial(true);
+    handleNext();
   };
 
   const handleInterstitialContinue = () => {
     setShowInterstitial(false);
-    setCurrentIndex(1);
-    flatListRef.current?.scrollToIndex({ index: 1, animated: true });
+    setCurrentIndex(0);
+    flatListRef.current?.scrollToIndex({ index: 0, animated: true });
   };
 
   const handleNext = () => {
@@ -124,7 +129,7 @@ export default function Onboarding() {
     } catch (error) {
       console.error('Failed to save anchors from onboarding:', error);
     }
-    setShowInterstitial(true);
+    handleNext();
   };
 
   const handleSkip = async () => {
