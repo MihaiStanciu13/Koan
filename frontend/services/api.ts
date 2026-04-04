@@ -155,4 +155,11 @@ export const adaptiveNudgeAPI = {
   },
 };
 
+export const healthAPI = {
+  recordSignal: (data: any) =>
+    api.post('/health/signals', data).then(r => r.data),
+  getSignals: (days = 7) =>
+    api.get(`/health/signals?days=${days}`).then(r => r.data),
+};
+
 export default api;
