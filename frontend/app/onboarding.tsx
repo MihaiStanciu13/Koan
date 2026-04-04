@@ -96,7 +96,9 @@ export default function Onboarding() {
   };
 
   const skipNotifications = () => {
-    handleNext();
+    const nextIndex = 2;
+    setCurrentIndex(nextIndex);
+    flatListRef.current?.scrollToIndex({ index: nextIndex, animated: true });
   };
 
   const handleInterstitialContinue = () => {
@@ -127,6 +129,7 @@ export default function Onboarding() {
     const nextIndex = 1;
     setCurrentIndex(nextIndex);
     flatListRef.current?.scrollToIndex({ index: nextIndex, animated: true });
+    if (selectedAnchors.length === 0) return;
     try {
       const defaultTimes = ['09:00', '14:00', '18:00'];
       const anchor_actions = selectedAnchors.map((text, i) => ({
@@ -140,7 +143,7 @@ export default function Onboarding() {
     }
   };
 
-  const handleSkip = async () => {
+  const handleExitOnboarding = async () => {
     await storage.setOnboardingComplete();
     router.replace('/(tabs)');
   };
@@ -340,10 +343,10 @@ export default function Onboarding() {
               <Text style={styles.letsGoText}>Let's go</Text>
             </TouchableOpacity>
           ) : currentIndex === 0 ? (
-            // Step 1 (anchor): Skip + Continue
+            // Step 1 (anchor): Skip for now + Continue
             <>
-              <TouchableOpacity style={styles.skipButton} onPress={handleSkip}>
-                <Text style={styles.skipText}>Skip</Text>
+              <TouchableOpacity style={styles.skipButton} onPress={handleAnchorContinue}>
+                <Text style={styles.skipText}>Skip for now</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={[styles.nextButton, selectedAnchors.length === 0 && styles.nextButtonDisabled]}
