@@ -80,7 +80,7 @@ export default function NudgesScreen() {
             {patternsExpanded && (
               <View style={styles.patternsDetail}>
                 <Text style={styles.patternsDetailText}>
-                  Koan tracks three types of signals: <Text style={styles.patternsDetailBold}>phone pickups</Text> (how often and when you reach for your phone), <Text style={styles.patternsDetailBold}>app switches</Text> (how frequently you jump between apps, a proxy for scattered focus), and <Text style={styles.patternsDetailBold}>meeting load</Text> (when connected to Google Calendar — dense meeting blocks vs. open time — so nudges respect your energy across the day).
+                  Koan tracks signals across three dimensions: <Text style={styles.patternsDetailBold}>phone pickups</Text> (how often and when you reach for your phone, including your first pickup of the day), <Text style={styles.patternsDetailBold}>screen time patterns</Text> (total usage, app categories, and how your attention is distributed), and <Text style={styles.patternsDetailBold}>meeting load</Text> (when connected to your calendar — dense blocks vs. open time — so nudges arrive when you actually have capacity to act on them).
                 </Text>
               </View>
             )}
@@ -200,9 +200,10 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: '#3A3A3A',
     opacity: 0.6,
-    alignSelf: 'flex-start',
+    marginTop: 20,
     marginBottom: 8,
     paddingHorizontal: 16,
+    textAlign: 'center',
   },
   toolButton: {
     width: '100%',

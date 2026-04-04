@@ -139,7 +139,9 @@ export default function Onboarding() {
     } catch (error) {
       console.error('Failed to save anchors from onboarding:', error);
     }
-    handleNext();
+    const nextIndex = 1;
+    setCurrentIndex(nextIndex);
+    flatListRef.current?.scrollToIndex({ index: nextIndex, animated: true });
   };
 
   const handleSkip = async () => {
