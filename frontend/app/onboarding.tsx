@@ -34,6 +34,12 @@ const SUGGESTED_ANCHORS = [
 const ONBOARDING_DATA = [
   {
     id: '1',
+    isAnchorStep: true,
+    title: 'Set your anchor',
+    description: 'A small, repeatable action that grounds your day. You can change it anytime in Settings.',
+  },
+  {
+    id: '2',
     isNotificationStep: true,
     title: 'Koan works through small, subtle moments',
     description:
@@ -43,12 +49,6 @@ const ONBOARDING_DATA = [
       { icon: 'time-outline', text: 'Delivered at the right time' },
       { icon: 'shield-outline', text: 'Private and respectful' },
     ],
-  },
-  {
-    id: '2',
-    isAnchorStep: true,
-    title: 'Set your anchor',
-    description: 'A small, repeatable action that grounds your day. You can change it anytime in Settings.',
   },
   {
     id: '3',
@@ -124,7 +124,7 @@ export default function Onboarding() {
     } catch (error) {
       console.error('Failed to save anchors from onboarding:', error);
     }
-    handleNext();
+    setShowInterstitial(true);
   };
 
   const handleSkip = async () => {
@@ -322,12 +322,12 @@ export default function Onboarding() {
       {!showInterstitial && (
         <View style={styles.buttonContainer}>
           {currentIndex === 2 ? (
-            // Step 3: Let's go only
+            // Step 3 (expect): Let's go only
             <TouchableOpacity style={styles.letsGoButton} onPress={handleLetsGo}>
               <Text style={styles.letsGoText}>Let's go</Text>
             </TouchableOpacity>
-          ) : currentIndex === 1 ? (
-            // Step 2: Skip + Continue
+          ) : currentIndex === 0 ? (
+            // Step 1 (anchor): Skip + Continue
             <>
               <TouchableOpacity style={styles.skipButton} onPress={handleSkip}>
                 <Text style={styles.skipText}>Skip</Text>
@@ -341,7 +341,7 @@ export default function Onboarding() {
                 <Ionicons name="arrow-forward" size={18} color="#FFFFFF" />
               </TouchableOpacity>
             </>
-          ) : null /* Step 1: navigation is in the card */}
+          ) : null /* Step 2 (notifications): navigation is in the card */}
         </View>
       )}
 
