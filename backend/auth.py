@@ -62,11 +62,16 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(s
             raise HTTPException(status_code=401, detail="Invalid authentication credentials")
     except JWTError:
         raise HTTPException(status_code=401, detail="Invalid authentication credentials")
-    
+
     user = await db.users.find_one({"id": user_id})
     if user is None:
         raise HTTPException(status_code=401, detail="User not found")
     return User(**user)
+
+async def require_active_subscription(current_user: User = Depends(get_current_user)):
+    if current_user.subscription_status == SubscriptionStatus.EXPIRED:
+        raise HTTPException(status_code=402, detail="Trial expired. Please subscribe to continue.")
+    return current_user
 
 def validate_password(password: str) -> tuple[bool, str]:
     """Validate password meets security requirements"""

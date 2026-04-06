@@ -17,7 +17,7 @@ load_dotenv(ROOT_DIR / '.env')
 # Import routers
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
-from auth import router as auth_router, get_current_user, limiter
+from auth import router as auth_router, get_current_user, require_active_subscription, limiter
 from behavioral_monitor import router as behavior_router
 from subscription import router as subscription_router
 from models import User, Preferences, PreferencesUpdate, Nudge, NudgeResponse, HealthSignalCreate
@@ -133,7 +133,7 @@ api_router.include_router(subscription_router)
 # Preferences endpoints
 @api_router.get("/preferences")
 async def get_preferences(
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(require_active_subscription)
 ):
     """Get user preferences"""
     prefs = await db.preferences.find_one({"user_id": current_user.id})
@@ -143,7 +143,7 @@ async def get_preferences(
         default_prefs = Preferences(user_id=current_user.id, micro_mode=MicroMode.STANDARD)
         await db.preferences.insert_one(default_prefs.dict())
         return default_prefs.dict()
-    
+
     # Remove MongoDB _id field for JSON serialization
     if '_id' in prefs:
         del prefs['_id']
@@ -152,7 +152,7 @@ async def get_preferences(
 @api_router.patch("/preferences")
 async def update_preferences(
     updates: PreferencesUpdate,
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(require_active_subscription)
 ):
     """Update user preferences"""
     update_dict = {k: v for k, v in updates.dict().items() if v is not None}
@@ -327,14 +327,14 @@ async def get_microsoft_today(current_user: User = Depends(get_current_user)):
 # Nudge endpoints
 @api_router.get("/nudges/pending")
 async def get_pending_nudges_endpoint(
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(require_active_subscription)
 ):
     """Get pending nudges for the user"""
     nudges = await get_pending_nudges(db, current_user.id)
     return {"nudges": [n.dict() for n in nudges]}
 
 @api_router.get("/nudges/count")
-async def get_nudge_count(current_user: User = Depends(get_current_user)):
+async def get_nudge_count(current_user: User = Depends(require_active_subscription)):
     """Get total count of nudges sent to user"""
     count = await db.nudges.count_documents({"user_id": current_user.id})
     return {"count": count}
@@ -343,7 +343,7 @@ async def get_nudge_count(current_user: User = Depends(get_current_user)):
 # but kept here alongside other static nudge routes for clarity
 @api_router.get("/nudges/pattern-nudge")
 async def get_pattern_nudge(
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(require_active_subscription)
 ):
     """Get the highest priority nudge based on current patterns."""
     import uuid
@@ -373,7 +373,7 @@ async def get_pattern_nudge(
 # Static route MUST come before parameterised routes of the same method
 @api_router.post("/nudges/trigger-anchor")
 async def trigger_anchor_nudge(
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(require_active_subscription)
 ):
     """Manually trigger an anchor action nudge"""
     prefs = await db.preferences.find_one({"user_id": current_user.id})
@@ -390,7 +390,7 @@ async def trigger_anchor_nudge(
 @api_router.post("/nudges/{nudge_id}/delivered")
 async def mark_delivered(
     nudge_id: str,
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(require_active_subscription)
 ):
     """Mark a nudge as delivered"""
     await mark_nudge_delivered(db, nudge_id)
@@ -399,7 +399,7 @@ async def mark_delivered(
 @api_router.post("/nudges/{nudge_id}/opened")
 async def mark_opened(
     nudge_id: str,
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(require_active_subscription)
 ):
     """Mark a nudge as opened"""
     await mark_nudge_opened(db, nudge_id)
@@ -409,7 +409,7 @@ async def mark_opened(
 async def record_nudge_action(
     nudge_id: str,
     response: NudgeResponse,
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(require_active_subscription)
 ):
     """Record user action on a nudge"""
     await db.nudges.update_one(
@@ -431,32 +431,32 @@ class SignalRequest(BaseModel):
 @api_router.post("/adaptive-nudges/evaluate")
 async def evaluate_signal_endpoint(
     signal_request: SignalRequest,
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(require_active_subscription)
 ):
     """Evaluate a signal and potentially create an adaptive nudge"""
     engine = AdaptiveNudgeEngine(db)
-    
+
     signal = Signal(
         signal_type=SignalType(signal_request.signal_type),
         strength=signal_request.strength,
         timestamp=dt.utcnow(),
         metadata=signal_request.metadata
     )
-    
+
     nudge = await engine.evaluate_signal(current_user.id, signal)
-    
+
     if nudge:
         return {"status": "nudge_created", "nudge": nudge}
     return {"status": "no_nudge", "message": "Signal did not meet threshold"}
 
 @api_router.get("/adaptive-nudges/fallback")
 async def check_fallback_nudge_endpoint(
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(require_active_subscription)
 ):
     """Check if fallback nudge should be sent (no nudges in 36 hours)"""
     engine = AdaptiveNudgeEngine(db)
     nudge = await engine.check_fallback_nudge(current_user.id)
-    
+
     if nudge:
         return {"status": "nudge_created", "nudge": nudge}
     return {"status": "no_fallback_needed"}
@@ -465,7 +465,7 @@ async def check_fallback_nudge_endpoint(
 async def record_interaction(
     nudge_id: str,
     action: str = Query(...),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(require_active_subscription)
 ):
     """Record user interaction with adaptive nudge (dismissed, engaged, ignored)"""
     engine = AdaptiveNudgeEngine(db)
@@ -474,7 +474,7 @@ async def record_interaction(
 
 @api_router.get("/adaptive-nudges/milestones")
 async def check_milestones_endpoint(
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(require_active_subscription)
 ):
     """Check user milestones and trigger milestone nudges"""
     # Get user behavior summary
@@ -539,7 +539,7 @@ async def check_milestones_endpoint(
 
 @api_router.get("/adaptive-nudges/personalized")
 async def get_personalized_nudges_endpoint(
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(require_active_subscription)
 ):
     """Get personalized nudges based on user patterns and preferences"""
     # Get user preferences
@@ -590,7 +590,7 @@ async def get_personalized_nudges_endpoint(
 @api_router.post("/health/signals")
 async def record_health_signal(
     signal: HealthSignalCreate,
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(require_active_subscription)
 ):
     """Receive daily health signal snapshot from the mobile app"""
     from datetime import datetime as dt
@@ -610,7 +610,7 @@ async def record_health_signal(
 @api_router.get("/health/signals")
 async def get_health_signals(
     days: int = 7,
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(require_active_subscription)
 ):
     """Get recent health signals for the current user"""
     from datetime import datetime as dt, timedelta
@@ -626,7 +626,7 @@ async def get_health_signals(
 # Pattern detection endpoints
 @api_router.get("/patterns/weekly")
 async def get_weekly_patterns(
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(require_active_subscription)
 ):
     """Get weekly pattern narrative"""
     detector = PatternDetector(db)
