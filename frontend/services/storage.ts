@@ -1,15 +1,16 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as SecureStore from 'expo-secure-store';
 
 export const storage = {
   // Auth
   setAuthToken: async (token: string) => {
-    await AsyncStorage.setItem('auth_token', token);
+    await SecureStore.setItemAsync('auth_token', token);
   },
   getAuthToken: async (): Promise<string | null> => {
-    return await AsyncStorage.getItem('auth_token');
+    return await SecureStore.getItemAsync('auth_token');
   },
   removeAuthToken: async () => {
-    await AsyncStorage.removeItem('auth_token');
+    await SecureStore.deleteItemAsync('auth_token');
   },
   
   // User
@@ -58,7 +59,7 @@ export const storage = {
   
   // Clear auth only (for logout) - keep onboarding & UI flags
   clearAuth: async () => {
-    await AsyncStorage.removeItem('auth_token');
+    await SecureStore.deleteItemAsync('auth_token');
     await AsyncStorage.removeItem('user');
   },
 };
