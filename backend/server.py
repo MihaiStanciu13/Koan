@@ -1,4 +1,6 @@
-from fastapi import FastAPI, APIRouter, Depends, HTTPException, Query
+from fastapi import FastAPI, APIRouter, Depends, HTTPException, Query, Request
+from collections import defaultdict
+import time
 from typing import Optional
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
@@ -30,9 +32,7 @@ sentry_sdk.init(
 # ──────────────────────────────────────────────────────────────────────────────
 
 # Import routers
-from slowapi import _rate_limit_exceeded_handler
-from slowapi.errors import RateLimitExceeded
-from auth import router as auth_router, get_current_user, require_active_subscription, limiter
+from auth import router as auth_router, get_current_user, require_active_subscription
 from behavioral_monitor import router as behavior_router
 from subscription import router as subscription_router
 from models import User, Preferences, PreferencesUpdate, Nudge, NudgeResponse, HealthSignalCreate
@@ -136,8 +136,39 @@ async def lifespan(app: FastAPI):
 
 # Create the main app
 app = FastAPI(lifespan=lifespan)
-app.state.limiter = limiter
-app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
+# Async rate limiting middleware (replaces slowapi)
+_rate_limit_store: dict = defaultdict(list)
+RATE_LIMIT_WINDOW = 60
+RATE_LIMIT_MAX = 10
+RATE_LIMITED_PATHS = {"/api/auth/signup", "/api/auth/login"}
+
+@app.middleware("http")
+async def rate_limit_middleware(request: Request, call_next):
+    if request.url.path in RATE_LIMITED_PATHS:
+        client_ip = request.headers.get(
+            "x-forwarded-for",
+            request.client.host if request.client else "unknown"
+        ).split(",")[0].strip()
+
+        now = time.time()
+        window_start = now - RATE_LIMIT_WINDOW
+
+        _rate_limit_store[client_ip] = [
+            t for t in _rate_limit_store[client_ip]
+            if t > window_start
+        ]
+
+        if len(_rate_limit_store[client_ip]) >= RATE_LIMIT_MAX:
+            from fastapi.responses import JSONResponse
+            return JSONResponse(
+                status_code=429,
+                content={"detail": "Too many requests. Please try again later."}
+            )
+
+        _rate_limit_store[client_ip].append(now)
+
+    return await call_next(request)
 
 # Create a router with the /api prefix
 api_router = APIRouter(prefix="/api")

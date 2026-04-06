@@ -1,6 +1,4 @@
-from fastapi import APIRouter, HTTPException, Depends, Header, Request
-from slowapi import Limiter
-from slowapi.util import get_remote_address
+from fastapi import APIRouter, HTTPException, Depends, Header
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from motor.motor_asyncio import AsyncIOMotorDatabase, AsyncIOMotorClient
 from passlib.context import CryptContext
@@ -27,7 +25,6 @@ db = client[db_name]
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 security = HTTPBearer()
-limiter = Limiter(key_func=get_remote_address)
 
 SECRET_KEY = os.getenv("SECRET_KEY")
 if not SECRET_KEY:
@@ -88,8 +85,7 @@ def validate_password(password: str) -> tuple[bool, str]:
     return True, "Password is valid"
 
 @router.post("/signup")
-@limiter.limit("10/minute")
-async def signup(request: Request, user_data: UserCreate):
+async def signup(user_data: UserCreate):
     # Validate password
     is_valid, message = validate_password(user_data.password)
     if not is_valid:
@@ -138,8 +134,7 @@ async def signup(request: Request, user_data: UserCreate):
     }
 
 @router.post("/login")
-@limiter.limit("10/minute")
-async def login(request: Request, user_data: UserLogin):
+async def login(user_data: UserLogin):
     # Find user
     user = await db.users.find_one({"email": user_data.email})
     if not user or not verify_password(user_data.password, user["hashed_password"]):
