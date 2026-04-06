@@ -44,6 +44,39 @@ db = client[db_name]
 async def get_db() -> AsyncIOMotorDatabase:
     return db
 
+async def send_weekly_summary_notifications():
+    """Runs every Sunday at 08:00 UTC. Sends a push notification to users whose
+    weekly pattern narrative is ready (i.e. not the baseline placeholder)."""
+    from push_notifications import send_push_notification
+
+    logger.info("Weekly summary notification job started")
+    users = await db.users.find(
+        {"subscription_status": {"$in": ["trial", "active"]}}
+    ).to_list(None)
+
+    sent = 0
+    for user in users:
+        user_id = user.get("id")
+        if not user_id:
+            continue
+        try:
+            result = await PatternDetector(db).detect_weekly_patterns(user_id)
+            narrative = result.get("narrative", "")
+            if narrative and "Koan is still building your baseline" not in narrative:
+                await send_push_notification(
+                    db=db,
+                    user_id=user_id,
+                    title="Koan",
+                    body="Your weekly reflection is ready.",
+                    data={"type": "weekly_summary", "navigate": "insights"},
+                )
+                sent += 1
+        except Exception as e:
+            logger.error(f"Weekly summary notification failed for user {user_id}: {e}")
+
+    logger.info(f"Weekly summary notifications sent: {sent}/{len(users)} users")
+
+
 async def run_daily_nudge_evaluation():
     """Runs once per day at 9am UTC. Delegates all nudge decisions to NudgeOrchestrator."""
     logger.info("Daily nudge evaluation started")
@@ -76,8 +109,10 @@ async def lifespan(app: FastAPI):
     # Startup
     logger.info(f"Starting app, connecting to MongoDB at {mongo_url}")
     scheduler.add_job(run_daily_nudge_evaluation, CronTrigger(hour=9, minute=0))
+    scheduler.add_job(send_weekly_summary_notifications, CronTrigger(day_of_week="sun", hour=8, minute=0))
     scheduler.start()
     logger.info("Daily nudge scheduler started (runs at 09:00 UTC)")
+    logger.info("Weekly summary scheduler started (runs Sundays at 08:00 UTC)")
     yield
     # Shutdown
     scheduler.shutdown()
