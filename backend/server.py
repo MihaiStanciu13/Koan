@@ -574,6 +574,9 @@ async def get_personalized_nudges_endpoint(
     return {"personalized_nudges": personalized_nudges}
 
 # Health signal endpoints
+# FastAPI's default 1MB request body limit applies to this endpoint.
+# Field-level validation on HealthSignalCreate rejects obviously invalid values
+# before they reach the database.
 @api_router.post("/health/signals")
 async def record_health_signal(
     signal: HealthSignalCreate,
@@ -596,7 +599,7 @@ async def record_health_signal(
 
 @api_router.get("/health/signals")
 async def get_health_signals(
-    days: int = 7,
+    days: int = Query(default=7, ge=1, le=90),
     current_user: User = Depends(require_active_subscription)
 ):
     """Get recent health signals for the current user"""
@@ -629,31 +632,30 @@ async def trigger_quiet_period_learning(
     return {"status": "learning_complete"}
 
 # Nudge pipeline debug endpoint (dry-run, no delivery)
-@api_router.get("/nudges/debug/{user_id}")
+@api_router.get("/nudges/debug")
 async def debug_nudge_pipeline(
-    user_id: str,
     current_user: User = Depends(get_current_user),
 ):
     """
-    Dry-run the full orchestrator pipeline for any user_id.
+    Dry-run the full orchestrator pipeline for the authenticated user.
     Returns pipeline state without sending anything.
     Protected by auth only (not subscription gate) for testing ease.
     """
     orchestrator = NudgeOrchestrator(db)
 
-    can_deliver = await orchestrator.can_deliver(user_id)
+    can_deliver = await orchestrator.can_deliver(current_user.id)
 
     last_nudge = await db.nudges.find_one(
-        {"user_id": user_id, "delivered": True},
+        {"user_id": current_user.id, "delivered": True},
         sort=[("created_at", -1)],
     )
     last_nudge_sent = last_nudge.get("created_at") if last_nudge else None
 
-    candidates = await orchestrator.collect_candidates(user_id)
+    candidates = await orchestrator.collect_candidates(current_user.id)
 
     scores: dict = {}
     for candidate in candidates:
-        score = await orchestrator.score_candidate(candidate, user_id)
+        score = await orchestrator.score_candidate(candidate, current_user.id)
         scores[candidate["trigger_id"]] = round(score, 3)
 
     _THRESHOLD = 0.6

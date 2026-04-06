@@ -136,21 +136,21 @@ class HealthSignal(BaseModel):
 
 class HealthSignalCreate(BaseModel):
     date: str
-    steps: Optional[int] = None
+    steps: Optional[int] = Field(None, ge=0, le=100000)
     walking_running_distance_km: Optional[float] = None
     flights_climbed: Optional[int] = None
     exercise_minutes: Optional[int] = None
     active_energy_kcal: Optional[float] = None
-    sleep_duration_minutes: Optional[int] = None
+    sleep_duration_minutes: Optional[int] = Field(None, ge=0, le=960)
     sleep_start: Optional[str] = None
     sleep_end: Optional[str] = None
     first_pickup_time: Optional[str] = None
-    total_pickups: Optional[int] = None
-    total_screen_time_minutes: Optional[int] = None
+    total_pickups: Optional[int] = Field(None, ge=0, le=1000)
+    total_screen_time_minutes: Optional[int] = Field(None, ge=0, le=1440)
     social_media_minutes: Optional[int] = None
     productivity_minutes: Optional[int] = None
     notification_count: Optional[int] = None
-    resting_heart_rate: Optional[int] = None
-    hrv_ms: Optional[float] = None
+    resting_heart_rate: Optional[int] = Field(None, ge=20, le=250)
+    hrv_ms: Optional[float] = Field(None, ge=0, le=300)
     location_variety: Optional[int] = None
     time_outdoors_minutes: Optional[int] = None
