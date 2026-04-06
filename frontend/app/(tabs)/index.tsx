@@ -9,6 +9,7 @@ import {
   Alert,
   Animated,
   Platform,
+  Modal,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -56,6 +57,72 @@ const TODAY_HINTS = [
   "Take a moment before switching tasks.",
   "Decide your next step.",
 ];
+
+function TrialBanner({ trialDays, onSubscribe }: { trialDays: number; onSubscribe: () => void }) {
+  if (trialDays === 3) {
+    return (
+      <TouchableOpacity style={bannerStyles.soft} onPress={onSubscribe} activeOpacity={0.8}>
+        <Text style={bannerStyles.softText}>
+          Your trial ends in 3 days. Continue without interruption →
+        </Text>
+      </TouchableOpacity>
+    );
+  }
+  if (trialDays === 1) {
+    return (
+      <View style={bannerStyles.urgent}>
+        <Text style={bannerStyles.urgentTitle}>Your trial ends tomorrow.</Text>
+        <TouchableOpacity style={bannerStyles.subscribeButton} onPress={onSubscribe}>
+          <Text style={bannerStyles.subscribeButtonText}>Subscribe now — keep everything</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+  return null;
+}
+
+const bannerStyles = StyleSheet.create({
+  soft: {
+    backgroundColor: '#FFFBEB',
+    borderBottomWidth: 1,
+    borderBottomColor: '#FDE68A',
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    alignItems: 'center',
+  },
+  softText: {
+    fontSize: 13,
+    color: '#92400E',
+    textAlign: 'center',
+  },
+  urgent: {
+    backgroundColor: '#FEF3C7',
+    borderBottomWidth: 1,
+    borderBottomColor: '#F59E0B',
+    paddingVertical: 16,
+    paddingHorizontal: 32,
+    alignItems: 'center',
+  },
+  urgentTitle: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#92400E',
+    marginBottom: 12,
+    textAlign: 'center',
+  },
+  subscribeButton: {
+    backgroundColor: '#5FAD8E',
+    paddingVertical: 14,
+    borderRadius: 12,
+    alignItems: 'center',
+    width: '100%',
+  },
+  subscribeButtonText: {
+    color: '#FFFFFF',
+    fontSize: 15,
+    fontWeight: '600',
+  },
+});
 
 export default function HomeScreen() {
   const { user } = useAuth();
@@ -252,6 +319,32 @@ export default function HomeScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
+      {/* Trial expired — full-screen overlay, covers tabs */}
+      <Modal
+        visible={user?.subscription_status === 'trial' && trialDays === 0}
+        transparent={false}
+        animationType="fade"
+        onRequestClose={() => {}}
+      >
+        <View style={styles.expiredScreen}>
+          <Text style={styles.expiredTitle}>Your trial has ended.</Text>
+          <Text style={styles.expiredBody}>
+            Subscribe to continue. Everything Koan has learned about your patterns is still here.
+          </Text>
+          <TouchableOpacity
+            style={styles.expiredButton}
+            onPress={() => router.push('/subscription')}
+          >
+            <Text style={styles.expiredButtonText}>See plans</Text>
+          </TouchableOpacity>
+        </View>
+      </Modal>
+
+      {/* Trial urgency banner — sticky, full width, outside ScrollView */}
+      {user?.subscription_status === 'trial' && (
+        <TrialBanner trialDays={trialDays} onSubscribe={() => router.push('/subscription')} />
+      )}
+
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
@@ -263,28 +356,6 @@ export default function HomeScreen() {
             <Text style={styles.tagline}>Everything you need to know, you already know.</Text>
           </View>
         </View>
-
-        {/* Trial Banner */}
-        {user?.subscription_status === 'trial' && trialDays > 3 && (
-          <View style={styles.trialBanner}>
-            <View style={styles.trialDot} />
-            <Text style={styles.trialText}>{trialDays} days of trial remaining</Text>
-          </View>
-        )}
-        {user?.subscription_status === 'trial' && trialDays <= 3 && trialDays > 1 && (
-          <View style={styles.trialBannerYellow}>
-            <View style={styles.trialDotYellow} />
-            <Text style={styles.trialTextYellow}>Your trial ends in {trialDays} days — upgrade to keep Koan.</Text>
-          </View>
-        )}
-        {user?.subscription_status === 'trial' && trialDays === 1 && (
-          <View style={styles.trialBannerOrange}>
-            <Text style={styles.trialTextOrange}>Your trial ends tomorrow.</Text>
-            <TouchableOpacity onPress={() => router.push('/subscription')} style={styles.subscribeNowButton}>
-              <Text style={styles.subscribeNowText}>Subscribe now</Text>
-            </TouchableOpacity>
-          </View>
-        )}
 
         {/* Koan is Learning You Module */}
         <View style={styles.learningCard}>
@@ -474,77 +545,42 @@ const styles = StyleSheet.create({
     color: '#3A3A3A',
     opacity: 0.6,
   },
-  trialBanner: {
-    flexDirection: 'row',
+  expiredScreen: {
+    flex: 1,
+    backgroundColor: '#FAFDFA',
+    justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#D9F7EB',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderRadius: 8,
+    paddingHorizontal: 40,
+  },
+  expiredTitle: {
+    fontFamily: 'Georgia',
+    fontSize: 26,
+    fontWeight: '400',
+    color: '#3A3A3A',
+    textAlign: 'center',
     marginBottom: 20,
+    lineHeight: 34,
   },
-  trialDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: '#5FAD8E',
-    marginRight: 10,
-  },
-  trialText: {
+  expiredBody: {
     fontSize: 14,
     color: '#3A3A3A',
+    opacity: 0.6,
+    textAlign: 'center',
+    lineHeight: 22,
+    maxWidth: 260,
+    marginBottom: 36,
   },
-  trialBannerYellow: {
-    flexDirection: 'row',
+  expiredButton: {
+    backgroundColor: '#5FAD8E',
+    paddingVertical: 16,
+    paddingHorizontal: 48,
+    borderRadius: 12,
     alignItems: 'center',
-    backgroundColor: '#FFF8E1',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderRadius: 8,
-    marginBottom: 20,
-    borderWidth: 1,
-    borderColor: '#F5C842',
   },
-  trialDotYellow: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: '#F5C842',
-    marginRight: 10,
-  },
-  trialTextYellow: {
-    fontSize: 14,
-    color: '#7A5C00',
-    flex: 1,
-  },
-  trialBannerOrange: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: '#FFF0E0',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderRadius: 8,
-    marginBottom: 20,
-    borderWidth: 1,
-    borderColor: '#E8873A',
-  },
-  trialTextOrange: {
-    fontSize: 14,
-    color: '#7A3A00',
-    flex: 1,
-  },
-  subscribeNowButton: {
-    backgroundColor: '#E8873A',
-    paddingHorizontal: 14,
-    paddingVertical: 7,
-    borderRadius: 6,
-    marginLeft: 12,
-  },
-  subscribeNowText: {
-    fontSize: 13,
-    fontWeight: '600',
+  expiredButtonText: {
     color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
   },
   learningCard: {
     backgroundColor: '#FFFFFF',
