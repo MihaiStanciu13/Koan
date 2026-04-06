@@ -24,7 +24,7 @@ from motor.motor_asyncio import AsyncIOMotorDatabase
 
 from adaptive_nudge_engine import Signal, SignalType
 from models import Nudge
-from nudge_engine import create_nudge, generate_nudge_content
+from nudge_engine import create_nudge
 from nudge_library import NUDGE_LIBRARY, get_nudge_message
 from pattern_detector import PatternDetector
 from push_notifications import send_nudge_push
@@ -144,7 +144,7 @@ class NudgeOrchestrator:
         now = datetime.utcnow()
         window = now - timedelta(minutes=30)
 
-        events = await self.db.behavior_events.find(
+        events = await self.db.phone_behaviors.find(
             {"user_id": user_id, "timestamp": {"$gte": window}}
         ).to_list(100)
 
@@ -163,7 +163,7 @@ class NudgeOrchestrator:
             })
 
         # energy_drift: ≥5 phone pickups
-        pickups = [e for e in events if e.get("event_type") == "phone_pickup"]
+        pickups = [e for e in events if e.get("event_type") == "pickup"]
         if len(pickups) >= 5:
             candidates.append({
                 "source": "realtime",

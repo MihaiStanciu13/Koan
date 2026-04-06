@@ -593,6 +593,52 @@ async def trigger_quiet_period_learning(
     await learn_quiet_periods(db, current_user.id)
     return {"status": "learning_complete"}
 
+# Nudge pipeline debug endpoint (dry-run, no delivery)
+@api_router.get("/nudges/debug/{user_id}")
+async def debug_nudge_pipeline(
+    user_id: str,
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Dry-run the full orchestrator pipeline for any user_id.
+    Returns pipeline state without sending anything.
+    Protected by auth only (not subscription gate) for testing ease.
+    """
+    orchestrator = NudgeOrchestrator(db)
+
+    can_deliver = await orchestrator.can_deliver(user_id)
+
+    last_nudge = await db.nudges.find_one(
+        {"user_id": user_id, "delivered": True},
+        sort=[("created_at", -1)],
+    )
+    last_nudge_sent = last_nudge.get("created_at") if last_nudge else None
+
+    candidates = await orchestrator.collect_candidates(user_id)
+
+    scores: dict = {}
+    for candidate in candidates:
+        score = await orchestrator.score_candidate(candidate, user_id)
+        scores[candidate["trigger_id"]] = round(score, 3)
+
+    _THRESHOLD = 0.6
+    scored_above = [
+        (c, scores[c["trigger_id"]])
+        for c in candidates
+        if scores[c["trigger_id"]] >= _THRESHOLD
+    ]
+    scored_above.sort(key=lambda x: x[1], reverse=True)
+    would_send = scored_above[0][0]["trigger_id"] if scored_above else None
+
+    return {
+        "can_deliver": can_deliver,
+        "last_nudge_sent": last_nudge_sent,
+        "candidates": candidates,
+        "scores": scores,
+        "would_send": would_send,
+    }
+
+
 # Health check
 @api_router.get("/")
 async def root():

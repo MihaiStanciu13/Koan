@@ -142,6 +142,6 @@ async def check_behavior_triggers(db: AsyncIOMotorDatabase, user_id: str, event_
     
     # Late night usage
     if event_type == "late_night":
-        await create_nudge(db, user_id, "boundary", {
-            "time": datetime.utcnow().isoformat()
+        await create_nudge(db, user_id, "late_night", {
+            "time": datetime.utcnow().strftime("%H:%M")
         })

@@ -113,7 +113,7 @@ class PatternDetector:
 
         # ── Calendar context ──
         try:
-            user = await self.db.users.find_one({"_id": user_id})
+            user = await self.db.users.find_one({"id": user_id})
             if user and user.get("google_calendar_token"):
                 from google_calendar import get_meeting_density
                 density = await get_meeting_density(

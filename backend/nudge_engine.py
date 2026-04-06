@@ -151,7 +151,7 @@ async def generate_nudge_content(nudge_type: str, context: Dict, preferences: Op
 
         # Initialize Anthropic client
         if anthropic is None:
-            return None
+            raise RuntimeError("anthropic library not available; using fallback")
         api_key = os.getenv("ANTHROPIC_API_KEY")
         client = anthropic.AsyncAnthropic(api_key=api_key)
         system_prompt = "You are a subtle behavioral coach. Create brief, calm, professional nudges without clichés or motivational phrases. Be direct and respectful."
