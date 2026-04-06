@@ -16,7 +16,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { useAuth } from '../../contexts/AuthContext';
 import { useNotifications } from '../../contexts/NotificationContext';
-import { nudgeAPI, behaviorAPI, preferencesAPI, subscriptionAPI, adaptiveNudgeAPI } from '../../services/api';
+import { nudgeAPI, behaviorAPI, preferencesAPI, subscriptionAPI, adaptiveNudgeAPI, patternsAPI } from '../../services/api';
 import { startSignalCollection, stopSignalCollection, flushToBackend } from '../../services/signalCollector';
 import { requestHealthKitPermissions, collectAndSendHealthData } from '../../services/healthKit';
 import { format } from 'date-fns';
@@ -57,6 +57,63 @@ const TODAY_HINTS = [
   "Take a moment before switching tasks.",
   "Decide your next step.",
 ];
+
+function WeeklyCard({ pattern }: { pattern: any }) {
+  const router = useRouter();
+  return (
+    <View style={weeklyCardStyles.card}>
+      <Text style={weeklyCardStyles.label}>THIS WEEK</Text>
+      <Text style={weeklyCardStyles.narrative} numberOfLines={2}>
+        {pattern.narrative}
+      </Text>
+      <View style={weeklyCardStyles.separator} />
+      <TouchableOpacity
+        style={weeklyCardStyles.linkRow}
+        onPress={() => router.push('/(tabs)/insights')}
+        activeOpacity={0.7}
+      >
+        <Text style={weeklyCardStyles.linkText}>Read in Insights →</Text>
+      </TouchableOpacity>
+    </View>
+  );
+}
+
+const weeklyCardStyles = StyleSheet.create({
+  card: {
+    backgroundColor: '#FAFDFA',
+    borderWidth: 1,
+    borderColor: '#E6E6E4',
+    borderRadius: 14,
+    padding: 20,
+    marginBottom: 16,
+  },
+  label: {
+    fontSize: 10,
+    letterSpacing: 1.2,
+    color: '#5FAD8E',
+    marginBottom: 10,
+  },
+  narrative: {
+    fontFamily: 'Georgia',
+    fontSize: 16,
+    fontStyle: 'italic',
+    lineHeight: 24,
+    color: '#3A3A3A',
+    marginBottom: 14,
+  },
+  separator: {
+    height: 1,
+    backgroundColor: '#E6E6E4',
+    marginBottom: 12,
+  },
+  linkRow: {
+    alignItems: 'flex-end',
+  },
+  linkText: {
+    fontSize: 12,
+    color: '#5FAD8E',
+  },
+});
 
 function TrialBanner({ trialDays, onSubscribe }: { trialDays: number; onSubscribe: () => void }) {
   if (trialDays === 3) {
@@ -139,6 +196,7 @@ export default function HomeScreen() {
   const [showWelcomeVideo, setShowWelcomeVideo] = useState(false);
   const [show5thNudgeMilestone, setShow5thNudgeMilestone] = useState(false);
   const [calendarConnected, setCalendarConnected] = useState(false);
+  const [weeklyPattern, setWeeklyPattern] = useState<any>(null);
   
   // Animation for pulsing dot
   const pulseAnim = useRef(new Animated.Value(1)).current;
@@ -250,13 +308,21 @@ export default function HomeScreen() {
   const loadData = async () => {
     if (!user) return;
     try {
-      const [prefs, nudges, subscription, fallback, patternResult] = await Promise.all([
+      const [prefs, nudges, subscription, fallback, patternResult, weeklyResult] = await Promise.all([
         preferencesAPI.get(),
         nudgeAPI.getPending(),
         subscriptionAPI.getStatus(),
         adaptiveNudgeAPI.checkFallback().catch(() => null), // Optional fallback check
         nudgeAPI.getPatternNudge().catch(() => null),       // Pattern-based nudge
+        patternsAPI.getWeekly().catch(() => null),          // Weekly narrative (Sunday only)
       ]);
+
+      const isSunday = new Date().getDay() === 0;
+      if (isSunday && weeklyResult?.narrative) {
+        setWeeklyPattern(weeklyResult);
+      } else {
+        setWeeklyPattern(null);
+      }
 
       setAnchorAction(prefs.anchor_action || 'close one loop');
       setCalendarConnected(!!prefs.google_calendar_connected);
@@ -437,6 +503,9 @@ export default function HomeScreen() {
             </TouchableOpacity>
           </View>
         )}
+
+        {/* Sunday weekly summary */}
+        {weeklyPattern && <WeeklyCard pattern={weeklyPattern} />}
 
         {/* Recent Nudges */}
         {pendingNudges.length > 0 && (
