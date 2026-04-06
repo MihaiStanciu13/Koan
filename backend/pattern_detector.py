@@ -40,6 +40,8 @@ class PatternDetector:
             "avg_sleep_duration": avg("sleep_duration_minutes"),
             "avg_resting_hr": avg("resting_heart_rate"),
             "avg_hrv": avg("hrv_ms"),
+            "avg_outdoor_minutes": avg("outdoor_minutes"),
+            "avg_active_energy": avg("active_energy_kcal"),
         }
 
     async def detect_patterns(self, user_id: str) -> list:
@@ -139,6 +141,74 @@ class PatternDetector:
         except Exception:
             pass
 
+        # ── Outdoor time ──
+        outdoor_values = [
+            s.get("outdoor_minutes") for s in signals[:7]
+            if s.get("outdoor_minutes") is not None
+        ]
+        baseline_outdoor = baseline.get("avg_outdoor_minutes")
+        if baseline_outdoor and len(outdoor_values) >= 5:
+            below_baseline = sum(1 for v in outdoor_values if v < baseline_outdoor * 0.6)
+            if below_baseline >= 5:
+                triggered.append("outdoor_low_week")
+            elif all(v > baseline_outdoor * 1.2 for v in outdoor_values[:4]):
+                triggered.append("outdoor_streak")
+        elif not baseline_outdoor and len(outdoor_values) >= 5:
+            # No baseline yet — trigger if consistently very low absolute value
+            if sum(1 for v in outdoor_values if v < 10) >= 5:
+                triggered.append("outdoor_low_week")
+
+        # ── Workout recovery ──
+        yesterday_signal = signals[1] if len(signals) > 1 else {}
+        baseline_active_energy = baseline.get("avg_active_energy") or 300
+        baseline_resting_hr = baseline.get("avg_resting_hr") or 65
+        baseline_hrv = baseline.get("avg_hrv") or 0
+        yesterday_active_energy = yesterday_signal.get("active_energy_kcal", 0)
+        today_resting_hr = today_signal.get("resting_heart_rate", 0)
+        if (yesterday_active_energy > baseline_active_energy * 1.5
+                and today_resting_hr > baseline_resting_hr * 1.1
+                and today_resting_hr > 0):
+            triggered.append("recovery_insufficient")
+        active_energy_recent = [
+            s.get("active_energy_kcal") for s in signals[:4]
+            if s.get("active_energy_kcal")
+        ]
+        today_hrv = today_signal.get("hrv_ms", 0)
+        if (len(active_energy_recent) >= 3
+                and all(v > baseline_active_energy * 1.3 for v in active_energy_recent[:3])
+                and baseline_hrv > 0
+                and today_hrv > baseline_hrv * 1.1):
+            triggered.append("recovery_good")
+
+        # ── Work-life boundary (calendar) ──
+        # Reuses the `user` dict fetched in the Calendar context block above.
+        try:
+            if user and user.get("google_calendar_token"):
+                from google_calendar import get_meeting_density
+                density = await get_meeting_density(
+                    user["google_calendar_token"],
+                    user.get("google_calendar_refresh_token", "")
+                )
+                if density.get("evening_meetings_this_week", 0) >= 3:
+                    triggered.append("boundary_evening_work")
+                if density.get("weekend_meetings", False):
+                    triggered.append("boundary_weekend_meetings")
+        except Exception:
+            pass
+
+        try:
+            if user and user.get("microsoft_access_token"):
+                from microsoft_calendar import get_meeting_density as ms_density
+                ms_data = await ms_density(user["microsoft_access_token"])
+                if ms_data.get("evening_meetings_this_week", 0) >= 3:
+                    if "boundary_evening_work" not in triggered:
+                        triggered.append("boundary_evening_work")
+                if ms_data.get("weekend_meetings", False):
+                    if "boundary_weekend_meetings" not in triggered:
+                        triggered.append("boundary_weekend_meetings")
+        except Exception:
+            pass
+
         # ── Balance & rhythm ──
         is_weekend = datetime.utcnow().weekday() >= 5
         if is_weekend:
@@ -164,11 +234,15 @@ class PatternDetector:
         priority_order = [
             "stress_hrv_low",
             "stress_resting_hr_elevated",
+            "recovery_insufficient",
             "stress_back_to_back_meetings",
             "stress_heavy_meeting_day",
+            "boundary_evening_work",
+            "boundary_weekend_meetings",
             "sleep_timing_inconsistent",
             "sleep_duration_short",
             "sleep_late_night_phone",
+            "outdoor_low_week",
             "morning_phone_early",
             "morning_phone_consistent",
             "movement_declining",
@@ -178,6 +252,8 @@ class PatternDetector:
             "rhythm_weekend_recovery",
             "rhythm_balanced_day",
             "movement_good_streak",
+            "outdoor_streak",
+            "recovery_good",
             "attention_screen_improving",
         ]
 
@@ -224,6 +300,8 @@ class PatternDetector:
             "attention": "Screen time and attention have been fragmented. The feed has been winning more than it should.",
             "recovery": "Recovery signals have been low. The week has been heavy.",
             "balance": "This week has had moments of real balance. That's worth carrying forward.",
+            "outdoor": "Time outside has been low this week. The body uses natural light for more than it's given credit for.",
+            "work_boundary": "Work has been bleeding into evenings and weekends. The recovery the week needs isn't happening.",
         }
 
         narrative = narratives.get(dominant, "Koan has been observing your patterns this week.")

@@ -283,6 +283,72 @@ NUDGE_LIBRARY = {
         ]
     },
 
+    # ── OUTDOOR TIME ─────────────────────────────────────────────────────
+    "outdoor_low_week": {
+        "principle": "Natural light exposure regulates cortisol, melatonin, and attention restoration. Five days without it has measurable downstream effects.",
+        "category": "outdoor",
+        "longevity_factor": "hormonal_dysregulation",
+        "messages": [
+            "Most of this week has been indoors. The nervous system notices the absence of natural light before you do.",
+            "Five days mostly inside. The body uses daylight to calibrate more than just mood.",
+            "Outdoor time has been low this week. Even 20 minutes in natural light changes what the afternoon costs you.",
+        ]
+    },
+    "outdoor_streak": {
+        "principle": "Consistent outdoor exposure aligns the circadian clock, reduces cortisol reactivity, and restores directed attention.",
+        "category": "outdoor",
+        "longevity_factor": "stress_chronic",
+        "messages": [
+            "You've been getting outside consistently this week. That's doing more than it looks like.",
+            "Four days of regular outdoor time. The circadian rhythm has something to work with.",
+            "Consistent time outside this week. That's one of the quieter forms of self-care.",
+        ]
+    },
+
+    # ── WORKOUT RECOVERY ─────────────────────────────────────────────────
+    "recovery_insufficient": {
+        "principle": "Elevated resting heart rate the day after intense activity signals the body hasn't yet restored — adding load compounds the deficit.",
+        "category": "recovery",
+        "longevity_factor": "cardiovascular",
+        "messages": [
+            "Yesterday was heavy. Your resting heart rate hasn't come back down yet.",
+            "Hard effort yesterday, elevated heart rate today. The body is still in the middle of the last thing.",
+            "The workout landed. The recovery hasn't caught up. That gap is where most overtraining starts.",
+        ]
+    },
+    "recovery_good": {
+        "principle": "Rising HRV after a block of training load is the body's signal that adaptation is occurring — the work is becoming capacity.",
+        "category": "recovery",
+        "longevity_factor": "cardiovascular",
+        "messages": [
+            "Recent training load has been high, and your HRV is rising. The body is adapting.",
+            "You've been putting in the work, and the recovery signals are responding. That's the cycle working.",
+            "HRV up after a demanding stretch. The effort is converting.",
+        ]
+    },
+
+    # ── WORK-LIFE BOUNDARY ───────────────────────────────────────────────
+    "boundary_evening_work": {
+        "principle": "Evening work hours displace recovery, social connection, and the psychological detachment the body needs to end the day.",
+        "category": "work_boundary",
+        "longevity_factor": "stress_chronic",
+        "messages": [
+            "Three evenings this week with work on the calendar. The day keeps not ending.",
+            "Late meetings most nights this week. The evening is part of the day too.",
+            "Work has been running past 7pm most nights. The body needs the day to have an end.",
+        ]
+    },
+    "boundary_weekend_meetings": {
+        "principle": "Weekend work interrupts the psychological recovery that weekends exist to provide — recovery from role demands, not just physical rest.",
+        "category": "work_boundary",
+        "longevity_factor": "stress_chronic",
+        "messages": [
+            "There's a meeting on your weekend. The weekend is the only part of the week that doesn't need a meeting.",
+            "Calendar events on a weekend. Recovery requires time without demands — even scheduled ones.",
+            "A weekend meeting. The body doesn't distinguish between a calendar block and a workday when it's trying to rest.",
+        ]
+    },
+
     # ── RHYTHM & BALANCE ─────────────────────────────────────────────────
     "rhythm_balanced_day": {
         "principle": "A balanced day — movement, rest, focus, social — is the oldest form of health.",
