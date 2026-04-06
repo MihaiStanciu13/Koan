@@ -8,6 +8,11 @@ from datetime import datetime, timedelta
 from typing import Optional
 from nudge_library import get_nudge_message, NUDGE_LIBRARY
 
+try:
+    import anthropic
+except ImportError:
+    anthropic = None
+
 
 class PatternDetector:
     def __init__(self, db):
@@ -273,6 +278,88 @@ class PatternDetector:
 
         return None
 
+    async def generate_weekly_narrative(
+        self,
+        user_id: str,
+        patterns_detected: list,
+        signals: list,
+        baseline: dict,
+    ) -> str:
+        """
+        Generate a 2-3 sentence weekly narrative using the Anthropic API.
+        Falls back to hardcoded narratives if anthropic is unavailable or the call fails.
+        """
+        # Hardcoded fallbacks keyed by dominant category
+        _fallbacks = {
+            "morning_boundary": "Your mornings have been starting on someone else's terms. The phone is there before the day has had a chance to begin.",
+            "movement": "Movement has been inconsistent this week. The body notices when it's not being used.",
+            "sleep": "Sleep patterns have been shifting. Consistency is what your body clock needs most.",
+            "attention": "Screen time and attention have been fragmented. The feed has been winning more than it should.",
+            "recovery": "Recovery signals have been low. The week has been heavy.",
+            "balance": "This week has had moments of real balance. That's worth carrying forward.",
+            "outdoor": "Time outside has been low this week. The body uses natural light for more than it's given credit for.",
+            "work_boundary": "Work has been bleeding into evenings and weekends. The recovery the week needs isn't happening.",
+        }
+
+        # Derive dominant category from triggered patterns
+        category_counts: dict = {}
+        for t in patterns_detected:
+            cat = NUDGE_LIBRARY.get(t, {}).get("category", "other")
+            category_counts[cat] = category_counts.get(cat, 0) + 1
+        dominant = max(category_counts, key=category_counts.get) if category_counts else None
+
+        def _fallback() -> str:
+            return _fallbacks.get(dominant, "Koan has been observing your patterns this week.")
+
+        if anthropic is None:
+            return _fallback()
+
+        import os
+        api_key = os.getenv("ANTHROPIC_API_KEY")
+        if not api_key:
+            return _fallback()
+
+        try:
+            # Build a compact context summary
+            today = signals[0] if signals else {}
+            context = {
+                "patterns_detected": patterns_detected,
+                "dominant_category": dominant,
+                "signal_count": len(signals),
+                "avg_steps": round(baseline.get("avg_steps") or 0),
+                "avg_sleep_minutes": round(baseline.get("avg_sleep_duration") or 0),
+                "avg_screen_time_minutes": round(baseline.get("avg_screen_time") or 0),
+                "avg_pickups": round(baseline.get("avg_pickups") or 0),
+                "today_steps": today.get("steps", 0),
+                "today_sleep_minutes": today.get("sleep_duration_minutes", 0),
+                "today_screen_time_minutes": today.get("total_screen_time_minutes", 0),
+            }
+
+            client = anthropic.AsyncAnthropic(api_key=api_key)
+            response = await client.messages.create(
+                model="claude-haiku-4-5-20251001",
+                max_tokens=200,
+                system=(
+                    "You are Koan, a calm behavioral companion that helps people "
+                    "understand their wellbeing patterns. Write with a quiet, "
+                    "observational tone — like a sentence you'd underline in a book. "
+                    "No advice, no imperatives, no clichés. Never preachy."
+                ),
+                messages=[{
+                    "role": "user",
+                    "content": (
+                        f"Write a weekly reflection of 2-3 sentences based on this data:\n"
+                        f"{context}\n\n"
+                        "Observations should be grounded in the data. "
+                        "Do not mention specific numbers. "
+                        "Tone: understated, honest, not motivational."
+                    ),
+                }],
+            )
+            return response.content[0].text.strip()
+        except Exception:
+            return _fallback()
+
     async def detect_weekly_patterns(self, user_id: str) -> dict:
         """Generate a weekly narrative and pattern summary."""
         signals = await self.get_recent_signals(user_id, days=7)
@@ -285,26 +372,16 @@ class PatternDetector:
                 "week_start": (datetime.utcnow() - timedelta(days=7)).isoformat(),
             }
 
-        # Build narrative from triggered patterns
-        category_counts = {}
+        baseline = await self.get_baseline(user_id)
+
+        # Build category summary for dominant calculation
+        category_counts: dict = {}
         for t in triggered:
             cat = NUDGE_LIBRARY.get(t, {}).get("category", "other")
             category_counts[cat] = category_counts.get(cat, 0) + 1
-
         dominant = max(category_counts, key=category_counts.get) if category_counts else None
 
-        narratives = {
-            "morning_boundary": "Your mornings have been starting on someone else's terms. The phone is there before the day has had a chance to begin.",
-            "movement": "Movement has been inconsistent this week. The body notices when it's not being used.",
-            "sleep": "Sleep patterns have been shifting. Consistency is what your body clock needs most.",
-            "attention": "Screen time and attention have been fragmented. The feed has been winning more than it should.",
-            "recovery": "Recovery signals have been low. The week has been heavy.",
-            "balance": "This week has had moments of real balance. That's worth carrying forward.",
-            "outdoor": "Time outside has been low this week. The body uses natural light for more than it's given credit for.",
-            "work_boundary": "Work has been bleeding into evenings and weekends. The recovery the week needs isn't happening.",
-        }
-
-        narrative = narratives.get(dominant, "Koan has been observing your patterns this week.")
+        narrative = await self.generate_weekly_narrative(user_id, triggered, signals, baseline)
 
         return {
             "narrative": narrative,
