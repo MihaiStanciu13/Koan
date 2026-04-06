@@ -154,6 +154,9 @@ export default function KoanSetupModal({ visible, onComplete }: KoanSetupModalPr
             <Text style={styles.bodyCenter}>
               It will take a few days to learn your patterns. The first nudge will arrive when there is something worth saying.
             </Text>
+            <Text style={[styles.bodyCenter, { marginTop: 12 }]}>
+              Every Sunday, a weekly reflection waits in Insights — not data, just what Koan noticed.
+            </Text>
             <TouchableOpacity style={styles.primaryButton} onPress={onComplete}>
               <Text style={styles.primaryButtonText}>Begin</Text>
             </TouchableOpacity>

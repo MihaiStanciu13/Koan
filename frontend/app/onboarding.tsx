@@ -310,6 +310,9 @@ export default function Onboarding() {
                 Short. Calm. At exactly the right moment. Then silence again.
               </Text>
             </View>
+            <View style={[styles.interstitialLine, styles.interstitialLineBorder]}>
+              <Text style={styles.interstitialLineTitle}>Each week, a quiet reflection on what Koan has noticed.</Text>
+            </View>
           </View>
 
           <TouchableOpacity onPress={handleInterstitialContinue} style={styles.continueButton}>

@@ -69,6 +69,16 @@ export default function LearnMoreScreen() {
               <Text style={styles.stepBody}>Short. Calm. At exactly the right moment. Then silence again.</Text>
             </View>
           </View>
+
+          <View style={styles.stepRow}>
+            <View style={styles.stepNumber}>
+              <Text style={styles.stepNumberText}>4</Text>
+            </View>
+            <View style={styles.stepContent}>
+              <Text style={styles.stepTitle}>A weekly reflection</Text>
+              <Text style={styles.stepBody}>Every Sunday, Koan surfaces what it noticed — not as charts or scores, but as a single quiet observation.</Text>
+            </View>
+          </View>
         </View>
 
         {/* Section 3: Why Koan */}
