@@ -28,7 +28,9 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # MongoDB connection
-mongo_url = os.getenv('MONGO_URL', 'mongodb://localhost:27017')
+mongo_url = os.getenv('MONGO_URL')
+if not mongo_url:
+    raise RuntimeError("MONGO_URL environment variable is not set")
 db_name = os.getenv('DB_NAME', 'behavioral_nudge_db')
 client = AsyncIOMotorClient(mongo_url)
 db = client[db_name]

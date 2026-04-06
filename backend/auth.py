@@ -16,7 +16,9 @@ ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
 
 # Get MongoDB connection
-mongo_url = os.getenv('MONGO_URL', 'mongodb://localhost:27017')
+mongo_url = os.getenv('MONGO_URL')
+if not mongo_url:
+    raise RuntimeError("MONGO_URL environment variable is not set")
 db_name = os.getenv('DB_NAME', 'behavioral_nudge_db')
 client = AsyncIOMotorClient(mongo_url)
 db = client[db_name]
@@ -24,7 +26,9 @@ db = client[db_name]
 router = APIRouter(prefix="/auth", tags=["auth"])
 security = HTTPBearer()
 
-SECRET_KEY = os.getenv("SECRET_KEY", "your-secret-key-change-in-production")
+SECRET_KEY = os.getenv("SECRET_KEY")
+if not SECRET_KEY:
+    raise RuntimeError("SECRET_KEY environment variable is not set")
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_DAYS = 30
 
