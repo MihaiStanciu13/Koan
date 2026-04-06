@@ -22,6 +22,7 @@ from behavioral_monitor import router as behavior_router
 from subscription import router as subscription_router
 from models import User, Preferences, PreferencesUpdate, Nudge, NudgeResponse, HealthSignalCreate
 from nudge_engine import get_pending_nudges, mark_nudge_delivered, mark_nudge_opened, create_nudge
+from nudge_orchestrator import NudgeOrchestrator
 from pattern_detector import PatternDetector, detect_weekly_patterns, learn_quiet_periods
 
 # Configure logging
@@ -43,28 +44,8 @@ db = client[db_name]
 async def get_db() -> AsyncIOMotorDatabase:
     return db
 
-# Maps pattern_detector trigger IDs → (nudge_engine type, context dict)
-_TRIGGER_NUDGE_MAP = {
-    "morning_phone_early":          ("boundary",         {"time": "early morning"}),
-    "morning_phone_consistent":     ("boundary",         {"time": "early morning"}),
-    "movement_declining":           ("energy_drift",     {"pickup_count": 0}),
-    "movement_sedentary_day":       ("energy_drift",     {"pickup_count": 0}),
-    "movement_good_streak":         ("anchor_action",    {"anchor_action": "keep moving"}),
-    "sleep_timing_inconsistent":    ("boundary",         {"time": "bedtime"}),
-    "sleep_duration_short":         ("boundary",         {"time": "bedtime"}),
-    "attention_social_media_heavy": ("energy_drift",     {"pickup_count": 0}),
-    "attention_high_pickups":       ("energy_drift",     {"pickup_count": 30}),
-    "attention_screen_improving":   ("anchor_action",    {"anchor_action": "maintain focus"}),
-    "stress_hrv_low":               ("energy_drift",     {"pickup_count": 0}),
-    "stress_resting_hr_elevated":   ("energy_drift",     {"pickup_count": 0}),
-    "stress_back_to_back_meetings": ("meeting_recovery", {}),
-    "stress_heavy_meeting_day":     ("meeting_recovery", {}),
-    "rhythm_weekend_recovery":      ("anchor_action",    {"anchor_action": "rest and recover"}),
-    "rhythm_balanced_day":          ("anchor_action",    {"anchor_action": "maintain balance"}),
-}
-
 async def run_daily_nudge_evaluation():
-    """Runs once per day at 9am UTC. Evaluates patterns for all active users and creates nudges."""
+    """Runs once per day at 9am UTC. Delegates all nudge decisions to NudgeOrchestrator."""
     logger.info("Daily nudge evaluation started")
     users = await db.users.find(
         {"subscription_status": {"$in": ["trial", "active"]}}
@@ -78,20 +59,10 @@ async def run_daily_nudge_evaluation():
         if not user_id:
             continue
         try:
-            detector = PatternDetector(db)
-            triggered = await detector.detect_patterns(user_id)
-            user_nudge_count = 0
-            for trigger_id in triggered:
-                mapping = _TRIGGER_NUDGE_MAP.get(trigger_id)
-                if not mapping:
-                    continue
-                nudge_type, context = mapping
-                nudge = await create_nudge(db, user_id, nudge_type, context)
-                if nudge:
-                    user_nudge_count += 1
-            if user_nudge_count > 0:
+            nudge = await NudgeOrchestrator(db).orchestrate(user_id)
+            if nudge:
                 users_with_nudges += 1
-                total_nudges += user_nudge_count
+                total_nudges += 1
         except Exception as e:
             logger.error(f"Daily nudge evaluation failed for user {user_id}: {e}")
 
@@ -433,17 +404,15 @@ async def evaluate_signal_endpoint(
     signal_request: SignalRequest,
     current_user: User = Depends(require_active_subscription)
 ):
-    """Evaluate a signal and potentially create an adaptive nudge"""
-    engine = AdaptiveNudgeEngine(db)
-
+    """Evaluate a real-time signal via the NudgeOrchestrator."""
     signal = Signal(
         signal_type=SignalType(signal_request.signal_type),
         strength=signal_request.strength,
         timestamp=dt.utcnow(),
-        metadata=signal_request.metadata
+        metadata=signal_request.metadata,
     )
 
-    nudge = await engine.evaluate_signal(current_user.id, signal)
+    nudge = await NudgeOrchestrator(db).orchestrate(current_user.id, realtime_signal=signal)
 
     if nudge:
         return {"status": "nudge_created", "nudge": nudge}
