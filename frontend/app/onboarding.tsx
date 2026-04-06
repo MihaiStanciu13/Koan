@@ -14,7 +14,6 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { storage } from '../services/storage';
 import { preferencesAPI } from '../services/api';
-import * as Notifications from 'expo-notifications';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -37,18 +36,6 @@ const ONBOARDING_DATA = [
     isAnchorStep: true,
     title: 'Set your anchor',
     description: 'A small, repeatable action that grounds your day. You can change it anytime in Settings.',
-  },
-  {
-    id: '2',
-    isNotificationStep: true,
-    title: 'Koan works through small, subtle moments',
-    description:
-      "Most of Koan's magic happens through short, gentle notifications delivered at the right time. They're quiet, respectful, and designed to help you realign — not interrupt.",
-    features: [
-      { icon: 'volume-off', text: 'Silent by default' },
-      { icon: 'time-outline', text: 'Delivered at the right time' },
-      { icon: 'shield-outline', text: 'Private and respectful' },
-    ],
   },
   {
     id: '3',
@@ -76,43 +63,10 @@ export default function Onboarding() {
     ).start();
   }, []);
 
-  const requestNotifications = async () => {
-    try {
-      await Notifications.requestPermissionsAsync();
-      const tokenData = await Notifications.getExpoPushTokenAsync();
-      const authToken = await storage.getAuthToken();
-      await fetch(`${process.env.EXPO_PUBLIC_BACKEND_URL}/api/user/push-token`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${authToken}`,
-        },
-        body: JSON.stringify({ push_token: tokenData.data }),
-      }).catch(() => {}); // fail silently
-    } catch (error) {
-      console.error('Failed to request notifications:', error);
-    }
-    handleNext();
-  };
-
-  const skipNotifications = () => {
-    const nextIndex = 2;
-    setCurrentIndex(nextIndex);
-    flatListRef.current?.scrollToIndex({ index: nextIndex, animated: true });
-  };
-
   const handleInterstitialContinue = () => {
     setShowInterstitial(false);
     setCurrentIndex(0);
     flatListRef.current?.scrollToIndex({ index: 0, animated: true });
-  };
-
-  const handleNext = () => {
-    if (currentIndex < ONBOARDING_DATA.length - 1) {
-      const nextIndex = currentIndex + 1;
-      setCurrentIndex(nextIndex);
-      flatListRef.current?.scrollToIndex({ index: nextIndex, animated: true });
-    }
   };
 
   const toggleAnchor = (suggestion: string) => {
@@ -179,36 +133,7 @@ export default function Onboarding() {
   );
 
   const renderOnboardingCard = ({ item }: any) => {
-    // Step 1 — Notifications
-    if (item.isNotificationStep) {
-      return (
-        <View style={styles.card}>
-          <View style={styles.cardContent}>
-            <Text style={styles.title}>{item.title}</Text>
-            <Text style={styles.description}>{item.description}</Text>
-
-            <View style={styles.notificationFeatures}>
-              {item.features.map((feature: any, idx: number) => (
-                <View key={idx} style={styles.featureRow}>
-                  <Ionicons name={feature.icon} size={20} color="#5FAD8E" />
-                  <Text style={styles.featureRowText}>{feature.text}</Text>
-                </View>
-              ))}
-            </View>
-
-            <TouchableOpacity style={styles.enableButton} onPress={requestNotifications}>
-              <Text style={styles.enableButtonText}>Enable notifications</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity onPress={skipNotifications} style={styles.skipLinkContainer}>
-              <Text style={styles.skipLinkText}>Skip for now</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      );
-    }
-
-    // Step 2 — Anchor action
+    // Step 1 — Anchor action
     if (item.isAnchorStep) {
       return (
         <View style={styles.card}>
@@ -337,12 +262,12 @@ export default function Onboarding() {
       {/* Bottom navigation */}
       {!showInterstitial && (
         <View style={styles.buttonContainer}>
-          {currentIndex === 2 ? (
-            // Step 3 (expect): Let's go only
+          {currentIndex === 1 ? (
+            // Step 2 (expect): Let's go only
             <TouchableOpacity style={styles.letsGoButton} onPress={handleLetsGo}>
               <Text style={styles.letsGoText}>Let's go</Text>
             </TouchableOpacity>
-          ) : currentIndex === 0 ? (
+          ) : (
             // Step 1 (anchor): Skip for now + Continue
             <>
               <TouchableOpacity style={styles.skipButton} onPress={handleAnchorContinue}>
@@ -357,7 +282,7 @@ export default function Onboarding() {
                 <Ionicons name="arrow-forward" size={18} color="#FFFFFF" />
               </TouchableOpacity>
             </>
-          ) : null /* Step 2 (notifications): navigation is in the card */}
+          )}
         </View>
       )}
 
@@ -453,48 +378,6 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginBottom: 28,
     lineHeight: 20,
-  },
-  // Notification step
-  notificationFeatures: {
-    width: '100%',
-    backgroundColor: '#F5F5F5',
-    borderRadius: 12,
-    padding: 20,
-    marginBottom: 24,
-    gap: 16,
-  },
-  featureRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  featureRowText: {
-    fontSize: 14,
-    fontWeight: '400',
-    color: '#3A3A3A',
-  },
-  enableButton: {
-    backgroundColor: '#5FAD8E',
-    paddingVertical: 15,
-    paddingHorizontal: 32,
-    borderRadius: 12,
-    marginBottom: 14,
-    width: '100%',
-    alignItems: 'center',
-  },
-  enableButtonText: {
-    color: '#FFFFFF',
-    fontSize: 15,
-    fontWeight: '600',
-  },
-  skipLinkContainer: {
-    paddingVertical: 8,
-  },
-  skipLinkText: {
-    fontSize: 13,
-    color: '#3A3A3A',
-    opacity: 0.5,
-    textAlign: 'center',
   },
   // Anchor step
   suggestionsGrid: {

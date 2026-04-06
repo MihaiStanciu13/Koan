@@ -19,7 +19,7 @@ import { nudgeAPI, behaviorAPI, preferencesAPI, subscriptionAPI, adaptiveNudgeAP
 import { startSignalCollection, stopSignalCollection, flushToBackend } from '../../services/signalCollector';
 import { requestHealthKitPermissions, collectAndSendHealthData } from '../../services/healthKit';
 import { format } from 'date-fns';
-import WelcomeVideoModal from '../../components/WelcomeVideoModal';
+import KoanSetupModal from '../../components/KoanSetupModal';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const LEARNING_MESSAGES_BY_PHASE = [
@@ -442,10 +442,10 @@ export default function HomeScreen() {
         </View>
       </ScrollView>
 
-      {/* Welcome Video Modal */}
-      <WelcomeVideoModal 
-        visible={showWelcomeVideo} 
-        onClose={handleCloseWelcomeVideo} 
+      {/* Setup Flow Modal */}
+      <KoanSetupModal
+        visible={showWelcomeVideo}
+        onComplete={handleCloseWelcomeVideo}
       />
     </SafeAreaView>
   );
