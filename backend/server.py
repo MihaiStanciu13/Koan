@@ -676,6 +676,41 @@ async def debug_nudge_pipeline(
     }
 
 
+# Admin: per-user API usage summary (authenticated user only)
+@api_router.get("/admin/usage-summary")
+async def get_usage_summary(
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Returns a 30-day Anthropic API usage summary for the authenticated user.
+    Scoped to the requesting user — no cross-user data access.
+    """
+    from datetime import datetime as dt, timedelta
+    period_days = 30
+    cutoff = dt.utcnow() - timedelta(days=period_days)
+
+    docs = await db.api_usage.find(
+        {"user_id": current_user.id, "timestamp": {"$gte": cutoff}}
+    ).to_list(None)
+
+    total_calls = len(docs)
+    total_tokens = sum(d.get("total_tokens", 0) for d in docs)
+    nudge_calls = sum(1 for d in docs if d.get("endpoint") == "nudge_generate")
+    narrative_calls = sum(1 for d in docs if d.get("endpoint") == "weekly_narrative")
+    # Haiku input rate approximation: $1 per million tokens
+    estimated_cost_usd = round(total_tokens * 0.000001, 6)
+
+    return {
+        "user_id": current_user.id,
+        "period_days": period_days,
+        "total_calls": total_calls,
+        "total_tokens": total_tokens,
+        "nudge_calls": nudge_calls,
+        "narrative_calls": narrative_calls,
+        "estimated_cost_usd": estimated_cost_usd,
+    }
+
+
 # Health check
 @api_router.get("/")
 async def root():

@@ -335,9 +335,10 @@ class PatternDetector:
                 "today_screen_time_minutes": today.get("total_screen_time_minutes", 0),
             }
 
+            _MODEL = "claude-haiku-4-5-20251001"
             client = anthropic.AsyncAnthropic(api_key=api_key)
             response = await client.messages.create(
-                model="claude-haiku-4-5-20251001",
+                model=_MODEL,
                 max_tokens=200,
                 system=(
                     "You are Koan, a calm behavioral companion that helps people "
@@ -356,8 +357,33 @@ class PatternDetector:
                     ),
                 }],
             )
+            input_tokens = response.usage.input_tokens
+            output_tokens = response.usage.output_tokens
+            await self.db.api_usage.insert_one({
+                "user_id": user_id,
+                "timestamp": datetime.utcnow(),
+                "endpoint": "weekly_narrative",
+                "model": _MODEL,
+                "input_tokens": input_tokens,
+                "output_tokens": output_tokens,
+                "total_tokens": input_tokens + output_tokens,
+                "success": True,
+            })
             return response.content[0].text.strip()
         except Exception:
+            try:
+                await self.db.api_usage.insert_one({
+                    "user_id": user_id,
+                    "timestamp": datetime.utcnow(),
+                    "endpoint": "weekly_narrative",
+                    "model": "claude-haiku-4-5-20251001",
+                    "input_tokens": 0,
+                    "output_tokens": 0,
+                    "total_tokens": 0,
+                    "success": False,
+                })
+            except Exception:
+                pass
             return _fallback()
 
     async def detect_weekly_patterns(self, user_id: str) -> dict:

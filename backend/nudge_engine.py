@@ -117,7 +117,7 @@ async def create_nudge(db: AsyncIOMotorDatabase, user_id: str, nudge_type: str, 
             return None
         
         # Generate nudge content using AI
-        message, explanation = await generate_nudge_content(nudge_type, context, preferences)
+        message, explanation = await generate_nudge_content(nudge_type, context, preferences, db, user_id)
         
         nudge_style = preferences.get("nudge_style", "silent") if preferences else "silent"
         nudge_id = str(uuid.uuid4())
@@ -139,13 +139,20 @@ async def create_nudge(db: AsyncIOMotorDatabase, user_id: str, nudge_type: str, 
         logger.error(f"Error creating nudge: {str(e)}")
         return None
 
-async def generate_nudge_content(nudge_type: str, context: Dict, preferences: Optional[Dict]) -> tuple:
+async def generate_nudge_content(
+    nudge_type: str,
+    context: Dict,
+    preferences: Optional[Dict],
+    db=None,
+    user_id: Optional[str] = None,
+) -> tuple:
     """Generate nudge message and explanation using AI"""
+    _MODEL = "claude-3-5-haiku-20241022"
     try:
         template = NUDGE_TEMPLATES.get(nudge_type)
         if not template:
             return "Take a moment to refocus", "Based on your recent activity patterns"
-        
+
         # Prepare prompt with context
         prompt_text = template["prompt"].format(**context)
 
@@ -158,7 +165,7 @@ async def generate_nudge_content(nudge_type: str, context: Dict, preferences: Op
 
         # Generate message
         message_response = await client.messages.create(
-            model="claude-3-5-haiku-20241022",
+            model=_MODEL,
             max_tokens=100,
             system=system_prompt,
             messages=[{"role": "user", "content": prompt_text}]
@@ -168,16 +175,52 @@ async def generate_nudge_content(nudge_type: str, context: Dict, preferences: Op
         # Generate explanation (why this nudge)
         explanation_prompt = f"In 20-30 words, explain why we're sending this nudge: {message}. Focus on the behavioral pattern observed."
         explanation_response = await client.messages.create(
-            model="claude-3-5-haiku-20241022",
+            model=_MODEL,
             max_tokens=100,
             system=system_prompt,
             messages=[{"role": "user", "content": explanation_prompt}]
         )
         explanation = explanation_response.content[0].text
-        
+
+        # Log combined token usage for both API calls
+        if db is not None and user_id is not None:
+            input_tokens = (
+                message_response.usage.input_tokens
+                + explanation_response.usage.input_tokens
+            )
+            output_tokens = (
+                message_response.usage.output_tokens
+                + explanation_response.usage.output_tokens
+            )
+            await db.api_usage.insert_one({
+                "user_id": user_id,
+                "timestamp": datetime.utcnow(),
+                "endpoint": "nudge_generate",
+                "model": _MODEL,
+                "input_tokens": input_tokens,
+                "output_tokens": output_tokens,
+                "total_tokens": input_tokens + output_tokens,
+                "success": True,
+            })
+
         return message.strip(), explanation.strip()
     except Exception as e:
         logger.error(f"Error generating nudge content: {str(e)}")
+        # Log failed call
+        if db is not None and user_id is not None:
+            try:
+                await db.api_usage.insert_one({
+                    "user_id": user_id,
+                    "timestamp": datetime.utcnow(),
+                    "endpoint": "nudge_generate",
+                    "model": _MODEL,
+                    "input_tokens": 0,
+                    "output_tokens": 0,
+                    "total_tokens": 0,
+                    "success": False,
+                })
+            except Exception:
+                pass
         # Fallback to simple messages
         fallback_messages = {
             "context_switch": ("Pick one thing to focus on", "You've switched between apps frequently"),
