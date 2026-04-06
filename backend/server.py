@@ -3,6 +3,8 @@ from typing import Optional
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient, AsyncIOMotorDatabase
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
+from apscheduler.triggers.cron import CronTrigger
 import os
 import logging
 from pathlib import Path
@@ -41,13 +43,73 @@ db = client[db_name]
 async def get_db() -> AsyncIOMotorDatabase:
     return db
 
+# Maps pattern_detector trigger IDs → (nudge_engine type, context dict)
+_TRIGGER_NUDGE_MAP = {
+    "morning_phone_early":          ("boundary",         {"time": "early morning"}),
+    "morning_phone_consistent":     ("boundary",         {"time": "early morning"}),
+    "movement_declining":           ("energy_drift",     {"pickup_count": 0}),
+    "movement_sedentary_day":       ("energy_drift",     {"pickup_count": 0}),
+    "movement_good_streak":         ("anchor_action",    {"anchor_action": "keep moving"}),
+    "sleep_timing_inconsistent":    ("boundary",         {"time": "bedtime"}),
+    "sleep_duration_short":         ("boundary",         {"time": "bedtime"}),
+    "attention_social_media_heavy": ("energy_drift",     {"pickup_count": 0}),
+    "attention_high_pickups":       ("energy_drift",     {"pickup_count": 30}),
+    "attention_screen_improving":   ("anchor_action",    {"anchor_action": "maintain focus"}),
+    "stress_hrv_low":               ("energy_drift",     {"pickup_count": 0}),
+    "stress_resting_hr_elevated":   ("energy_drift",     {"pickup_count": 0}),
+    "stress_back_to_back_meetings": ("meeting_recovery", {}),
+    "stress_heavy_meeting_day":     ("meeting_recovery", {}),
+    "rhythm_weekend_recovery":      ("anchor_action",    {"anchor_action": "rest and recover"}),
+    "rhythm_balanced_day":          ("anchor_action",    {"anchor_action": "maintain balance"}),
+}
+
+async def run_daily_nudge_evaluation():
+    """Runs once per day at 9am UTC. Evaluates patterns for all active users and creates nudges."""
+    logger.info("Daily nudge evaluation started")
+    users = await db.users.find(
+        {"subscription_status": {"$in": ["trial", "active"]}}
+    ).to_list(None)
+
+    total_nudges = 0
+    users_with_nudges = 0
+
+    for user in users:
+        user_id = user.get("id")
+        if not user_id:
+            continue
+        try:
+            detector = PatternDetector(db)
+            triggered = await detector.detect_patterns(user_id)
+            user_nudge_count = 0
+            for trigger_id in triggered:
+                mapping = _TRIGGER_NUDGE_MAP.get(trigger_id)
+                if not mapping:
+                    continue
+                nudge_type, context = mapping
+                nudge = await create_nudge(db, user_id, nudge_type, context)
+                if nudge:
+                    user_nudge_count += 1
+            if user_nudge_count > 0:
+                users_with_nudges += 1
+                total_nudges += user_nudge_count
+        except Exception as e:
+            logger.error(f"Daily nudge evaluation failed for user {user_id}: {e}")
+
+    logger.info(f"Daily nudge evaluation complete: {total_nudges} nudges for {users_with_nudges}/{len(users)} users")
+
+scheduler = AsyncIOScheduler()
+
 # Lifespan context manager
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup
     logger.info(f"Starting app, connecting to MongoDB at {mongo_url}")
+    scheduler.add_job(run_daily_nudge_evaluation, CronTrigger(hour=9, minute=0))
+    scheduler.start()
+    logger.info("Daily nudge scheduler started (runs at 09:00 UTC)")
     yield
     # Shutdown
+    scheduler.shutdown()
     client.close()
     logger.info("Shutting down app")
 

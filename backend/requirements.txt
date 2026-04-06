@@ -17,3 +17,4 @@ msal
 anthropic
 slowapi
 limits
+apscheduler
