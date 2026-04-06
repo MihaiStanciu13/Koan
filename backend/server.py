@@ -14,6 +14,22 @@ from contextlib import asynccontextmanager
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
 
+# ── Sentry crash monitoring ────────────────────────────────────────────────────
+# Required env vars on Railway: SENTRY_DSN, ENVIRONMENT (optional, defaults to
+# "production"). MONGO_URL and SECRET_KEY are also required (see below).
+# If SENTRY_DSN is unset, Sentry initialises in no-op mode — no guard needed.
+import sentry_sdk
+from sentry_sdk.integrations.fastapi import FastApiIntegration
+from sentry_sdk.integrations.asyncio import AsyncioIntegration
+
+sentry_sdk.init(
+    dsn=os.getenv("SENTRY_DSN"),
+    integrations=[FastApiIntegration(), AsyncioIntegration()],
+    traces_sample_rate=0.2,
+    environment=os.getenv("ENVIRONMENT", "production"),
+)
+# ──────────────────────────────────────────────────────────────────────────────
+
 # Import routers
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded

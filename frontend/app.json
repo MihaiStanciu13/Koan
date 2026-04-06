@@ -39,10 +39,11 @@
         "expo-notifications",
         {
           "icon": "./assets/notification-icon.png",
-          "color": "#5FAD8E",
+          "color": "#A8D7F0",
           "sounds": []
         }
-      ]
+      ],
+      "@sentry/react-native"
     ],
     "experiments": {
       "typedRoutes": true
