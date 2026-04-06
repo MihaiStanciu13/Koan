@@ -341,23 +341,6 @@ async def get_pattern_nudge(
     await db.nudges.insert_one(nudge.dict())
     return {"nudge": nudge.dict()}
 
-# Static route MUST come before parameterised routes of the same method
-@api_router.post("/nudges/trigger-anchor")
-async def trigger_anchor_nudge(
-    current_user: User = Depends(require_active_subscription)
-):
-    """Manually trigger an anchor action nudge"""
-    prefs = await db.preferences.find_one({"user_id": current_user.id})
-    anchor_action = prefs.get("anchor_action", "close one loop") if prefs else "close one loop"
-
-    nudge = await create_nudge(db, current_user.id, "anchor_action", {
-        "anchor_action": anchor_action
-    })
-
-    if nudge:
-        return {"status": "created", "nudge": nudge.dict()}
-    return {"status": "failed", "message": "Could not create nudge"}
-
 @api_router.post("/nudges/{nudge_id}/delivered")
 async def mark_delivered(
     nudge_id: str,

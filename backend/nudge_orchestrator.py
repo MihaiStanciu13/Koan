@@ -40,10 +40,7 @@ _SIGNAL_TYPE_MAP = {
     SignalType.LONG_SCREEN_SESSION: ("energy_drift",   lambda m: {"pickup_count": 0}),
     SignalType.RAPID_APP_SWITCHING: ("context_switch", lambda m: {"switch_count": m.get("switch_count", 5)}),
     SignalType.EXTENDED_INACTIVITY: ("energy_drift",   lambda m: {"pickup_count": 0}),
-    SignalType.MORNING_UNLOCK:      ("anchor_action",  lambda m: {"anchor_action": "set your intention for the day"}),
     SignalType.LATE_NIGHT_USE:      ("boundary",       lambda m: {"time": m.get("time", "late")}),
-    SignalType.BREAK_RETURN:        ("anchor_action",  lambda m: {"anchor_action": "return to your intention"}),
-    SignalType.RE_ENTRY_MOMENT:     ("anchor_action",  lambda m: {"anchor_action": "return to what matters"}),
     SignalType.FOCUS_BOUNDARY:      ("focus_mode",     lambda m: {}),
 }
 

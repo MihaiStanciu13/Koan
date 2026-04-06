@@ -12,6 +12,8 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useFocusEffect } from 'expo-router';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as Notifications from 'expo-notifications';
 import { preferencesAPI } from '../services/api';
 import DateTimePicker from '@react-native-community/datetimepicker';
 
@@ -52,6 +54,32 @@ export default function AnchorActionsScreen() {
     }, [])
   );
 
+  const scheduleAnchorNotification = async (index: number, action: AnchorAction) => {
+    // Cancel any previous notification for this slot first
+    await cancelAnchorNotification(index);
+    const [hours, minutes] = action.time.split(':').map(Number);
+    const id = await Notifications.scheduleNotificationAsync({
+      content: {
+        title: 'Koan',
+        body: action.text,
+      },
+      trigger: {
+        hour: hours,
+        minute: minutes,
+        repeats: true,
+      },
+    });
+    await AsyncStorage.setItem(`anchor_notification_${index}`, id);
+  };
+
+  const cancelAnchorNotification = async (index: number) => {
+    const id = await AsyncStorage.getItem(`anchor_notification_${index}`);
+    if (id) {
+      await Notifications.cancelScheduledNotificationAsync(id);
+      await AsyncStorage.removeItem(`anchor_notification_${index}`);
+    }
+  };
+
   const loadAnchorActions = async () => {
     try {
       const prefs = await preferencesAPI.get();
@@ -84,10 +112,20 @@ export default function AnchorActionsScreen() {
     try {
       // Filter out empty or disabled actions
       const validActions = anchorActions.filter(a => a.text.trim() && a.enabled);
-      
+
       if (validActions.length === 0) {
         Alert.alert('No Anchors', 'Please add at least one anchor action.');
         return;
+      }
+
+      // Schedule or cancel local notifications for each slot
+      for (let i = 0; i < anchorActions.length; i++) {
+        const action = anchorActions[i];
+        if (action.enabled && action.text.trim()) {
+          await scheduleAnchorNotification(i, action);
+        } else {
+          await cancelAnchorNotification(i);
+        }
       }
 
       console.log('SAVING anchor_actions:', anchorActions);
