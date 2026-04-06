@@ -1,7 +1,7 @@
 # NUDGE LOGIC SUMMARY — nudge_engine.py
 #
 # Nudge types (5): context_switch (rapid app switching), energy_drift (frequent
-# phone pickups without sustained focus), boundary (late-night work after 22:00),
+# phone pickups without sustained focus), late_night (late-night work after 22:00),
 # meeting_recovery (post back-to-back meetings), focus_mode (user is in focus/DND
 # mode). Anchor actions are handled as standalone local notifications on the
 # frontend and are no longer part of this engine.
@@ -37,26 +37,66 @@ from models import Nudge, MicroMode
 logger = logging.getLogger(__name__)
 
 NUDGE_TEMPLATES = {
+    # context_switch: user has rapidly switched between many apps
+    # Example outputs:
+    #   "You've been in {switch_count} places at once. Pick one."
+    #   "The tabs are open. The question is which one actually matters now."
     "context_switch": {
         "title": "Decide your next step",
-        "prompt": "User has rapidly switched between {switch_count} apps in 30 minutes. Create a calm, subtle nudge (10-15 words) suggesting they choose one focus area."
+        "prompt": (
+            "User switched between {switch_count} apps in 30 minutes. "
+            "Write one calm observation (10-15 words) about scattered attention — "
+            "no advice, no imperatives. Tone: quiet, like a sentence you'd underline in a book."
+        )
     },
+    # energy_drift: user has picked up their phone many times without focus
+    # Example outputs:
+    #   "The phone has been picked up {pickup_count} times. Something is pulling at attention."
+    #   "{pickup_count} pickups in half an hour. The restlessness is worth noticing."
     "energy_drift": {
         "title": "Time for a reset",
-        "prompt": "User has picked up their phone {pickup_count} times in 30 minutes without sustained focus. Create a gentle nudge (10-15 words) suggesting a brief pause or singular focus."
+        "prompt": (
+            "User picked up their phone {pickup_count} times in 30 minutes without settling. "
+            "Write one calm observation (10-15 words) about fragmented attention — "
+            "not a suggestion, just a quiet noticing. Tone: understated, not urgent."
+        )
     },
-    "boundary": {
+    # late_night: user is active on their phone past 22:00
+    # Example outputs:
+    #   "It's {time}. Most of what feels urgent at this hour isn't."
+    #   "The work will look different in the morning. This part can wait."
+    "late_night": {
         "title": "Tomorrow can wait",
-        "prompt": "User is working late at night ({time}). Create a respectful, non-preachy nudge (10-15 words) suggesting to defer non-urgent work."
+        "prompt": (
+            "User is on their phone at {time}. "
+            "Write one calm observation (10-15 words) about late-night activity — "
+            "not prescriptive, no 'you should'. Tone: gently matter-of-fact."
+        )
     },
+    # meeting_recovery: user just finished back-to-back meetings
+    # Example outputs:
+    #   "Back-to-back meetings done. Two minutes of nothing is not nothing."
+    #   "The last meeting just ended. The transition is part of the work."
     "meeting_recovery": {
         "title": "Breathe between meetings",
-        "prompt": "User just finished back-to-back meetings. Create a brief reset prompt (10-15 words) to help them transition."
+        "prompt": (
+            "User just finished back-to-back meetings. "
+            "Write one calm observation (10-15 words) about the value of transition time — "
+            "no commands, no urgency. Tone: quiet acknowledgment."
+        )
     },
+    # focus_mode: user has enabled focus or DND mode
+    # Example outputs:
+    #   "Focus mode is on. The work you're protecting is worth protecting."
+    #   "You cleared the space. That was the harder part."
     "focus_mode": {
         "title": "Focus time",
-        "prompt": "User is in focus mode. Create a supportive nudge (10-15 words) to maintain concentration."
-    }
+        "prompt": (
+            "User is in focus or do-not-disturb mode. "
+            "Write one calm observation (10-15 words) acknowledging their choice — "
+            "no motivational language, no pressure. Tone: quiet affirmation."
+        )
+    },
 }
 
 async def create_nudge(db: AsyncIOMotorDatabase, user_id: str, nudge_type: str, context: Dict):
@@ -142,7 +182,7 @@ async def generate_nudge_content(nudge_type: str, context: Dict, preferences: Op
         fallback_messages = {
             "context_switch": ("Pick one thing to focus on", "You've switched between apps frequently"),
             "energy_drift": ("Take a breath, then choose one task", "Multiple phone checks detected"),
-            "boundary": ("This can wait until tomorrow", "Late evening work detected"),
+            "late_night": ("This can wait until tomorrow", "Late evening work detected"),
             "meeting_recovery": ("A moment to reset before the next thing", "Back-to-back meetings completed"),
         }
         return fallback_messages.get(nudge_type, ("Take a moment", "Based on your patterns"))

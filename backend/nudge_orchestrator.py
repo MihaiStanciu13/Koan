@@ -40,7 +40,7 @@ _SIGNAL_TYPE_MAP = {
     SignalType.LONG_SCREEN_SESSION: ("energy_drift",   lambda m: {"pickup_count": 0}),
     SignalType.RAPID_APP_SWITCHING: ("context_switch", lambda m: {"switch_count": m.get("switch_count", 5)}),
     SignalType.EXTENDED_INACTIVITY: ("energy_drift",   lambda m: {"pickup_count": 0}),
-    SignalType.LATE_NIGHT_USE:      ("boundary",       lambda m: {"time": m.get("time", "late")}),
+    SignalType.LATE_NIGHT_USE:      ("late_night",      lambda m: {"time": m.get("time", "late")}),
     SignalType.FOCUS_BOUNDARY:      ("focus_mode",     lambda m: {}),
 }
 
@@ -112,10 +112,7 @@ class NudgeOrchestrator:
 
         # ── Wisdom / philosophical nudge (at most once per week) ──────────
         try:
-            wisdom_triggers = [
-                k for k, v in NUDGE_LIBRARY.items()
-                if v.get("category") == "wisdom"
-            ]
+            wisdom_triggers = [k for k in NUDGE_LIBRARY if k.startswith("wisdom_")]
             if wisdom_triggers:
                 last_wisdom = await self.db.nudges.find_one(
                     {"user_id": user_id, "nudge_type": "wisdom"},
@@ -176,12 +173,12 @@ class NudgeOrchestrator:
                 "relevance_score": 0.0,
             })
 
-        # boundary: any activity detected after 22:00
+        # late_night: any activity detected after 22:00
         if now.hour >= 22:
             candidates.append({
                 "source": "realtime",
-                "trigger_id": "boundary",
-                "nudge_type": "boundary",
+                "trigger_id": "late_night",
+                "nudge_type": "late_night",
                 "context": {"time": now.strftime("%H:%M"), "_signal_count": 1},
                 "relevance_score": 0.0,
             })
