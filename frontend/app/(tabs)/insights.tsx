@@ -11,13 +11,65 @@ import { patternsAPI, behaviorAPI } from '../../services/api';
 import { format } from 'date-fns';
 import { useAuth } from '../../contexts/AuthContext';
 
+const PATTERN_LABELS: Record<string, string> = {
+  morning_phone_early: 'Morning phone habit',
+  morning_phone_consistent: 'Morning routine',
+  movement_declining: 'Movement fading',
+  movement_sedentary_day: 'Low movement day',
+  movement_good_streak: 'Consistent movement',
+  sleep_timing_inconsistent: 'Irregular sleep timing',
+  sleep_late_night_phone: 'Late night screen use',
+  sleep_duration_short: 'Short sleep streak',
+  attention_social_media_heavy: 'Heavy social media use',
+  attention_high_pickups: 'Frequent phone pickups',
+  attention_screen_improving: 'Screen time improving',
+  stress_hrv_low: 'Low recovery signals',
+  stress_resting_hr_elevated: 'Elevated resting heart rate',
+  stress_back_to_back_meetings: 'Back-to-back meetings',
+  stress_heavy_meeting_day: 'Heavy meeting day',
+  rhythm_balanced_day: 'Balanced day detected',
+  rhythm_weekend_recovery: 'Weekend recovery',
+  outdoor_low_week: 'Low outdoor time',
+  outdoor_streak: 'Good outdoor streak',
+  recovery_insufficient: 'Insufficient recovery',
+  recovery_good: 'Recovery on track',
+  boundary_evening_work: 'Evening work pattern',
+  boundary_weekend_meetings: 'Weekend meeting load',
+};
+
+function formatPatternLabel(triggerId: string): string {
+  if (PATTERN_LABELS[triggerId]) return PATTERN_LABELS[triggerId];
+  return triggerId
+    .split('_')
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+    .join(' ');
+}
+
+function deriveCategoryLabel(patterns: string[]): string | null {
+  if (!patterns.length) return null;
+  const prefix = patterns[0].split('_')[0];
+  const map: Record<string, string> = {
+    morning: 'Morning',
+    movement: 'Movement',
+    sleep: 'Sleep',
+    attention: 'Attention',
+    stress: 'Stress',
+    rhythm: 'Balance',
+    outdoor: 'Outdoor',
+    recovery: 'Recovery',
+    boundary: 'Boundaries',
+    wisdom: 'Wisdom',
+  };
+  return map[prefix] ?? null;
+}
+
 export default function InsightsScreen() {
   const { user } = useAuth();
   const [refreshing, setRefreshing] = useState(false);
   const [narrative, setNarrative] = useState('');
   const [patternsDetected, setPatternsDetected] = useState<string[]>([]);
   const [weekStart, setWeekStart] = useState<Date | null>(null);
-  const [summary, setSummary] = useState<any>(null);
+  const [isSunday, setIsSunday] = useState(false);
 
   useEffect(() => {
     loadInsights();
@@ -25,16 +77,15 @@ export default function InsightsScreen() {
 
   const loadInsights = async () => {
     if (!user) return;
-    try {
-      const [patterns, behaviorSummary] = await Promise.all([
-        patternsAPI.getWeekly(),
-        behaviorAPI.getSummary(7),
-      ]);
 
+    const today = new Date();
+    setIsSunday(today.getDay() === 0);
+
+    try {
+      const patterns = await patternsAPI.getWeekly();
       setNarrative(patterns.narrative || '');
       setPatternsDetected(patterns.patterns_detected || []);
       setWeekStart(patterns.week_start ? new Date(patterns.week_start) : null);
-      setSummary(behaviorSummary);
     } catch (error) {
       console.error('Failed to load insights:', error);
     }
@@ -45,6 +96,8 @@ export default function InsightsScreen() {
     await loadInsights();
     setRefreshing(false);
   };
+
+  const categoryLabel = deriveCategoryLabel(patternsDetected);
 
   return (
     <SafeAreaView style={styles.container}>
@@ -60,18 +113,25 @@ export default function InsightsScreen() {
         {/* Week Period */}
         {weekStart && (
           <View style={styles.periodCard}>
-            <Text style={styles.periodLabel}>Current Period</Text>
+            <Text style={styles.periodLabel}>
+              {isSunday ? 'This week' : 'Last reflection'}
+            </Text>
             <Text style={styles.periodText}>
               Week of {format(weekStart, 'MMM d, yyyy')}
             </Text>
+            {!isSunday && (
+              <Text style={styles.periodNext}>
+                Your next weekly reflection arrives on Sunday.
+              </Text>
+            )}
           </View>
         )}
 
         {/* Main Narrative */}
         <View style={styles.narrativeCard}>
-          <View style={styles.narrativeIcon}>
-            <View style={styles.narrativeDot} />
-          </View>
+          {categoryLabel && (
+            <Text style={styles.narrativeCategoryLabel}>{categoryLabel.toUpperCase()}</Text>
+          )}
           <Text style={styles.narrativeText}>{narrative}</Text>
           {narrative.includes('baseline') && (
             <Text style={styles.narrativeSubtext}>
@@ -88,35 +148,10 @@ export default function InsightsScreen() {
               <View key={index} style={styles.patternItem}>
                 <View style={styles.patternDot} />
                 <Text style={styles.patternText}>
-                  {pattern.replace('_', ' ')}
+                  {formatPatternLabel(pattern)}
                 </Text>
               </View>
             ))}
-          </View>
-        )}
-
-        {/* Activity Summary */}
-        {summary && (
-          <View style={styles.card}>
-            <Text style={styles.cardTitle}>This Week</Text>
-            <View style={styles.statRow}>
-              <Text style={styles.statLabel}>Phone behaviors tracked</Text>
-              <Text style={styles.statValue}>
-                {Object.values(summary.phone_behaviors || {}).reduce(
-                  (a: any, b: any) => a + b,
-                  0
-                )}
-              </Text>
-            </View>
-            <View style={styles.statRow}>
-              <Text style={styles.statLabel}>Workplace patterns</Text>
-              <Text style={styles.statValue}>
-                {Object.values(summary.workplace_patterns || {}).reduce(
-                  (a: any, b: any) => a + b,
-                  0
-                )}
-              </Text>
-            </View>
           </View>
         )}
 
@@ -180,6 +215,12 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#3A3A3A',
   },
+  periodNext: {
+    fontSize: 12,
+    color: '#3A3A3A',
+    opacity: 0.5,
+    marginTop: 6,
+  },
   narrativeCard: {
     backgroundColor: '#FFFFFF',
     borderRadius: 12,
@@ -189,25 +230,18 @@ const styles = StyleSheet.create({
     borderColor: '#E6E6E4',
     alignItems: 'center',
   },
-  narrativeIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: '#D9F7EB',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 16,
-  },
-  narrativeDot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    backgroundColor: '#5FAD8E',
+  narrativeCategoryLabel: {
+    fontSize: 10,
+    letterSpacing: 1.5,
+    color: '#5FAD8E',
+    marginBottom: 12,
   },
   narrativeText: {
-    fontSize: 16,
+    fontFamily: 'Georgia',
+    fontSize: 18,
+    fontStyle: 'italic',
     color: '#3A3A3A',
-    lineHeight: 24,
+    lineHeight: 28,
     textAlign: 'center',
   },
   narrativeSubtext: {
@@ -248,25 +282,6 @@ const styles = StyleSheet.create({
   },
   patternText: {
     fontSize: 14,
-    color: '#3A3A3A',
-    textTransform: 'capitalize',
-  },
-  statRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 10,
-    borderTopWidth: 1,
-    borderTopColor: '#E6E6E4',
-  },
-  statLabel: {
-    fontSize: 14,
-    color: '#3A3A3A',
-    opacity: 0.8,
-  },
-  statValue: {
-    fontSize: 16,
-    fontWeight: '600',
     color: '#3A3A3A',
   },
   philosophyCard: {
