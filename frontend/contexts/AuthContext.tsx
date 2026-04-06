@@ -1,6 +1,6 @@
 import React, { createContext, useState, useContext, useEffect } from 'react';
 import { router } from 'expo-router';
-import { authAPI, User } from '../services/api';
+import { authAPI, subscriptionAPI, User } from '../services/api';
 import { storage } from '../services/storage';
 
 interface AuthContextType {
@@ -10,6 +10,7 @@ interface AuthContextType {
   signup: (email: string, password: string, name: string) => Promise<void>;
   logout: () => Promise<void>;
   isAuthenticated: boolean;
+  isExpired: boolean;
 }
 
 const AuthContext = createContext<AuthContextType>({} as AuthContextType);
@@ -29,6 +30,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const token = await storage.getAuthToken();
       if (token) {
         const userData = await authAPI.getMe();
+        try {
+          const trialCheck = await subscriptionAPI.checkTrial();
+          if (trialCheck.trial_expired) {
+            userData.subscription_status = 'expired';
+          }
+        } catch {
+          // Non-fatal: proceed with data from getMe
+        }
         setUser(userData);
       }
     } catch (error) {
@@ -66,6 +75,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         signup,
         logout,
         isAuthenticated: !!user,
+        isExpired: user?.subscription_status === 'expired',
       }}
     >
       {children}

@@ -265,10 +265,24 @@ export default function HomeScreen() {
         </View>
 
         {/* Trial Banner */}
-        {user?.subscription_status === 'trial' && trialDays > 0 && (
+        {user?.subscription_status === 'trial' && trialDays > 3 && (
           <View style={styles.trialBanner}>
             <View style={styles.trialDot} />
             <Text style={styles.trialText}>{trialDays} days of trial remaining</Text>
+          </View>
+        )}
+        {user?.subscription_status === 'trial' && trialDays <= 3 && trialDays > 1 && (
+          <View style={styles.trialBannerYellow}>
+            <View style={styles.trialDotYellow} />
+            <Text style={styles.trialTextYellow}>Your trial ends in {trialDays} days — upgrade to keep Koan.</Text>
+          </View>
+        )}
+        {user?.subscription_status === 'trial' && trialDays === 1 && (
+          <View style={styles.trialBannerOrange}>
+            <Text style={styles.trialTextOrange}>Your trial ends tomorrow.</Text>
+            <TouchableOpacity onPress={() => router.push('/subscription')} style={styles.subscribeNowButton}>
+              <Text style={styles.subscribeNowText}>Subscribe now</Text>
+            </TouchableOpacity>
           </View>
         )}
 
@@ -479,6 +493,58 @@ const styles = StyleSheet.create({
   trialText: {
     fontSize: 14,
     color: '#3A3A3A',
+  },
+  trialBannerYellow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFF8E1',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 8,
+    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: '#F5C842',
+  },
+  trialDotYellow: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#F5C842',
+    marginRight: 10,
+  },
+  trialTextYellow: {
+    fontSize: 14,
+    color: '#7A5C00',
+    flex: 1,
+  },
+  trialBannerOrange: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#FFF0E0',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 8,
+    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: '#E8873A',
+  },
+  trialTextOrange: {
+    fontSize: 14,
+    color: '#7A3A00',
+    flex: 1,
+  },
+  subscribeNowButton: {
+    backgroundColor: '#E8873A',
+    paddingHorizontal: 14,
+    paddingVertical: 7,
+    borderRadius: 6,
+    marginLeft: 12,
+  },
+  subscribeNowText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#FFFFFF',
   },
   learningCard: {
     backgroundColor: '#FFFFFF',

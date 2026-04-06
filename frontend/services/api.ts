@@ -128,6 +128,7 @@ export const subscriptionAPI = {
     const response = await api.post('/subscription/activate');
     return response.data;
   },
+  checkTrial: () => api.get('/subscription/check-trial').then(r => r.data),
 };
 
 export const adaptiveNudgeAPI = {

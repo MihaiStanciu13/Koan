@@ -1,18 +1,32 @@
-import React from 'react';
-import { Stack } from 'expo-router';
-import { AuthProvider } from '../contexts/AuthContext';
+import React, { useEffect } from 'react';
+import { Stack, router } from 'expo-router';
+import { AuthProvider, useAuth } from '../contexts/AuthContext';
 import { NotificationProvider } from '../contexts/NotificationContext';
+
+function RootLayoutNav() {
+  const { isAuthenticated, isExpired, loading } = useAuth();
+
+  useEffect(() => {
+    if (!loading && isAuthenticated && isExpired) {
+      router.replace('/subscription');
+    }
+  }, [isAuthenticated, isExpired, loading]);
+
+  return (
+    <Stack screenOptions={{ headerShown: false }}>
+      <Stack.Screen name="index" />
+      <Stack.Screen name="onboarding" />
+      <Stack.Screen name="learn-more" options={{ headerShown: false }} />
+      <Stack.Screen name="(tabs)" />
+    </Stack>
+  );
+}
 
 export default function RootLayout() {
   return (
     <AuthProvider>
       <NotificationProvider>
-        <Stack screenOptions={{ headerShown: false }}>
-          <Stack.Screen name="index" />
-          <Stack.Screen name="onboarding" />
-          <Stack.Screen name="learn-more" options={{ headerShown: false }} />
-          <Stack.Screen name="(tabs)" />
-        </Stack>
+        <RootLayoutNav />
       </NotificationProvider>
     </AuthProvider>
   );
