@@ -20,11 +20,10 @@ load_dotenv(ROOT_DIR / '.env')
 # If SENTRY_DSN is unset, Sentry initialises in no-op mode — no guard needed.
 import sentry_sdk
 from sentry_sdk.integrations.fastapi import FastApiIntegration
-from sentry_sdk.integrations.asyncio import AsyncioIntegration
 
 sentry_sdk.init(
     dsn=os.getenv("SENTRY_DSN"),
-    integrations=[FastApiIntegration(), AsyncioIntegration()],
+    integrations=[FastApiIntegration()],
     traces_sample_rate=0.2,
     environment=os.getenv("ENVIRONMENT", "production"),
 )
