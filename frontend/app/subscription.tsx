@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -18,29 +18,72 @@ const FEATURES = [
   'Cancel anytime',
 ];
 
+const COMING_SOON_STUB = () =>
+  Alert.alert('Coming soon', 'RevenueCat integration coming soon.');
+
 export default function SubscriptionScreen() {
   const router = useRouter();
-
-  const handleSubscribe = () => {
-    Alert.alert('Coming soon', 'Subscription payments are coming soon.');
-  };
+  const [plan, setPlan] = useState<'annual' | 'monthly'>('annual');
 
   return (
     <SafeAreaView style={styles.container}>
+      {/* Header — back button only, no title */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
           <Ionicons name="arrow-back" size={24} color="#3A3A3A" />
         </TouchableOpacity>
       </View>
 
-      <ScrollView contentContainerStyle={styles.scrollContent}>
-        <Text style={styles.title}>Upgrade to Koan</Text>
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Plan toggle */}
+        <View style={styles.toggleRow}>
+          <TouchableOpacity
+            style={[styles.togglePill, plan === 'monthly' && styles.togglePillActive]}
+            onPress={() => setPlan('monthly')}
+            activeOpacity={0.8}
+          >
+            <Text style={[styles.toggleText, plan === 'monthly' && styles.toggleTextActive]}>
+              Monthly
+            </Text>
+          </TouchableOpacity>
 
-        <View style={styles.priceBlock}>
-          <Text style={styles.price}>$9.99</Text>
-          <Text style={styles.pricePeriod}>/month</Text>
+          <TouchableOpacity
+            style={[styles.togglePill, plan === 'annual' && styles.togglePillActive]}
+            onPress={() => setPlan('annual')}
+            activeOpacity={0.8}
+          >
+            <Text style={[styles.toggleText, plan === 'annual' && styles.toggleTextActive]}>
+              Annual
+            </Text>
+            <View style={styles.saveBadge}>
+              <Text style={styles.saveBadgeText}>Save 33%</Text>
+            </View>
+          </TouchableOpacity>
         </View>
 
+        {/* Price */}
+        <View style={styles.priceBlock}>
+          <Text style={styles.price}>
+            {plan === 'annual' ? '$79.99' : '$9.99'}
+          </Text>
+          <Text style={styles.pricePeriod}>
+            {plan === 'annual' ? '/year' : '/month'}
+          </Text>
+        </View>
+
+        {plan === 'annual' && (
+          <Text style={styles.annualSavings}>$6.67/month — save 33%</Text>
+        )}
+
+        {/* Trial badge */}
+        <View style={styles.trialBadge}>
+          <Text style={styles.trialBadgeText}>14-DAY FREE TRIAL</Text>
+        </View>
+
+        {/* Feature list */}
         <View style={styles.featuresCard}>
           {FEATURES.map((feature, idx) => (
             <View
@@ -51,13 +94,32 @@ export default function SubscriptionScreen() {
               <Text style={styles.featureText}>{feature}</Text>
             </View>
           ))}
+
+          {plan === 'annual' && (
+            <View style={[styles.featureRow, styles.featureRowBorder]}>
+              <View style={[styles.featureDot, styles.featureDotGreen]} />
+              <Text style={[styles.featureText, styles.featureTextGreen]}>
+                Best value · price locked for your first year
+              </Text>
+            </View>
+          )}
         </View>
 
-        <TouchableOpacity style={styles.subscribeButton} onPress={handleSubscribe}>
-          <Text style={styles.subscribeButtonText}>Subscribe</Text>
+        {/* CTA */}
+        <TouchableOpacity style={styles.subscribeButton} onPress={COMING_SOON_STUB}>
+          <Text style={styles.subscribeButtonText}>
+            {plan === 'annual' ? 'Start free trial — best value' : 'Start free trial'}
+          </Text>
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.restoreLink} onPress={handleSubscribe}>
+        <Text style={styles.finePrint}>
+          {plan === 'annual'
+            ? 'Cancel anytime. Renews annually.'
+            : 'Cancel anytime. No commitment.'}
+        </Text>
+
+        {/* Restore */}
+        <TouchableOpacity style={styles.restoreLink} onPress={COMING_SOON_STUB}>
           <Text style={styles.restoreLinkText}>Restore purchases</Text>
         </TouchableOpacity>
       </ScrollView>
@@ -85,40 +147,97 @@ const styles = StyleSheet.create({
     paddingBottom: 48,
     alignItems: 'center',
   },
-  title: {
-    fontFamily: 'Georgia',
-    fontSize: 28,
-    fontWeight: '400',
-    color: '#3A3A3A',
-    textAlign: 'center',
-    marginBottom: 32,
+
+  // Plan toggle
+  toggleRow: {
+    flexDirection: 'row',
+    gap: 10,
+    marginBottom: 36,
   },
+  togglePill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    borderRadius: 40,
+    borderWidth: 1,
+    borderColor: '#3A3A3A',
+  },
+  togglePillActive: {
+    backgroundColor: '#5FAD8E',
+    borderColor: '#5FAD8E',
+  },
+  toggleText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#3A3A3A',
+  },
+  toggleTextActive: {
+    color: '#FFFFFF',
+  },
+  saveBadge: {
+    backgroundColor: '#D9F7EB',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 10,
+  },
+  saveBadgeText: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: '#5FAD8E',
+  },
+
+  // Price
   priceBlock: {
     flexDirection: 'row',
     alignItems: 'flex-end',
-    marginBottom: 36,
+    marginBottom: 6,
   },
   price: {
-    fontSize: 52,
-    fontWeight: '700',
+    fontFamily: 'Georgia',
+    fontSize: 44,
+    fontWeight: '400',
     color: '#3A3A3A',
-    lineHeight: 56,
+    lineHeight: 50,
   },
   pricePeriod: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: '400',
     color: '#3A3A3A',
     opacity: 0.55,
-    marginBottom: 8,
+    marginBottom: 6,
     marginLeft: 4,
   },
+  annualSavings: {
+    fontSize: 13,
+    color: '#5FAD8E',
+    marginBottom: 16,
+  },
+
+  // Trial badge
+  trialBadge: {
+    backgroundColor: '#D9F7EB',
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+    borderRadius: 20,
+    marginBottom: 28,
+  },
+  trialBadgeText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#5FAD8E',
+    letterSpacing: 0.5,
+  },
+
+  // Features
   featuresCard: {
     width: '100%',
     backgroundColor: '#FFFFFF',
     borderRadius: 16,
     borderWidth: 1,
     borderColor: '#E6E6E4',
-    marginBottom: 32,
+    marginBottom: 28,
     overflow: 'hidden',
   },
   featureRow: {
@@ -139,24 +258,42 @@ const styles = StyleSheet.create({
     backgroundColor: '#5FAD8E',
     flexShrink: 0,
   },
+  featureDotGreen: {
+    backgroundColor: '#5FAD8E',
+  },
   featureText: {
     fontSize: 15,
     color: '#3A3A3A',
     lineHeight: 22,
+    flex: 1,
   },
+  featureTextGreen: {
+    color: '#5FAD8E',
+  },
+
+  // CTA
   subscribeButton: {
     width: '100%',
     backgroundColor: '#5FAD8E',
     borderRadius: 14,
     paddingVertical: 16,
     alignItems: 'center',
-    marginBottom: 16,
+    marginBottom: 12,
   },
   subscribeButtonText: {
     color: '#FFFFFF',
     fontSize: 17,
     fontWeight: '600',
   },
+  finePrint: {
+    fontSize: 12,
+    color: '#3A3A3A',
+    opacity: 0.45,
+    textAlign: 'center',
+    marginBottom: 28,
+  },
+
+  // Restore
   restoreLink: {
     paddingVertical: 8,
   },
