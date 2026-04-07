@@ -311,7 +311,8 @@ export default function Onboarding() {
               </Text>
             </View>
             <View style={[styles.interstitialLine, styles.interstitialLineBorder]}>
-              <Text style={styles.interstitialLineTitle}>Each week, a quiet reflection on what Koan has noticed.</Text>
+              <Text style={styles.interstitialLineTitle}>Each week, a reflection.</Text>
+              <Text style={styles.interstitialLineBody}>A quiet observation on what Koan has noticed — in Insights, every Sunday.</Text>
             </View>
           </View>
 
