@@ -9,6 +9,7 @@ from pathlib import Path
 from dotenv import load_dotenv
 import os
 import uuid
+import certifi
 from models import UserCreate, UserLogin, User, SubscriptionStatus
 
 # Load environment
@@ -20,7 +21,7 @@ mongo_url = os.getenv('MONGO_URL')
 if not mongo_url:
     raise RuntimeError("MONGO_URL environment variable is not set")
 db_name = os.getenv('DB_NAME', 'behavioral_nudge_db')
-client = AsyncIOMotorClient(mongo_url)
+client = AsyncIOMotorClient(mongo_url, tlsCAFile=certifi.where())
 db = client[db_name]
 
 router = APIRouter(prefix="/auth", tags=["auth"])

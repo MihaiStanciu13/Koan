@@ -18,3 +18,4 @@ msal
 anthropic
 apscheduler
 sentry-sdk
+certifi
