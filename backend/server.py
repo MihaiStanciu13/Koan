@@ -1,4 +1,5 @@
-from fastapi import FastAPI, APIRouter, Depends, HTTPException, Query, Request
+from fastapi import FastAPI, APIRouter, Depends, HTTPException, Query
+from starlette.types import ASGIApp, Receive, Scope, Send
 from collections import defaultdict
 import time
 from typing import Optional
@@ -137,38 +138,37 @@ async def lifespan(app: FastAPI):
 # Create the main app
 app = FastAPI(lifespan=lifespan)
 
-# Async rate limiting middleware (replaces slowapi)
-_rate_limit_store: dict = defaultdict(list)
-RATE_LIMIT_WINDOW = 60
-RATE_LIMIT_MAX = 10
-RATE_LIMITED_PATHS = {"/api/auth/signup", "/api/auth/login"}
+# Pure ASGI rate limiting middleware — no BaseHTTPMiddleware, no thread context
+_rate_store: dict = defaultdict(list)
+_WINDOW = 60
+_MAX = 10
+_LIMITED = {"/api/auth/signup", "/api/auth/login"}
 
-@app.middleware("http")
-async def rate_limit_middleware(request: Request, call_next):
-    if request.url.path in RATE_LIMITED_PATHS:
-        client_ip = request.headers.get(
-            "x-forwarded-for",
-            request.client.host if request.client else "unknown"
-        ).split(",")[0].strip()
+class RateLimitMiddleware:
+    def __init__(self, app: ASGIApp) -> None:
+        self.app = app
 
-        now = time.time()
-        window_start = now - RATE_LIMIT_WINDOW
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        if scope["type"] == "http" and scope.get("path") in _LIMITED:
+            headers = dict(scope.get("headers", []))
+            forwarded = headers.get(b"x-forwarded-for", b"").decode()
+            client = scope.get("client")
+            ip = forwarded.split(",")[0].strip() if forwarded else (client[0] if client else "unknown")
 
-        _rate_limit_store[client_ip] = [
-            t for t in _rate_limit_store[client_ip]
-            if t > window_start
-        ]
+            now = time.time()
+            _rate_store[ip] = [t for t in _rate_store[ip] if t > now - _WINDOW]
 
-        if len(_rate_limit_store[client_ip]) >= RATE_LIMIT_MAX:
-            from fastapi.responses import JSONResponse
-            return JSONResponse(
-                status_code=429,
-                content={"detail": "Too many requests. Please try again later."}
-            )
+            if len(_rate_store[ip]) >= _MAX:
+                response = b'{"detail":"Too many requests. Please try again later."}'
+                await send({"type": "http.response.start", "status": 429, "headers": [[b"content-type", b"application/json"]]})
+                await send({"type": "http.response.body", "body": response})
+                return
 
-        _rate_limit_store[client_ip].append(now)
+            _rate_store[ip].append(now)
 
-    return await call_next(request)
+        await self.app(scope, receive, send)
+
+app.add_middleware(RateLimitMiddleware)
 
 # Create a router with the /api prefix
 api_router = APIRouter(prefix="/api")
