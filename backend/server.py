@@ -21,11 +21,10 @@ load_dotenv(ROOT_DIR / '.env')
 # "production"). MONGO_URL and SECRET_KEY are also required (see below).
 # If SENTRY_DSN is unset, Sentry initialises in no-op mode — no guard needed.
 import sentry_sdk
-from sentry_sdk.integrations.fastapi import FastApiIntegration
 
 sentry_sdk.init(
     dsn=os.getenv("SENTRY_DSN"),
-    integrations=[FastApiIntegration()],
+    integrations=[],
     traces_sample_rate=0.2,
     environment=os.getenv("ENVIRONMENT", "production"),
 )
