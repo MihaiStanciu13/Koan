@@ -6,6 +6,7 @@ from typing import Optional
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient, AsyncIOMotorDatabase
+import certifi
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
 import os
@@ -46,7 +47,7 @@ mongo_url = os.getenv('MONGO_URL')
 if not mongo_url:
     raise RuntimeError("MONGO_URL environment variable is not set")
 db_name = os.getenv('DB_NAME', 'behavioral_nudge_db')
-client = AsyncIOMotorClient(mongo_url)
+client = AsyncIOMotorClient(mongo_url, tlsCAFile=certifi.where())
 db = client[db_name]
 
 # Dependency to get database
