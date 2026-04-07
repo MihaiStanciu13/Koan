@@ -26,7 +26,7 @@ sentry_sdk.init(
     dsn=os.getenv("SENTRY_DSN"),
     integrations=[],
     auto_enabling_integrations=False,
-    traces_sample_rate=0.2,
+    traces_sample_rate=0.0,
     environment=os.getenv("ENVIRONMENT", "production"),
 )
 # ──────────────────────────────────────────────────────────────────────────────
