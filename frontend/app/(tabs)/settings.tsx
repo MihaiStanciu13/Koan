@@ -152,6 +152,9 @@ export default function SettingsScreen() {
             auth_url,
             'koan://microsoft-connected'
           );
+          if (result.type !== 'success') {
+            return; // user cancelled — stay on this screen
+          }
           if (result.type === 'success') {
             const status = await microsoftAPI.getStatus();
             if (status.connected) {
@@ -188,6 +191,9 @@ export default function SettingsScreen() {
         auth_url,
         'koan://calendar-connected'
       );
+      if (result.type !== 'success') {
+        return; // user cancelled — stay on this screen
+      }
       if (result.type === 'success') {
         const status = await calendarAPI.getStatus();
         if (status.connected) {

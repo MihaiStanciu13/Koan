@@ -20,7 +20,6 @@ import { nudgeAPI, behaviorAPI, preferencesAPI, subscriptionAPI, adaptiveNudgeAP
 import { startSignalCollection, stopSignalCollection, flushToBackend } from '../../services/signalCollector';
 import { requestHealthKitPermissions, collectAndSendHealthData } from '../../services/healthKit';
 import { format } from 'date-fns';
-import KoanSetupModal from '../../components/KoanSetupModal';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const LEARNING_MESSAGES_BY_PHASE = [
@@ -191,9 +190,9 @@ export default function HomeScreen() {
   const [anchorActions, setAnchorActions] = useState<any[]>([]);
   const [pendingNudges, setPendingNudges] = useState<any[]>([]);
   const [trialDays, setTrialDays] = useState(0);
+  const [subscription, setSubscription] = useState<any>(null);
   const [learningPhase, setLearningPhase] = useState(0); // Track which phase of learning we're in
   const [currentHint, setCurrentHint] = useState(0);
-  const [showWelcomeVideo, setShowWelcomeVideo] = useState(false);
   const [show5thNudgeMilestone, setShow5thNudgeMilestone] = useState(false);
   const [calendarConnected, setCalendarConnected] = useState(false);
   const [weeklyPattern, setWeeklyPattern] = useState<any>(null);
@@ -205,7 +204,6 @@ export default function HomeScreen() {
     loadData();
     startPulseAnimation();
     determineLearningPhase();
-    checkFirstVisit();
 
     // Rotate hint daily
     const hint = new Date().getDate() % TODAY_HINTS.length;
@@ -227,29 +225,6 @@ export default function HomeScreen() {
       loadData();
     }, [])
   );
-
-  const checkFirstVisit = async () => {
-    try {
-      const hasSeenWelcome = await AsyncStorage.getItem('hasSeenWelcomeVideo');
-      if (!hasSeenWelcome) {
-        // Show welcome video modal after a brief delay
-        setTimeout(() => {
-          setShowWelcomeVideo(true);
-        }, 1000);
-      }
-    } catch (error) {
-      console.error('Failed to check first visit:', error);
-    }
-  };
-
-  const handleCloseWelcomeVideo = async () => {
-    setShowWelcomeVideo(false);
-    try {
-      await AsyncStorage.setItem('hasSeenWelcomeVideo', 'true');
-    } catch (error) {
-      console.error('Failed to save welcome video flag:', error);
-    }
-  };
 
   const determineLearningPhase = async () => {
     // Determine learning phase based on account age and activity
@@ -308,7 +283,7 @@ export default function HomeScreen() {
   const loadData = async () => {
     if (!user) return;
     try {
-      const [prefs, nudges, subscription, fallback, patternResult, weeklyResult] = await Promise.all([
+      const [prefs, nudges, subStatus, fallback, patternResult, weeklyResult] = await Promise.all([
         preferencesAPI.get(),
         nudgeAPI.getPending(),
         subscriptionAPI.getStatus(),
@@ -348,7 +323,8 @@ export default function HomeScreen() {
       }
 
       setPendingNudges(allNudges);
-      setTrialDays(subscription.trial_days_remaining || 0);
+      setTrialDays(subStatus.trial_days_remaining || 0);
+      setSubscription(subStatus);
       
       // Check for 5th nudge milestone
       await checkNudgeMilestone();
@@ -387,7 +363,12 @@ export default function HomeScreen() {
     <SafeAreaView style={styles.container}>
       {/* Trial expired — full-screen overlay, covers tabs */}
       <Modal
-        visible={user?.subscription_status === 'trial' && trialDays === 0}
+        visible={
+          user?.subscription_status === 'trial' &&
+          typeof trialDays === 'number' &&
+          trialDays < 1 &&
+          subscription !== null
+        }
         transparent={false}
         animationType="fade"
         onRequestClose={() => {}}
@@ -582,11 +563,6 @@ export default function HomeScreen() {
         </View>
       </ScrollView>
 
-      {/* Setup Flow Modal */}
-      <KoanSetupModal
-        visible={showWelcomeVideo}
-        onComplete={handleCloseWelcomeVideo}
-      />
     </SafeAreaView>
   );
 }

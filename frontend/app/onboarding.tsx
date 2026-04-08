@@ -4,325 +4,514 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
-  FlatList,
-  Dimensions,
+  ScrollView,
   Alert,
   Animated,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+import * as WebBrowser from 'expo-web-browser';
+import * as Notifications from 'expo-notifications';
 import { storage } from '../services/storage';
-import { preferencesAPI } from '../services/api';
+import { calendarAPI, microsoftAPI, preferencesAPI } from '../services/api';
+import { requestHealthKitPermissions } from '../services/healthKit';
 
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
-
-const SUGGESTED_ANCHORS = [
+const ANCHOR_CHIPS = [
   'Close one loop',
-  'Take three deep breaths',
-  'Write down one thought',
-  'Drink a glass of water',
+  'Three deep breaths',
+  'Write one thought',
+  'Drink water',
   'Stand and stretch',
   'Clear one notification',
-  'Review your top priority for tomorrow',
-  'Take a 5-minute walk',
-  'Do a 5 minute meditation.',
-  'Write down one thing you\'re grateful for',
-];
-
-const ONBOARDING_DATA = [
-  {
-    id: '1',
-    isAnchorStep: true,
-    title: 'Set your anchor',
-    description: 'A small, repeatable action that grounds your day. You can change it anytime in Settings.',
-  },
-  {
-    id: '3',
-    isExpectStep: true,
-    title: 'Now Koan begins to listen.',
-  },
+  '5 min walk',
+  '5 min meditation',
+  "One thing I'm grateful for",
+  'Top priority for tomorrow',
 ];
 
 export default function Onboarding() {
   const router = useRouter();
-  const [currentIndex, setCurrentIndex] = useState(0);
-  const [showInterstitial, setShowInterstitial] = useState(true);
+  const [currentStep, setCurrentStep] = useState(0);
+  const [healthConnected, setHealthConnected] = useState(false);
+  const [gCalConnected, setGCalConnected] = useState(false);
+  const [msConnected, setMsConnected] = useState(false);
   const [selectedAnchors, setSelectedAnchors] = useState<string[]>([]);
-  const flatListRef = useRef<FlatList>(null);
-  const pulseAnim = useRef(new Animated.Value(1)).current;
 
+  const haloScale = useRef(new Animated.Value(1)).current;
+  const haloOpacity = useRef(new Animated.Value(0.25)).current;
 
   useEffect(() => {
-    // Breathing dot for step 3
     Animated.loop(
-      Animated.sequence([
-        Animated.timing(pulseAnim, { toValue: 1.16, duration: 2500, useNativeDriver: true }),
-        Animated.timing(pulseAnim, { toValue: 1, duration: 2500, useNativeDriver: true }),
+      Animated.parallel([
+        Animated.sequence([
+          Animated.timing(haloScale, { toValue: 1.22, duration: 3500, useNativeDriver: true }),
+          Animated.timing(haloScale, { toValue: 1, duration: 3500, useNativeDriver: true }),
+        ]),
+        Animated.sequence([
+          Animated.timing(haloOpacity, { toValue: 0.48, duration: 3500, useNativeDriver: true }),
+          Animated.timing(haloOpacity, { toValue: 0.25, duration: 3500, useNativeDriver: true }),
+        ]),
       ])
     ).start();
   }, []);
 
-  const handleInterstitialContinue = () => {
-    setShowInterstitial(false);
-    setCurrentIndex(0);
-    flatListRef.current?.scrollToIndex({ index: 0, animated: true });
+  const goBack = () => {
+    if (currentStep > 0) setCurrentStep(s => s - 1);
   };
 
-  const toggleAnchor = (suggestion: string) => {
+  const handleConnectHealth = async () => {
+    try {
+      await requestHealthKitPermissions();
+      setHealthConnected(true);
+    } catch {
+      Alert.alert('Apple Health is only available on iOS.');
+    }
+  };
+
+  const handleConnectGCal = async () => {
+    try {
+      const { auth_url } = await calendarAPI.getAuthUrl();
+      const result = await WebBrowser.openAuthSessionAsync(auth_url, 'koan://calendar-connected');
+      if (result.type !== 'success') return;
+      const status = await calendarAPI.getStatus();
+      if (status.connected) setGCalConnected(true);
+    } catch {
+      Alert.alert('Error', 'Could not connect Google Calendar. Please try again.');
+    }
+  };
+
+  const handleConnectMicrosoft = async () => {
+    try {
+      const { auth_url } = await microsoftAPI.getAuthUrl();
+      const result = await WebBrowser.openAuthSessionAsync(auth_url, 'koan://microsoft-connected');
+      if (result.type !== 'success') return;
+      const status = await microsoftAPI.getStatus();
+      if (status.connected) setMsConnected(true);
+    } catch {
+      Alert.alert('Error', 'Could not connect Microsoft 365. Please try again.');
+    }
+  };
+
+  const handleEnableNotifications = async () => {
+    await Notifications.requestPermissionsAsync();
+    setCurrentStep(4);
+  };
+
+  const toggleAnchor = (chip: string) => {
     setSelectedAnchors(prev => {
-      if (prev.includes(suggestion)) {
-        return prev.filter(a => a !== suggestion);
-      }
+      if (prev.includes(chip)) return prev.filter(a => a !== chip);
       if (prev.length >= 3) return prev;
-      return [...prev, suggestion];
+      return [...prev, chip];
     });
   };
 
-  const handleAnchorContinue = async () => {
-    const nextIndex = 1;
-    setCurrentIndex(nextIndex);
-    flatListRef.current?.scrollToIndex({ index: nextIndex, animated: true });
-    if (selectedAnchors.length === 0) return;
-    try {
-      const defaultTimes = ['09:00', '14:00', '18:00'];
-      const anchor_actions = selectedAnchors.map((text, i) => ({
-        text,
-        time: defaultTimes[i],
-        enabled: true,
-      }));
-      await preferencesAPI.update({ anchor_actions });
-    } catch (error) {
-      console.error('Failed to save anchors from onboarding:', error);
+  const handleAnchorContinue = () => {
+    if (selectedAnchors.length > 0) {
+      preferencesAPI.update({
+        anchor_actions: selectedAnchors.map((text, i) => ({
+          text,
+          time: ['09:00', '14:00', '18:00'][i],
+          enabled: true,
+        })),
+      });
     }
+    setCurrentStep(5);
   };
 
-  const handleExitOnboarding = async () => {
+  const handleBegin = async () => {
     await storage.setOnboardingComplete();
     router.replace('/(tabs)');
   };
 
-  const handleLetsGo = async () => {
-    await storage.setOnboardingComplete();
-    router.replace('/(tabs)');
+  // ── Header ──────────────────────────────────────────────────────────────
+
+  const renderHeader = () => {
+    if (currentStep === 5) {
+      return (
+        <View style={styles.headerCentered}>
+          <Text style={styles.wordmarkCentered}>Koan</Text>
+        </View>
+      );
+    }
+    return (
+      <View style={styles.header}>
+        <View style={styles.headerLeft}>
+          {currentStep > 0 && (
+            <TouchableOpacity onPress={goBack} hitSlop={{ top: 10, left: 10, bottom: 10, right: 10 }}>
+              <Ionicons name="chevron-back" size={22} color="#3A3A3A" />
+            </TouchableOpacity>
+          )}
+        </View>
+        <Text style={styles.wordmark}>Koan</Text>
+        <View style={styles.dotsRow}>
+          {[0, 1, 2, 3, 4, 5].map(i => (
+            <View
+              key={i}
+              style={[
+                styles.dot,
+                i < currentStep && styles.dotDone,
+                i === currentStep && styles.dotActive,
+              ]}
+            />
+          ))}
+        </View>
+      </View>
+    );
   };
 
-  const onViewableItemsChanged = useRef(({ viewableItems }: any) => {
-    if (viewableItems.length > 0) {
-      setCurrentIndex(viewableItems[0].index);
-    }
-  }).current;
+  // ── Screen 0: Welcome ────────────────────────────────────────────────────
 
-  const renderProgressDots = () => (
-    <View style={styles.progressContainer}>
-      {ONBOARDING_DATA.map((_, index) => {
-        const isActive = index === currentIndex;
-        const isDone = index < currentIndex;
-        return (
-          <View
-            key={index}
-            style={[
-              styles.progressDot,
-              isDone && styles.progressDotDone,
-              isActive && styles.progressDotActive,
-            ]}
-          />
-        );
-      })}
+  const renderWelcome = () => (
+    <>
+      <Text style={styles.sectionLabel}>HOW IT WORKS</Text>
+      <View style={styles.videoBlock}>
+        <View style={styles.playButton}>
+          <View style={styles.playTriangle} />
+        </View>
+        <Text style={styles.videoLabel}>2 MIN INTRO</Text>
+      </View>
+      <View style={styles.interstitialLine}>
+        <Text style={styles.interstitialTitle}>Koan watches quietly.</Text>
+        <Text style={styles.interstitialBody}>
+          Health signals, phone pickups, app switches, meeting density. Nothing personal.
+        </Text>
+      </View>
+      <View style={[styles.interstitialLine, styles.interstitialLineBorder]}>
+        <Text style={styles.interstitialTitle}>Patterns emerge.</Text>
+        <Text style={styles.interstitialBody}>
+          After a few days, your rhythm becomes clear — when you focus, when you drift.
+        </Text>
+      </View>
+      <View style={[styles.interstitialLine, styles.interstitialLineBorder]}>
+        <Text style={styles.interstitialTitle}>A nudge arrives.</Text>
+        <Text style={styles.interstitialBody}>
+          Short. Calm. At exactly the right moment. Then silence again.
+        </Text>
+      </View>
+      <View style={[styles.interstitialLine, styles.interstitialLineBorder]}>
+        <Text style={styles.interstitialTitle}>Each week, a reflection.</Text>
+        <Text style={styles.interstitialBody}>
+          A quiet observation in Insights, every Sunday.
+        </Text>
+      </View>
+    </>
+  );
+
+  // ── Screen 1: Phone signals ──────────────────────────────────────────────
+
+  const renderPhoneSignals = () => (
+    <>
+      <Text style={styles.sectionLabel}>WHAT KOAN PAYS ATTENTION TO</Text>
+      <Text style={styles.screenSubtitle}>
+        From your phone, always — no setup needed. From Apple Health, optionally.
+      </Text>
+      <View style={styles.alwaysOnCard}>
+        <Text style={styles.alwaysOnHeader}>Always on · Phone signals</Text>
+        {[
+          {
+            name: 'Phone pickups',
+            desc: 'How often you reach for your phone, and your first pickup each morning.',
+          },
+          {
+            name: 'Screen time patterns',
+            desc: 'Total usage, app categories, and how your attention is distributed.',
+          },
+          {
+            name: 'App switching',
+            desc: 'Context-switching frequency — a key signal for focus drift.',
+          },
+        ].map((signal, i) => (
+          <View key={i} style={[styles.signalRow, i > 0 && styles.signalRowBorder]}>
+            <View style={styles.signalDot} />
+            <View style={styles.signalTextBlock}>
+              <Text style={styles.signalName}>{signal.name}</Text>
+              <Text style={styles.signalDesc}>{signal.desc}</Text>
+            </View>
+          </View>
+        ))}
+      </View>
+      <View style={styles.integrationCard}>
+        <View style={styles.integrationHeader}>
+          <View style={[styles.emojiIconContainer, { backgroundColor: '#FFF0F0' }]}>
+            <Text style={styles.emojiIcon}>❤️</Text>
+          </View>
+          <View style={styles.integrationInfo}>
+            <Text style={styles.integrationName}>Apple Health</Text>
+            <Text style={styles.integrationSubtext}>Sleep · Activity · HRV · Read-only</Text>
+          </View>
+        </View>
+        <Text style={styles.integrationDesc}>
+          Koan uses health signals to understand energy and recovery — not to count steps. Raw data never leaves your device.
+        </Text>
+        <TouchableOpacity
+          style={[styles.primaryButton, healthConnected && styles.connectedButton]}
+          onPress={handleConnectHealth}
+          disabled={healthConnected}
+          activeOpacity={0.8}
+        >
+          <Text style={[styles.primaryButtonText, healthConnected && styles.connectedButtonText]}>
+            {healthConnected ? '✓ Connected' : 'Connect Apple Health'}
+          </Text>
+        </TouchableOpacity>
+      </View>
+    </>
+  );
+
+  // ── Screen 2: Work tools ─────────────────────────────────────────────────
+
+  const renderWorkTools = () => (
+    <>
+      <Text style={styles.sectionLabel}>WORK TOOLS</Text>
+      <Text style={styles.screenSubtitle}>
+        Connect what you use. Koan reads meeting load and rhythm — never schedules, never edits.
+      </Text>
+      <View style={styles.integrationCard}>
+        <View style={styles.integrationHeader}>
+          <View style={[styles.emojiIconContainer, { backgroundColor: '#EEF2FF' }]}>
+            <Text style={styles.emojiIcon}>📅</Text>
+          </View>
+          <View style={styles.integrationInfo}>
+            <Text style={styles.integrationName}>Google Calendar</Text>
+            <Text style={styles.integrationSubtext}>Read-only · OAuth</Text>
+          </View>
+        </View>
+        <Text style={styles.integrationDesc}>
+          Detects back-to-back meetings, transition time, and heavy days.
+        </Text>
+        <TouchableOpacity
+          style={[styles.primaryButton, gCalConnected && styles.connectedButton]}
+          onPress={handleConnectGCal}
+          disabled={gCalConnected}
+          activeOpacity={0.8}
+        >
+          <Text style={[styles.primaryButtonText, gCalConnected && styles.connectedButtonText]}>
+            {gCalConnected ? '✓ Connected' : 'Connect Google Calendar'}
+          </Text>
+        </TouchableOpacity>
+      </View>
+      <View style={styles.integrationCard}>
+        <View style={styles.integrationHeader}>
+          <View style={[styles.emojiIconContainer, { backgroundColor: '#E8F0FF' }]}>
+            <Text style={styles.emojiIcon}>💼</Text>
+          </View>
+          <View style={styles.integrationInfo}>
+            <Text style={styles.integrationName}>Microsoft 365</Text>
+            <Text style={styles.integrationSubtext}>Outlook · Teams · Read-only</Text>
+          </View>
+        </View>
+        <Text style={styles.integrationDesc}>
+          Same signals from Outlook calendar and Teams meeting load.
+        </Text>
+        <TouchableOpacity
+          style={[styles.outlineButton, msConnected && styles.connectedButton]}
+          onPress={handleConnectMicrosoft}
+          disabled={msConnected}
+          activeOpacity={0.8}
+        >
+          <Text style={[styles.outlineButtonText, msConnected && styles.connectedButtonText]}>
+            {msConnected ? '✓ Connected' : 'Connect Microsoft 365'}
+          </Text>
+        </TouchableOpacity>
+      </View>
+      <Text style={styles.connectionNote}>
+        Connect one, both, or neither. You can add more in Settings.
+      </Text>
+    </>
+  );
+
+  // ── Screen 3: Notifications ──────────────────────────────────────────────
+
+  const renderNotifications = () => (
+    <>
+      <Text style={styles.sectionLabel}>NOTIFICATIONS</Text>
+      <Text style={styles.screenTitle}>One nudge, when it matters</Text>
+      <Text style={styles.screenSubtitle}>
+        At most once per day — and only when Koan has something worth saying.
+      </Text>
+      <View style={styles.nudgePreviewCard}>
+        <Text style={styles.nudgePreviewLabel}>PREVIEW NUDGE</Text>
+        <Text style={styles.nudgePreviewText}>
+          "You've had six meetings before noon three days running. Consider protecting tomorrow morning."
+        </Text>
+      </View>
+      <View style={styles.infoCard}>
+        <View style={styles.infoCardRow}>
+          <View style={styles.infoDot} />
+          <View style={styles.infoCardContent}>
+            <Text style={styles.infoCardTitle}>Silent by default</Text>
+            <Text style={styles.infoCardBody}>
+              No sound. No badge count. A quiet banner that respects your focus.
+            </Text>
+          </View>
+        </View>
+      </View>
+      <View style={styles.infoCard}>
+        <View style={styles.infoCardRow}>
+          <View style={styles.infoDot} />
+          <View style={styles.infoCardContent}>
+            <Text style={styles.infoCardTitle}>Quiet hours respected</Text>
+            <Text style={styles.infoCardBody}>
+              No nudges after 10 pm or before 7 am. Adjustable in Settings.
+            </Text>
+          </View>
+        </View>
+      </View>
+    </>
+  );
+
+  // ── Screen 4: Anchor ─────────────────────────────────────────────────────
+
+  const renderAnchor = () => (
+    <>
+      <Text style={styles.sectionLabel}>ANCHOR</Text>
+      <Text style={styles.screenTitle}>Set your anchor</Text>
+      <Text style={styles.screenSubtitle}>
+        A small, repeatable action that grounds your day. Select up to 3.
+      </Text>
+      <Text style={styles.selectionCounter}>
+        {selectedAnchors.length > 0 ? `${selectedAnchors.length}/3 selected` : ''}
+      </Text>
+      <View style={styles.chipGrid}>
+        {ANCHOR_CHIPS.map((chip, i) => {
+          const isSelected = selectedAnchors.includes(chip);
+          const isDisabled = selectedAnchors.length >= 3 && !isSelected;
+          return (
+            <TouchableOpacity
+              key={i}
+              style={[styles.chip, isSelected && styles.chipSelected, isDisabled && styles.chipDisabled]}
+              onPress={() => toggleAnchor(chip)}
+              disabled={isDisabled}
+              activeOpacity={0.7}
+            >
+              <Text style={[styles.chipText, isSelected && styles.chipTextSelected]}>{chip}</Text>
+            </TouchableOpacity>
+          );
+        })}
+      </View>
+    </>
+  );
+
+  // ── Screen 5: Ready ──────────────────────────────────────────────────────
+
+  const renderReady = () => (
+    <View style={styles.readyBody}>
+      <View style={styles.dotContainer}>
+        <Animated.View
+          style={[
+            styles.dotHalo,
+            { transform: [{ scale: haloScale }], opacity: haloOpacity },
+          ]}
+        />
+        <View style={styles.dotCore} />
+      </View>
+      <Text style={styles.readyTitle}>Koan is ready.</Text>
+      <Text style={styles.readySubtitle}>
+        It will listen quietly. You won't hear from it until it has something worth saying.
+      </Text>
+      <View style={styles.trialPill}>
+        <Text style={styles.trialPillLabel}>14-DAY FREE TRIAL</Text>
+        <Text style={styles.trialPillSub}>Full access · No credit card required</Text>
+      </View>
     </View>
   );
 
-  const renderOnboardingCard = ({ item }: any) => {
-    // Step 1 — Anchor action
-    if (item.isAnchorStep) {
-      return (
-        <View style={styles.card}>
-          <View style={styles.cardContent}>
-            <Text style={styles.title}>{item.title}</Text>
-            <Text style={styles.description}>{item.description}</Text>
+  // ── Footer ───────────────────────────────────────────────────────────────
 
-            {selectedAnchors.length > 0 && (
-              <Text style={styles.anchorSelectionHint}>
-                {selectedAnchors.length}/3 selected
-              </Text>
-            )}
-
-            <View style={styles.suggestionsGrid}>
-              {SUGGESTED_ANCHORS.map((suggestion, idx) => (
-                <TouchableOpacity
-                  key={idx}
-                  style={[
-                    styles.chip,
-                    selectedAnchors.includes(suggestion) && styles.chipSelected,
-                    selectedAnchors.length >= 3 && !selectedAnchors.includes(suggestion) && styles.chipDisabled,
-                  ]}
-                  onPress={() => toggleAnchor(suggestion)}
-                >
-                  <Text style={[styles.chipText, selectedAnchors.includes(suggestion) && styles.chipTextSelected]}>
-                    {suggestion}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
+  const renderFooter = () => {
+    switch (currentStep) {
+      case 0:
+        return (
+          <View style={styles.footer}>
+            <TouchableOpacity style={styles.primaryButton} onPress={() => setCurrentStep(1)} activeOpacity={0.8}>
+              <Text style={styles.primaryButtonText}>Continue →</Text>
+            </TouchableOpacity>
           </View>
-        </View>
-      );
-    }
-
-    // Step 3 — What to expect
-    if (item.isExpectStep) {
-      return (
-        <View style={styles.card}>
-          <View style={styles.cardContent}>
-            {/* Pulsing dot */}
-            <Animated.View style={[styles.expectDotOuter, { transform: [{ scale: pulseAnim }] }]}>
-              <View style={styles.expectDotMid}>
-                <View style={styles.expectDotCore} />
-              </View>
-            </Animated.View>
-
-            <Text style={styles.expectTitle}>{item.title}</Text>
-            <Text style={styles.expectBody}>
-              For the next day or two, Koan is building your baseline. Here's what to expect.
-            </Text>
-
-            {/* Timeline */}
-            <View style={styles.timeline}>
-              {/* Event 1 */}
-              <View style={styles.timelineEvent}>
-                <View style={styles.timelineLeft}>
-                  <View style={[styles.timelineDot, styles.timelineDotActive]} />
-                  <View style={styles.timelineLine} />
-                </View>
-                <View style={styles.timelineRight}>
-                  <Text style={styles.timelineTime}>TODAY</Text>
-                  <Text style={styles.timelineTitle}>Your anchor reminder</Text>
-                  <Text style={styles.timelineSubtitle}>
-                    You'll receive your first reminder at 9:00 am tomorrow.
-                  </Text>
-                </View>
-              </View>
-
-              {/* Event 2 */}
-              <View style={styles.timelineEvent}>
-                <View style={styles.timelineLeft}>
-                  <View style={styles.timelineDot} />
-                  <View style={styles.timelineLine} />
-                </View>
-                <View style={styles.timelineRight}>
-                  <Text style={styles.timelineTime}>DAYS 1–2</Text>
-                  <Text style={styles.timelineTitle}>Pattern learning</Text>
-                  <Text style={styles.timelineSubtitle}>
-                    Koan watches quietly. No nudges yet — just listening.
-                  </Text>
-                </View>
-              </View>
-
-              {/* Event 3 */}
-              <View style={styles.timelineEvent}>
-                <View style={styles.timelineLeft}>
-                  <View style={styles.timelineDot} />
-                </View>
-                <View style={styles.timelineRight}>
-                  <Text style={styles.timelineTime}>WITHIN 48 HOURS</Text>
-                  <Text style={styles.timelineTitle}>Your first nudge</Text>
-                  <Text style={styles.timelineSubtitle}>
-                    When a pattern is clear enough to say something useful, Koan will.
-                  </Text>
-                </View>
-              </View>
-            </View>
+        );
+      case 1:
+        return (
+          <View style={styles.footer}>
+            <TouchableOpacity style={styles.primaryButton} onPress={() => setCurrentStep(2)} activeOpacity={0.8}>
+              <Text style={styles.primaryButtonText}>Continue</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.ghostButton} onPress={() => setCurrentStep(2)} activeOpacity={0.6}>
+              <Text style={styles.ghostButtonText}>Skip Apple Health</Text>
+            </TouchableOpacity>
           </View>
-        </View>
-      );
+        );
+      case 2:
+        return (
+          <View style={styles.footer}>
+            <TouchableOpacity style={styles.primaryButton} onPress={() => setCurrentStep(3)} activeOpacity={0.8}>
+              <Text style={styles.primaryButtonText}>Continue</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.ghostButton} onPress={() => setCurrentStep(3)} activeOpacity={0.6}>
+              <Text style={styles.ghostButtonText}>Skip for now</Text>
+            </TouchableOpacity>
+          </View>
+        );
+      case 3:
+        return (
+          <View style={styles.footer}>
+            <TouchableOpacity style={styles.primaryButton} onPress={handleEnableNotifications} activeOpacity={0.8}>
+              <Text style={styles.primaryButtonText}>Enable notifications</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.ghostButton} onPress={() => setCurrentStep(4)} activeOpacity={0.6}>
+              <Text style={styles.ghostButtonText}>Not now</Text>
+            </TouchableOpacity>
+          </View>
+        );
+      case 4:
+        return (
+          <View style={styles.footer}>
+            <TouchableOpacity
+              style={[styles.primaryButton, selectedAnchors.length === 0 && styles.primaryButtonDisabled]}
+              onPress={handleAnchorContinue}
+              disabled={selectedAnchors.length === 0}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.primaryButtonText}>Continue</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.ghostButton} onPress={() => setCurrentStep(5)} activeOpacity={0.6}>
+              <Text style={styles.ghostButtonText}>Set this later</Text>
+            </TouchableOpacity>
+          </View>
+        );
+      case 5:
+        return (
+          <View style={styles.footer}>
+            <TouchableOpacity style={styles.beginButton} onPress={handleBegin} activeOpacity={0.8}>
+              <Text style={styles.primaryButtonText}>Begin</Text>
+            </TouchableOpacity>
+            <Text style={styles.settingsNote}>Adjust everything anytime in Settings</Text>
+          </View>
+        );
+      default:
+        return null;
     }
-
-    return null;
   };
+
+  // ── Render ───────────────────────────────────────────────────────────────
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* Progress dots (hidden under interstitial but rendered for layout) */}
-      {renderProgressDots()}
-
-      {/* Swipeable slides */}
-      <FlatList
-        ref={flatListRef}
-        data={ONBOARDING_DATA}
-        renderItem={renderOnboardingCard}
-        keyExtractor={(item) => item.id}
-        horizontal
-        pagingEnabled
-        showsHorizontalScrollIndicator={false}
-        scrollEnabled={false}
-        onViewableItemsChanged={onViewableItemsChanged}
-        viewabilityConfig={{ itemVisiblePercentThreshold: 50 }}
-      />
-
-      {/* Bottom navigation */}
-      {!showInterstitial && (
-        <View style={styles.buttonContainer}>
-          {currentIndex === 1 ? (
-            // Step 2 (expect): Let's go only
-            <TouchableOpacity style={styles.letsGoButton} onPress={handleLetsGo}>
-              <Text style={styles.letsGoText}>Let's go</Text>
-            </TouchableOpacity>
-          ) : (
-            // Step 1 (anchor): Skip for now + Continue
-            <>
-              <TouchableOpacity style={styles.skipButton} onPress={handleAnchorContinue}>
-                <Text style={styles.skipText}>Skip for now</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.nextButton, selectedAnchors.length === 0 && styles.nextButtonDisabled]}
-                onPress={handleAnchorContinue}
-                disabled={selectedAnchors.length === 0}
-              >
-                <Text style={styles.nextText}>Continue</Text>
-                <Ionicons name="arrow-forward" size={18} color="#FFFFFF" />
-              </TouchableOpacity>
-            </>
-          )}
-        </View>
-      )}
-
-      {/* Interstitial overlay — absolute, full-screen, zIndex 10 */}
-      {showInterstitial && (
-        <View style={styles.interstitial}>
-          <Text style={styles.interstitialLabel}>HOW IT WORKS</Text>
-
-          <View style={styles.interstitialContent}>
-            <View style={styles.interstitialLine}>
-              <Text style={styles.interstitialLineTitle}>Koan watches quietly.</Text>
-              <Text style={styles.interstitialLineBody}>
-                Health signals, phone pickups, app switches, meeting density. Nothing personal. Nothing invasive.
-              </Text>
-            </View>
-            <View style={[styles.interstitialLine, styles.interstitialLineBorder]}>
-              <Text style={styles.interstitialLineTitle}>Patterns emerge.</Text>
-              <Text style={styles.interstitialLineBody}>
-                After a few days, your rhythm becomes clear — when you focus well, when you drift.
-              </Text>
-            </View>
-            <View style={[styles.interstitialLine, styles.interstitialLineBorder]}>
-              <Text style={styles.interstitialLineTitle}>A nudge arrives.</Text>
-              <Text style={styles.interstitialLineBody}>
-                Short. Calm. At exactly the right moment. Then silence again.
-              </Text>
-            </View>
-            <View style={[styles.interstitialLine, styles.interstitialLineBorder]}>
-              <Text style={styles.interstitialLineTitle}>Each week, a reflection.</Text>
-              <Text style={styles.interstitialLineBody}>A quiet observation on what Koan has noticed — in Insights, every Sunday.</Text>
-            </View>
-          </View>
-
-          <TouchableOpacity onPress={handleInterstitialContinue} style={styles.continueButton}>
-            <Text style={styles.continueText}>
-              Continue <Text style={styles.continueArrow}>→</Text>
-            </Text>
-          </TouchableOpacity>
-        </View>
-      )}
+      {renderHeader()}
+      <ScrollView
+        style={styles.body}
+        contentContainerStyle={[
+          styles.bodyContent,
+          currentStep === 5 && styles.bodyContentFlex,
+        ]}
+        showsVerticalScrollIndicator={false}
+      >
+        {currentStep === 0 && renderWelcome()}
+        {currentStep === 1 && renderPhoneSignals()}
+        {currentStep === 2 && renderWorkTools()}
+        {currentStep === 3 && renderNotifications()}
+        {currentStep === 4 && renderAnchor()}
+        {currentStep === 5 && renderReady()}
+      </ScrollView>
+      {renderFooter()}
     </SafeAreaView>
   );
 }
@@ -332,68 +521,344 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#FAFDFA',
   },
-  // Progress dots
-  progressContainer: {
+
+  // ── Header ──────────────────────────────────────────────────────────────
+  header: {
     flexDirection: 'row',
-    justifyContent: 'center',
     alignItems: 'center',
-    paddingVertical: 20,
-    gap: 6,
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    position: 'relative',
   },
-  progressDot: {
+  headerCentered: {
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    alignItems: 'center',
+  },
+  headerLeft: {
+    width: 32,
+    alignItems: 'flex-start',
+    justifyContent: 'center',
+  },
+  wordmark: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    textAlign: 'center',
+    fontFamily: 'Georgia',
+    fontSize: 17,
+    color: '#3A3A3A',
+  },
+  wordmarkCentered: {
+    fontFamily: 'Georgia',
+    fontSize: 17,
+    color: '#3A3A3A',
+    textAlign: 'center',
+  },
+  dotsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+  },
+  dot: {
     width: 5,
     height: 5,
     borderRadius: 2.5,
     backgroundColor: '#E6E6E4',
   },
-  progressDotDone: {
-    backgroundColor: 'rgba(95,173,142,0.4)',
-    width: 5,
+  dotDone: {
+    backgroundColor: 'rgba(95,173,142,0.35)',
   },
-  progressDotActive: {
-    backgroundColor: '#5FAD8E',
+  dotActive: {
     width: 20,
+    height: 5,
     borderRadius: 10,
+    backgroundColor: '#5FAD8E',
   },
-  // Cards (FlatList slides)
-  card: {
-    width: SCREEN_WIDTH,
+
+  // ── Body ────────────────────────────────────────────────────────────────
+  body: {
     flex: 1,
-    paddingHorizontal: 32,
-    paddingTop: 8,
   },
-  cardContent: {
-    flex: 1,
-    alignItems: 'center',
+  bodyContent: {
+    paddingHorizontal: 20,
+    paddingBottom: 20,
   },
-  title: {
-    fontSize: 22,
+  bodyContentFlex: {
+    flexGrow: 1,
+  },
+
+  // ── Section label ────────────────────────────────────────────────────────
+  sectionLabel: {
+    fontSize: 10,
+    fontWeight: '500',
+    letterSpacing: 1.4,
+    textTransform: 'uppercase',
+    color: '#5FAD8E',
+    marginBottom: 16,
+    marginTop: 4,
+  },
+  screenTitle: {
+    fontSize: 20,
     fontWeight: '600',
     color: '#3A3A3A',
-    marginBottom: 12,
-    textAlign: 'center',
-    lineHeight: 30,
+    marginBottom: 5,
   },
-  description: {
+  screenSubtitle: {
+    fontSize: 11.5,
+    fontWeight: '300',
+    color: '#3A3A3A',
+    opacity: 0.65,
+    lineHeight: 20,
+    marginBottom: 10,
+  },
+
+  // ── Welcome screen ───────────────────────────────────────────────────────
+  videoBlock: {
+    height: 128,
+    backgroundColor: '#EEF0EB',
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 12,
+  },
+  playButton: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: '#5FAD8E',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  playTriangle: {
+    width: 0,
+    height: 0,
+    borderTopWidth: 6,
+    borderBottomWidth: 6,
+    borderLeftWidth: 10,
+    borderTopColor: 'transparent',
+    borderBottomColor: 'transparent',
+    borderLeftColor: '#FFFFFF',
+    marginLeft: 2,
+  },
+  videoLabel: {
+    marginTop: 8,
+    fontSize: 9,
+    textTransform: 'uppercase',
+    color: '#3A3A3A',
+    opacity: 0.4,
+    letterSpacing: 0.8,
+  },
+  interstitialLine: {
+    paddingVertical: 10,
+  },
+  interstitialLineBorder: {
+    borderTopWidth: 1,
+    borderTopColor: '#E6E6E4',
+  },
+  interstitialTitle: {
+    fontFamily: 'Georgia',
+    fontSize: 15.5,
+    fontStyle: 'italic',
+    fontWeight: '400',
+    color: '#3A3A3A',
+    marginBottom: 3,
+  },
+  interstitialBody: {
+    fontSize: 11,
+    fontWeight: '300',
+    color: '#3A3A3A',
+    opacity: 0.65,
+    lineHeight: 19,
+  },
+
+  // ── Phone signals / Integrations ─────────────────────────────────────────
+  alwaysOnCard: {
+    backgroundColor: '#D9F7EB',
+    borderRadius: 12,
+    padding: 13,
+    borderWidth: 1,
+    borderColor: 'rgba(95,173,142,0.25)',
+    marginBottom: 9,
+  },
+  alwaysOnHeader: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#2D6B4E',
+    marginBottom: 8,
+  },
+  signalRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    paddingVertical: 6,
+    gap: 8,
+  },
+  signalRowBorder: {
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(95,173,142,0.15)',
+  },
+  signalDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#5FAD8E',
+    marginTop: 3,
+    flexShrink: 0,
+  },
+  signalTextBlock: {
+    flex: 1,
+  },
+  signalName: {
+    fontSize: 12,
+    fontWeight: '500',
+    color: '#3A3A3A',
+    marginBottom: 2,
+  },
+  signalDesc: {
+    fontSize: 10.5,
+    fontWeight: '300',
+    color: '#3A3A3A',
+    opacity: 0.65,
+    lineHeight: 16,
+  },
+  integrationCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    padding: 13,
+    borderWidth: 1,
+    borderColor: '#E6E6E4',
+    marginBottom: 9,
+  },
+  integrationHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+    gap: 10,
+  },
+  emojiIconContainer: {
+    width: 32,
+    height: 32,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
+  },
+  emojiIcon: {
+    fontSize: 16,
+  },
+  integrationInfo: {
+    flex: 1,
+  },
+  integrationName: {
     fontSize: 13,
+    fontWeight: '500',
+    color: '#3A3A3A',
+    marginBottom: 1,
+  },
+  integrationSubtext: {
+    fontSize: 10,
+    color: '#3A3A3A',
+    opacity: 0.45,
+  },
+  integrationDesc: {
+    fontSize: 11,
+    fontWeight: '300',
+    color: '#3A3A3A',
+    opacity: 0.65,
+    lineHeight: 17,
+    marginBottom: 8,
+  },
+  connectionNote: {
+    fontSize: 10,
+    color: '#3A3A3A',
+    opacity: 0.38,
+    textAlign: 'center',
+    marginTop: 4,
+  },
+
+  // ── Notifications screen ─────────────────────────────────────────────────
+  nudgePreviewCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    borderWidth: 1,
+    borderColor: '#E6E6E4',
+    marginBottom: 10,
+  },
+  nudgePreviewLabel: {
+    fontSize: 9.5,
+    fontWeight: '500',
+    color: '#3A3A3A',
+    opacity: 0.4,
+    letterSpacing: 0.8,
+    textTransform: 'uppercase',
+    marginBottom: 5,
+  },
+  nudgePreviewText: {
+    fontFamily: 'Georgia',
+    fontSize: 12.5,
+    fontStyle: 'italic',
+    color: '#3A3A3A',
+    lineHeight: 20,
+  },
+  infoCard: {
+    backgroundColor: '#D9F7EB',
+    borderRadius: 12,
+    padding: 13,
+    borderWidth: 1,
+    borderColor: 'rgba(95,173,142,0.25)',
+    marginBottom: 9,
+  },
+  infoCardRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 8,
+  },
+  infoDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#5FAD8E',
+    marginTop: 3,
+    flexShrink: 0,
+  },
+  infoCardContent: {
+    flex: 1,
+  },
+  infoCardTitle: {
+    fontSize: 12,
+    fontWeight: '500',
+    color: '#3A3A3A',
+    marginBottom: 2,
+  },
+  infoCardBody: {
+    fontSize: 11,
     fontWeight: '300',
     color: '#3A3A3A',
     opacity: 0.7,
-    textAlign: 'center',
-    marginBottom: 28,
-    lineHeight: 20,
+    lineHeight: 17,
   },
-  // Anchor step
-  suggestionsGrid: {
-    width: '100%',
+
+  // ── Anchor screen ────────────────────────────────────────────────────────
+  selectionCounter: {
+    fontSize: 11,
+    color: '#5FAD8E',
+    fontWeight: '400',
+    marginTop: 5,
+    minHeight: 16,
+    marginBottom: 2,
+  },
+  chipGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 8,
-    marginBottom: 16,
+    gap: 6,
+    marginTop: 8,
   },
   chip: {
-    paddingHorizontal: 14,
-    paddingVertical: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
     borderRadius: 20,
     borderWidth: 1,
     borderColor: '#E6E6E4',
@@ -403,8 +868,11 @@ const styles = StyleSheet.create({
     backgroundColor: '#D9F7EB',
     borderColor: 'rgba(95,173,142,0.4)',
   },
+  chipDisabled: {
+    opacity: 0.3,
+  },
   chipText: {
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: '300',
     color: '#3A3A3A',
   },
@@ -412,230 +880,140 @@ const styles = StyleSheet.create({
     color: '#5FAD8E',
     fontWeight: '400',
   },
-  chipDisabled: {
-    opacity: 0.4,
+
+  // ── Ready screen ─────────────────────────────────────────────────────────
+  readyBody: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  anchorSelectionHint: {
-    fontSize: 12,
-    fontWeight: '400',
-    color: '#5FAD8E',
-    alignSelf: 'flex-start',
-    marginBottom: 8,
-  },
-  // Expect step (step 3)
-  expectDotOuter: {
-    width: 54,
-    height: 54,
-    borderRadius: 27,
-    backgroundColor: '#D9F7EB',
+  dotContainer: {
+    width: 72,
+    height: 72,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 14,
-    alignSelf: 'center',
   },
-  expectDotMid: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    backgroundColor: 'rgba(168,215,240,0.4)',
-    alignItems: 'center',
-    justifyContent: 'center',
+  dotHalo: {
+    position: 'absolute',
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: '#A8D4BC',
   },
-  expectDotCore: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
+  dotCore: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
     backgroundColor: '#5FAD8E',
   },
-  expectTitle: {
+  readyTitle: {
     fontFamily: 'Georgia',
-    fontSize: 21,
-    fontWeight: '500',
+    fontSize: 22,
+    fontWeight: '400',
     color: '#3A3A3A',
     textAlign: 'center',
-    lineHeight: 28,
     marginBottom: 8,
   },
-  expectBody: {
+  readySubtitle: {
     fontSize: 12,
     fontWeight: '300',
     color: '#3A3A3A',
     opacity: 0.6,
+    lineHeight: 20,
     textAlign: 'center',
-    lineHeight: 21,
-    marginBottom: 18,
+    marginBottom: 16,
+    paddingHorizontal: 16,
   },
-  // Timeline
-  timeline: {
+  trialPill: {
     width: '100%',
-  },
-  timelineEvent: {
-    flexDirection: 'row',
-    gap: 14,
-    paddingVertical: 12,
-  },
-  timelineLeft: {
-    width: 20,
-    alignItems: 'center',
-    flexShrink: 0,
-    paddingTop: 2,
-  },
-  timelineDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
     backgroundColor: '#D9F7EB',
-    borderWidth: 1.5,
-    borderColor: '#5FAD8E',
+    borderRadius: 8,
+    paddingVertical: 9,
+    paddingHorizontal: 14,
+    alignItems: 'center',
   },
-  timelineDotActive: {
-    backgroundColor: '#5FAD8E',
-    borderColor: '#5FAD8E',
-  },
-  timelineLine: {
-    width: 1,
-    flex: 1,
-    backgroundColor: '#E6E6E4',
-    marginVertical: 4,
-    minHeight: 14,
-  },
-  timelineRight: {
-    flex: 1,
-    paddingBottom: 4,
-  },
-  timelineTime: {
-    fontSize: 10,
-    fontWeight: '500',
-    letterSpacing: 0.06 * 10,
-    textTransform: 'uppercase',
+  trialPillLabel: {
+    fontSize: 9.5,
+    fontWeight: '600',
     color: '#5FAD8E',
+    letterSpacing: 0.8,
+    textTransform: 'uppercase',
     marginBottom: 2,
   },
-  timelineTitle: {
-    fontSize: 13,
-    fontWeight: '400',
-    color: '#3A3A3A',
-    marginBottom: 2,
-    lineHeight: 18,
-  },
-  timelineSubtitle: {
+  trialPillSub: {
     fontSize: 11,
     fontWeight: '300',
     color: '#3A3A3A',
-    opacity: 0.6,
-    lineHeight: 16,
+    opacity: 0.65,
   },
-  // Bottom navigation
-  buttonContainer: {
-    flexDirection: 'row',
-    paddingHorizontal: 32,
-    paddingBottom: 24,
+
+  // ── Footer ───────────────────────────────────────────────────────────────
+  footer: {
+    paddingHorizontal: 20,
     paddingTop: 8,
-    gap: 12,
+    paddingBottom: 22,
+    gap: 6,
   },
-  skipButton: {
-    flex: 1,
-    paddingVertical: 15,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  skipText: {
-    color: '#3A3A3A',
-    opacity: 0.5,
-    fontSize: 15,
-    fontWeight: '500',
-  },
-  nextButton: {
-    flex: 2,
-    flexDirection: 'row',
+  primaryButton: {
     backgroundColor: '#5FAD8E',
-    paddingVertical: 15,
+    paddingVertical: 14,
     borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 8,
   },
-  nextButtonDisabled: {
+  primaryButtonDisabled: {
     backgroundColor: '#B0D9C7',
   },
-  nextText: {
+  primaryButtonText: {
     color: '#FFFFFF',
     fontSize: 15,
     fontWeight: '600',
   },
-  letsGoButton: {
-    flex: 1,
-    backgroundColor: '#5FAD8E',
+  beginButton: {
+    backgroundColor: '#2D6B4E',
     paddingVertical: 15,
     borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  letsGoText: {
-    color: '#FFFFFF',
+  ghostButton: {
+    backgroundColor: 'transparent',
+    paddingVertical: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    opacity: 0.4,
+  },
+  ghostButtonText: {
+    color: '#3A3A3A',
+    fontSize: 13,
+  },
+  outlineButton: {
+    borderWidth: 1.5,
+    borderColor: '#5FAD8E',
+    backgroundColor: 'transparent',
+    paddingVertical: 14,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  outlineButtonText: {
+    color: '#5FAD8E',
     fontSize: 15,
     fontWeight: '600',
   },
-  // Interstitial overlay
-  interstitial: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: '#FAFDFA',
-    zIndex: 10,
-    paddingHorizontal: 40,
-    justifyContent: 'center',
+  connectedButton: {
+    backgroundColor: '#D9F7EB',
+    borderWidth: 1,
+    borderColor: 'rgba(95,173,142,0.3)',
   },
-  interstitialLabel: {
+  connectedButtonText: {
+    color: '#5FAD8E',
+  },
+  settingsNote: {
     fontSize: 10,
-    fontWeight: '500',
-    letterSpacing: 0.14 * 10,
-    textTransform: 'uppercase',
-    color: '#5FAD8E',
-    opacity: 0.8,
-    alignSelf: 'center',
-    marginBottom: 20,
-  },
-  interstitialContent: {},
-  interstitialLine: {
-    paddingVertical: 18,
-  },
-  interstitialLineBorder: {
-    borderTopWidth: 1,
-    borderTopColor: '#E6E6E4',
-  },
-  interstitialLineTitle: {
-    fontFamily: 'Georgia',
-    fontSize: 19,
-    fontStyle: 'italic',
-    fontWeight: '400',
     color: '#3A3A3A',
-    marginBottom: 6,
-  },
-  interstitialLineBody: {
-    fontSize: 12,
-    fontWeight: '300',
-    color: '#3A3A3A',
-    opacity: 0.65,
-    lineHeight: 19,
-  },
-  continueButton: {
-    position: 'absolute',
-    bottom: 40,
-    right: 40,
-    paddingVertical: 8,
-    paddingHorizontal: 4,
-  },
-  continueText: {
-    fontSize: 12,
-    color: '#3A3A3A',
-    opacity: 0.6,
-  },
-  continueArrow: {
-    color: '#5FAD8E',
-    fontSize: 14,
-    opacity: 1,
+    opacity: 0.38,
+    textAlign: 'center',
   },
 });
