@@ -67,9 +67,25 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(s
     return User(**user)
 
 async def require_active_subscription(current_user: User = Depends(get_current_user)):
-    if current_user.subscription_status == SubscriptionStatus.EXPIRED:
-        raise HTTPException(status_code=402, detail="Trial expired. Please subscribe to continue.")
-    return current_user
+    from datetime import timezone
+    status = current_user.subscription_status
+
+    if status == SubscriptionStatus.ACTIVE:
+        return current_user
+
+    if status == SubscriptionStatus.TRIAL:
+        trial_start = current_user.trial_start
+        if trial_start:
+            if trial_start.tzinfo is None:
+                trial_start = trial_start.replace(tzinfo=timezone.utc)
+            days_elapsed = (datetime.now(timezone.utc) - trial_start).days
+            if days_elapsed <= 14:
+                return current_user
+        else:
+            # No trial start date — assume trial is still valid
+            return current_user
+
+    raise HTTPException(status_code=402, detail="Trial expired. Please subscribe to continue.")
 
 def validate_password(password: str) -> tuple[bool, str]:
     """Validate password meets security requirements"""

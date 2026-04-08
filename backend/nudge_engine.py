@@ -133,7 +133,13 @@ async def create_nudge(db: AsyncIOMotorDatabase, user_id: str, nudge_type: str, 
         
         await db.nudges.insert_one(nudge.dict())
         logger.info(f"Created nudge {nudge_id} for user {user_id}")
-        
+
+        try:
+            from push_notifications import send_nudge_push
+            await send_nudge_push(db, user_id, nudge.message)
+        except Exception as e:
+            print(f"Push notification failed (non-blocking): {e}")
+
         return nudge
     except Exception as e:
         logger.error(f"Error creating nudge: {str(e)}")
@@ -363,4 +369,11 @@ async def check_health_signal_triggers(db, user_id: str, signal: dict) -> Option
     )
     await db.nudges.insert_one(nudge.dict())
     logger.info(f"Created health-signal nudge {nudge_id} (type={nudge_type}) for user {user_id}")
+
+    try:
+        from push_notifications import send_nudge_push
+        await send_nudge_push(db, user_id, nudge.message)
+    except Exception as e:
+        print(f"Push notification failed (non-blocking): {e}")
+
     return nudge.dict()

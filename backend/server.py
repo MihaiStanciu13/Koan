@@ -430,6 +430,13 @@ async def get_pattern_nudge(
         silent=(nudge_style == "silent"),
     )
     await db.nudges.insert_one(nudge.dict())
+
+    try:
+        from push_notifications import send_nudge_push
+        await send_nudge_push(db, current_user.id, nudge.message)
+    except Exception as e:
+        print(f"Push notification failed (non-blocking): {e}")
+
     return {"nudge": nudge.dict()}
 
 @api_router.post("/nudges/{nudge_id}/delivered")
