@@ -127,15 +127,20 @@ export default function Onboarding() {
     });
   };
 
-  const handleAnchorContinue = () => {
+  const handleAnchorContinue = async () => {
     if (selectedAnchors.length > 0) {
-      preferencesAPI.update({
-        anchor_actions: selectedAnchors.map((text, i) => ({
+      try {
+        const defaultTimes = ['09:00', '14:00', '18:00'];
+        const anchor_actions = selectedAnchors.map((text, i) => ({
           text,
-          time: ['09:00', '14:00', '18:00'][i],
+          time: defaultTimes[i],
           enabled: true,
-        })),
-      });
+        }));
+        await preferencesAPI.update({ anchor_actions });
+      } catch (error) {
+        console.error('Failed to save anchors:', error);
+        // Don't block navigation on failure
+      }
     }
     setCurrentStep(5);
   };
