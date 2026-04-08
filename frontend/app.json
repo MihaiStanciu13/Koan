@@ -8,8 +8,7 @@
     "userInterfaceStyle": "light",
     "scheme": "koan",
     "splash": {
-      "image": "./assets/images/splash.png",
-      "backgroundColor": "#4A9678",
+      "backgroundColor": "#FAFDFA",
       "resizeMode": "contain"
     },
     "assetBundlePatterns": [
@@ -18,6 +17,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.koan.app",
+      "icon": "./assets/icon.png",
       "infoPlist": {
         "NSHealthShareUsageDescription": "Koan uses health data to understand your movement, sleep, and energy patterns and deliver more relevant nudges.",
         "NSHealthUpdateUsageDescription": "Koan does not write to Health."
@@ -26,7 +26,7 @@
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#4A9678"
+        "backgroundColor": "#2D6B4E"
       },
       "package": "com.koan.app"
     },

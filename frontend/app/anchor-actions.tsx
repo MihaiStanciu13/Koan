@@ -50,26 +50,62 @@ export default function AnchorActionsScreen() {
   // Reload when screen comes into focus
   useFocusEffect(
     React.useCallback(() => {
-      loadAnchorActions();
+      loadAnchorActions().then(() => rescheduleAllAnchors());
     }, [])
   );
 
   const scheduleAnchorNotification = async (index: number, action: AnchorAction) => {
-    // Cancel any previous notification for this slot first
     await cancelAnchorNotification(index);
     const [hours, minutes] = action.time.split(':').map(Number);
+
+    const now = new Date();
+    const scheduledTime = new Date();
+    scheduledTime.setHours(hours, minutes, 0, 0);
+
+    if (scheduledTime <= now) {
+      scheduledTime.setDate(scheduledTime.getDate() + 1);
+    }
+
     const id = await Notifications.scheduleNotificationAsync({
       content: {
         title: 'Koan',
         body: action.text,
       },
       trigger: {
-        hour: hours,
-        minute: minutes,
-        repeats: true,
+        type: Notifications.SchedulableTriggerInputTypes.DATE,
+        date: scheduledTime,
+        repeats: false,
       },
     });
+
     await AsyncStorage.setItem(`anchor_notification_${index}`, id);
+    await AsyncStorage.setItem(`anchor_time_${index}`, action.time);
+  };
+
+  const rescheduleAllAnchors = async () => {
+    for (let i = 0; i < anchorActions.length; i++) {
+      const action = anchorActions[i];
+      if (!action.enabled || !action.text.trim()) continue;
+      const storedTime = await AsyncStorage.getItem(`anchor_time_${i}`);
+      if (!storedTime) continue;
+      const [hours, minutes] = storedTime.split(':').map(Number);
+      const now = new Date();
+      const next = new Date();
+      next.setHours(hours, minutes, 0, 0);
+      if (next <= now) {
+        next.setDate(next.getDate() + 1);
+      }
+      await cancelAnchorNotification(i);
+      const id = await Notifications.scheduleNotificationAsync({
+        content: { title: 'Koan', body: action.text },
+        trigger: {
+          type: Notifications.SchedulableTriggerInputTypes.DATE,
+          date: next,
+          repeats: false,
+        },
+      });
+      await AsyncStorage.setItem(`anchor_notification_${i}`, id);
+    }
   };
 
   const cancelAnchorNotification = async (index: number) => {

@@ -13,9 +13,34 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import * as WebBrowser from 'expo-web-browser';
 import * as Notifications from 'expo-notifications';
+import Svg, { Rect } from 'react-native-svg';
 import { storage } from '../services/storage';
 import { calendarAPI, microsoftAPI, preferencesAPI } from '../services/api';
 import { requestHealthKitPermissions } from '../services/healthKit';
+
+const GCalIcon = ({ size = 32 }: { size?: number }) => (
+  <Svg width={size} height={size} viewBox="0 0 48 48">
+    <Rect width="48" height="48" rx="8" fill="#ffffff"/>
+    <Rect x="6" y="6" width="36" height="36" rx="4" fill="#ffffff" stroke="#E0E0E0" strokeWidth="1"/>
+    <Rect x="6" y="6" width="36" height="13" rx="4" fill="#1A73E8"/>
+    <Rect x="6" y="14" width="36" height="5" fill="#1A73E8"/>
+    <Rect x="13" y="28" width="5" height="2" rx="1" fill="#1A73E8"/>
+    <Rect x="13" y="32" width="5" height="2" rx="1" fill="#1A73E8"/>
+    <Rect x="22" y="25" width="4" height="9" rx="1" fill="#34A853"/>
+    <Rect x="30" y="28" width="5" height="2" rx="1" fill="#EA4335"/>
+    <Rect x="30" y="32" width="5" height="2" rx="1" fill="#EA4335"/>
+  </Svg>
+);
+
+const MS365Icon = ({ size = 32 }: { size?: number }) => (
+  <Svg width={size} height={size} viewBox="0 0 48 48">
+    <Rect width="48" height="48" rx="8" fill="#ffffff"/>
+    <Rect x="7" y="7" width="15" height="15" rx="2" fill="#F35325"/>
+    <Rect x="25" y="7" width="15" height="15" rx="2" fill="#81BC06"/>
+    <Rect x="7" y="25" width="15" height="15" rx="2" fill="#05A6F0"/>
+    <Rect x="25" y="25" width="15" height="15" rx="2" fill="#FFBA08"/>
+  </Svg>
+);
 
 const ANCHOR_CHIPS = [
   'Close one loop',
@@ -267,8 +292,8 @@ export default function Onboarding() {
       </Text>
       <View style={styles.integrationCard}>
         <View style={styles.integrationHeader}>
-          <View style={[styles.emojiIconContainer, { backgroundColor: '#EEF2FF' }]}>
-            <Text style={styles.emojiIcon}>📅</Text>
+          <View style={{ width: 32, height: 32, borderRadius: 8, overflow: 'hidden' }}>
+            <GCalIcon size={32} />
           </View>
           <View style={styles.integrationInfo}>
             <Text style={styles.integrationName}>Google Calendar</Text>
@@ -291,8 +316,8 @@ export default function Onboarding() {
       </View>
       <View style={styles.integrationCard}>
         <View style={styles.integrationHeader}>
-          <View style={[styles.emojiIconContainer, { backgroundColor: '#E8F0FF' }]}>
-            <Text style={styles.emojiIcon}>💼</Text>
+          <View style={{ width: 32, height: 32, borderRadius: 8, overflow: 'hidden' }}>
+            <MS365Icon size={32} />
           </View>
           <View style={styles.integrationInfo}>
             <Text style={styles.integrationName}>Microsoft 365</Text>
