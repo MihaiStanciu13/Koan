@@ -40,6 +40,7 @@ export interface User {
   name: string;
   subscription_status: string;
   trial_ends?: string;
+  created_at?: string;
 }
 
 export const authAPI = {

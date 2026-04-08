@@ -56,10 +56,6 @@ export default function Onboarding() {
     ).start();
   }, []);
 
-  const goBack = () => {
-    if (currentStep > 0) setCurrentStep(s => s - 1);
-  };
-
   const handleConnectHealth = async () => {
     try {
       await requestHealthKitPermissions();
@@ -138,7 +134,10 @@ export default function Onboarding() {
       <View style={styles.header}>
         <View style={styles.headerLeft}>
           {currentStep > 0 && (
-            <TouchableOpacity onPress={goBack} hitSlop={{ top: 10, left: 10, bottom: 10, right: 10 }}>
+            <TouchableOpacity
+              onPress={() => setCurrentStep(prev => prev - 1)}
+              hitSlop={{ top: 10, left: 10, bottom: 10, right: 10 }}
+            >
               <Ionicons name="chevron-back" size={22} color="#3A3A3A" />
             </TouchableOpacity>
           )}
@@ -245,12 +244,12 @@ export default function Onboarding() {
           Koan uses health signals to understand energy and recovery — not to count steps. Raw data never leaves your device.
         </Text>
         <TouchableOpacity
-          style={[styles.primaryButton, healthConnected && styles.connectedButton]}
+          style={[styles.connectButton, healthConnected && styles.connectedButton]}
           onPress={handleConnectHealth}
           disabled={healthConnected}
           activeOpacity={0.8}
         >
-          <Text style={[styles.primaryButtonText, healthConnected && styles.connectedButtonText]}>
+          <Text style={[styles.connectButtonText, healthConnected && styles.connectedButtonText]}>
             {healthConnected ? '✓ Connected' : 'Connect Apple Health'}
           </Text>
         </TouchableOpacity>
@@ -280,12 +279,12 @@ export default function Onboarding() {
           Detects back-to-back meetings, transition time, and heavy days.
         </Text>
         <TouchableOpacity
-          style={[styles.primaryButton, gCalConnected && styles.connectedButton]}
+          style={[styles.connectButton, gCalConnected && styles.connectedButton]}
           onPress={handleConnectGCal}
           disabled={gCalConnected}
           activeOpacity={0.8}
         >
-          <Text style={[styles.primaryButtonText, gCalConnected && styles.connectedButtonText]}>
+          <Text style={[styles.connectButtonText, gCalConnected && styles.connectedButtonText]}>
             {gCalConnected ? '✓ Connected' : 'Connect Google Calendar'}
           </Text>
         </TouchableOpacity>
@@ -304,12 +303,12 @@ export default function Onboarding() {
           Same signals from Outlook calendar and Teams meeting load.
         </Text>
         <TouchableOpacity
-          style={[styles.outlineButton, msConnected && styles.connectedButton]}
+          style={[styles.connectButton, msConnected && styles.connectedButton]}
           onPress={handleConnectMicrosoft}
           disabled={msConnected}
           activeOpacity={0.8}
         >
-          <Text style={[styles.outlineButtonText, msConnected && styles.connectedButtonText]}>
+          <Text style={[styles.connectButtonText, msConnected && styles.connectedButtonText]}>
             {msConnected ? '✓ Connected' : 'Connect Microsoft 365'}
           </Text>
         </TouchableOpacity>
@@ -327,7 +326,7 @@ export default function Onboarding() {
       <Text style={styles.sectionLabel}>NOTIFICATIONS</Text>
       <Text style={styles.screenTitle}>One nudge, when it matters</Text>
       <Text style={styles.screenSubtitle}>
-        At most once per day — and only when Koan has something worth saying.
+        Koan nudges rarely — only when a pattern is clear enough to say something useful. Never on a schedule.
       </Text>
       <View style={styles.nudgePreviewCard}>
         <Text style={styles.nudgePreviewLabel}>PREVIEW NUDGE</Text>
@@ -369,6 +368,22 @@ export default function Onboarding() {
       <Text style={styles.screenSubtitle}>
         A small, repeatable action that grounds your day. Select up to 3.
       </Text>
+      <View style={{
+        backgroundColor: '#D9F7EB',
+        borderRadius: 12,
+        padding: 13,
+        borderWidth: 1,
+        borderColor: 'rgba(95,173,142,0.25)',
+        marginBottom: 10,
+        marginTop: 8,
+      }}>
+        <Text style={{ fontSize: 12, fontWeight: '500', color: '#2D6B4E', marginBottom: 4 }}>
+          Anchors vs nudges
+        </Text>
+        <Text style={{ fontSize: 11.5, fontWeight: '300', color: '#3A3A3A', opacity: 0.8, lineHeight: 18 }}>
+          Nudges come from Koan — triggered by patterns it observes. An anchor comes from you: a small commitment you want to protect each day. Koan will remind you, and notice when life gets in the way.
+        </Text>
+      </View>
       <Text style={styles.selectionCounter}>
         {selectedAnchors.length > 0 ? `${selectedAnchors.length}/3 selected` : ''}
       </Text>
@@ -416,54 +431,52 @@ export default function Onboarding() {
     </View>
   );
 
-  // ── Footer ───────────────────────────────────────────────────────────────
+  // ── Footer buttons (rendered inside pinned footer View) ──────────────────
 
-  const renderFooter = () => {
+  const renderFooterButtons = () => {
     switch (currentStep) {
       case 0:
         return (
-          <View style={styles.footer}>
-            <TouchableOpacity style={styles.primaryButton} onPress={() => setCurrentStep(1)} activeOpacity={0.8}>
-              <Text style={styles.primaryButtonText}>Continue →</Text>
-            </TouchableOpacity>
-          </View>
+          <TouchableOpacity style={styles.primaryButton} onPress={() => setCurrentStep(1)} activeOpacity={0.8}>
+            <Text style={styles.primaryButtonText}>Continue →</Text>
+          </TouchableOpacity>
         );
       case 1:
         return (
-          <View style={styles.footer}>
+          <>
             <TouchableOpacity style={styles.primaryButton} onPress={() => setCurrentStep(2)} activeOpacity={0.8}>
               <Text style={styles.primaryButtonText}>Continue</Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.ghostButton} onPress={() => setCurrentStep(2)} activeOpacity={0.6}>
               <Text style={styles.ghostButtonText}>Skip Apple Health</Text>
             </TouchableOpacity>
-          </View>
+          </>
         );
       case 2:
         return (
-          <View style={styles.footer}>
+          <>
             <TouchableOpacity style={styles.primaryButton} onPress={() => setCurrentStep(3)} activeOpacity={0.8}>
               <Text style={styles.primaryButtonText}>Continue</Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.ghostButton} onPress={() => setCurrentStep(3)} activeOpacity={0.6}>
               <Text style={styles.ghostButtonText}>Skip for now</Text>
             </TouchableOpacity>
-          </View>
+          </>
         );
       case 3:
         return (
-          <View style={styles.footer}>
+          <>
             <TouchableOpacity style={styles.primaryButton} onPress={handleEnableNotifications} activeOpacity={0.8}>
               <Text style={styles.primaryButtonText}>Enable notifications</Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.ghostButton} onPress={() => setCurrentStep(4)} activeOpacity={0.6}>
               <Text style={styles.ghostButtonText}>Not now</Text>
             </TouchableOpacity>
-          </View>
+          </>
         );
       case 4:
         return (
-          <View style={styles.footer}>
+          <>
             <TouchableOpacity
               style={[styles.primaryButton, selectedAnchors.length === 0 && styles.primaryButtonDisabled]}
               onPress={handleAnchorContinue}
@@ -475,16 +488,16 @@ export default function Onboarding() {
             <TouchableOpacity style={styles.ghostButton} onPress={() => setCurrentStep(5)} activeOpacity={0.6}>
               <Text style={styles.ghostButtonText}>Set this later</Text>
             </TouchableOpacity>
-          </View>
+          </>
         );
       case 5:
         return (
-          <View style={styles.footer}>
+          <>
             <TouchableOpacity style={styles.beginButton} onPress={handleBegin} activeOpacity={0.8}>
               <Text style={styles.primaryButtonText}>Begin</Text>
             </TouchableOpacity>
             <Text style={styles.settingsNote}>Adjust everything anytime in Settings</Text>
-          </View>
+          </>
         );
       default:
         return null;
@@ -495,23 +508,23 @@ export default function Onboarding() {
 
   return (
     <SafeAreaView style={styles.container}>
-      {renderHeader()}
-      <ScrollView
-        style={styles.body}
-        contentContainerStyle={[
-          styles.bodyContent,
-          currentStep === 5 && styles.bodyContentFlex,
-        ]}
-        showsVerticalScrollIndicator={false}
-      >
-        {currentStep === 0 && renderWelcome()}
-        {currentStep === 1 && renderPhoneSignals()}
-        {currentStep === 2 && renderWorkTools()}
-        {currentStep === 3 && renderNotifications()}
-        {currentStep === 4 && renderAnchor()}
-        {currentStep === 5 && renderReady()}
-      </ScrollView>
-      {renderFooter()}
+      <View style={{ flex: 1 }}>
+        {renderHeader()}
+        <ScrollView
+          contentContainerStyle={{ flexGrow: 1, paddingHorizontal: 20, paddingTop: 12, paddingBottom: 16 }}
+          showsVerticalScrollIndicator={false}
+        >
+          {currentStep === 0 && renderWelcome()}
+          {currentStep === 1 && renderPhoneSignals()}
+          {currentStep === 2 && renderWorkTools()}
+          {currentStep === 3 && renderNotifications()}
+          {currentStep === 4 && renderAnchor()}
+          {currentStep === 5 && renderReady()}
+        </ScrollView>
+        <View style={{ paddingHorizontal: 20, paddingBottom: 28, paddingTop: 8, gap: 6 }}>
+          {renderFooterButtons()}
+        </View>
+      </View>
     </SafeAreaView>
   );
 }
@@ -575,18 +588,6 @@ const styles = StyleSheet.create({
     height: 5,
     borderRadius: 10,
     backgroundColor: '#5FAD8E',
-  },
-
-  // ── Body ────────────────────────────────────────────────────────────────
-  body: {
-    flex: 1,
-  },
-  bodyContent: {
-    paddingHorizontal: 20,
-    paddingBottom: 20,
-  },
-  bodyContentFlex: {
-    flexGrow: 1,
   },
 
   // ── Section label ────────────────────────────────────────────────────────
@@ -673,7 +674,7 @@ const styles = StyleSheet.create({
     lineHeight: 19,
   },
 
-  // ── Phone signals / Integrations ─────────────────────────────────────────
+  // ── Integration cards ────────────────────────────────────────────────────
   alwaysOnCard: {
     backgroundColor: '#D9F7EB',
     borderRadius: 12,
@@ -775,6 +776,34 @@ const styles = StyleSheet.create({
     opacity: 0.38,
     textAlign: 'center',
     marginTop: 4,
+  },
+
+  // ── Connect button (outline) ─────────────────────────────────────────────
+  connectButton: {
+    backgroundColor: 'transparent',
+    borderWidth: 1.5,
+    borderColor: '#5FAD8E',
+    borderRadius: 12,
+    paddingVertical: 13,
+    alignItems: 'center',
+  },
+  connectButtonText: {
+    color: '#5FAD8E',
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  connectedButton: {
+    backgroundColor: '#D9F7EB',
+    borderWidth: 1,
+    borderColor: 'rgba(95,173,142,0.3)',
+    borderRadius: 12,
+    paddingVertical: 13,
+    alignItems: 'center',
+  },
+  connectedButtonText: {
+    color: '#5FAD8E',
+    fontSize: 15,
+    fontWeight: '600',
   },
 
   // ── Notifications screen ─────────────────────────────────────────────────
@@ -948,13 +977,7 @@ const styles = StyleSheet.create({
     opacity: 0.65,
   },
 
-  // ── Footer ───────────────────────────────────────────────────────────────
-  footer: {
-    paddingHorizontal: 20,
-    paddingTop: 8,
-    paddingBottom: 22,
-    gap: 6,
-  },
+  // ── Buttons ──────────────────────────────────────────────────────────────
   primaryButton: {
     backgroundColor: '#5FAD8E',
     paddingVertical: 14,
@@ -987,28 +1010,6 @@ const styles = StyleSheet.create({
   ghostButtonText: {
     color: '#3A3A3A',
     fontSize: 13,
-  },
-  outlineButton: {
-    borderWidth: 1.5,
-    borderColor: '#5FAD8E',
-    backgroundColor: 'transparent',
-    paddingVertical: 14,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  outlineButtonText: {
-    color: '#5FAD8E',
-    fontSize: 15,
-    fontWeight: '600',
-  },
-  connectedButton: {
-    backgroundColor: '#D9F7EB',
-    borderWidth: 1,
-    borderColor: 'rgba(95,173,142,0.3)',
-  },
-  connectedButtonText: {
-    color: '#5FAD8E',
   },
   settingsNote: {
     fontSize: 10,

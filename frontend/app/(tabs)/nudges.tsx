@@ -9,7 +9,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { nudgeAPI } from '../../services/api';
+import { nudgeAPI, preferencesAPI, calendarAPI, microsoftAPI } from '../../services/api';
 import { format } from 'date-fns';
 import { useRouter } from 'expo-router';
 import { useAuth } from '../../contexts/AuthContext';
@@ -21,10 +21,28 @@ export default function NudgesScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [expandedNudge, setExpandedNudge] = useState<string | null>(null);
   const [patternsExpanded, setPatternsExpanded] = useState(false);
+  const [gcalConnected, setGcalConnected] = useState(false);
+  const [msConnected, setMsConnected] = useState(false);
 
   useEffect(() => {
     loadNudges();
+    loadConnectionStatus();
   }, []);
+
+  const loadConnectionStatus = async () => {
+    try {
+      const [prefs, calStatus, msStatus] = await Promise.all([
+        preferencesAPI.get(),
+        calendarAPI.getStatus().catch(() => ({ connected: false })),
+        microsoftAPI.getStatus().catch(() => ({ connected: false })),
+      ]);
+      const tools: string[] = prefs.connected_tools || [];
+      setGcalConnected(calStatus.connected || tools.includes('gcalendar'));
+      setMsConnected(msStatus.connected || tools.includes('microsoft365'));
+    } catch {
+      // non-fatal
+    }
+  };
 
   const loadNudges = async () => {
     if (!user) return;
@@ -67,13 +85,19 @@ export default function NudgesScreen() {
             <Text style={styles.emptyText}>
               For the next 24–48 hours, Koan is building your baseline from phone usage patterns — pickup frequency, app switches, and session length.
             </Text>
-            <Text style={styles.toolsLabel}>Connect your tools to unlock richer nudges:</Text>
-            <TouchableOpacity style={styles.toolButton} onPress={() => router.push('/settings')}>
-              <Text style={styles.toolButtonText}>Google Calendar</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.toolButton} onPress={() => router.push('/settings')}>
-              <Text style={styles.toolButtonText}>Microsoft 365</Text>
-            </TouchableOpacity>
+            {(!gcalConnected || !msConnected) && (
+              <Text style={styles.toolsLabel}>Connect your tools to unlock richer nudges:</Text>
+            )}
+            {!gcalConnected && (
+              <TouchableOpacity style={styles.toolButton} onPress={() => router.push('/settings')}>
+                <Text style={styles.toolButtonText}>Google Calendar</Text>
+              </TouchableOpacity>
+            )}
+            {!msConnected && (
+              <TouchableOpacity style={styles.toolButton} onPress={() => router.push('/settings')}>
+                <Text style={styles.toolButtonText}>Microsoft 365</Text>
+              </TouchableOpacity>
+            )}
             <TouchableOpacity onPress={() => setPatternsExpanded(v => !v)} style={styles.patternsToggle}>
               <Text style={styles.patternsToggleText}>What patterns does Koan monitor? →</Text>
             </TouchableOpacity>

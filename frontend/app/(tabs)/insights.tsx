@@ -99,6 +99,15 @@ export default function InsightsScreen() {
 
   const categoryLabel = deriveCategoryLabel(patternsDetected);
 
+  const getInsightState = () => {
+    if (!user?.created_at) return 'observing';
+    const daysSinceCreation = (Date.now() - new Date(user.created_at).getTime()) / (1000 * 60 * 60 * 24);
+    if (daysSinceCreation < 2) return 'observing';
+    if (daysSinceCreation < 7) return 'forming';
+    return 'ready';
+  };
+  const insightState = getInsightState();
+
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
@@ -111,7 +120,17 @@ export default function InsightsScreen() {
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
       >
         {/* Week Period */}
-        {weekStart && (
+        {insightState === 'observing' ? (
+          <View style={styles.periodCard}>
+            <Text style={styles.periodLabel}>First reflection</Text>
+            <Text style={styles.periodText}>Arrives this Sunday</Text>
+          </View>
+        ) : insightState === 'forming' ? (
+          <View style={styles.periodCard}>
+            <Text style={styles.periodLabel}>Your baseline is building</Text>
+            <Text style={styles.periodText}>Arrives this Sunday</Text>
+          </View>
+        ) : weekStart ? (
           <View style={styles.periodCard}>
             <Text style={styles.periodLabel}>
               {isSunday ? 'This week' : 'Last reflection'}
@@ -125,18 +144,40 @@ export default function InsightsScreen() {
               </Text>
             )}
           </View>
-        )}
+        ) : null}
 
         {/* Main Narrative */}
         <View style={styles.narrativeCard}>
-          {categoryLabel && (
-            <Text style={styles.narrativeCategoryLabel}>{categoryLabel.toUpperCase()}</Text>
+          {insightState === 'observing' && (
+            <>
+              <Text style={styles.narrativeCategoryLabel}>JUST GETTING STARTED</Text>
+              <Text style={styles.narrativeText}>Koan is still listening.</Text>
+              <Text style={styles.narrativeSubtext}>
+                Check back in a couple of days. Patterns take a little time to form.
+              </Text>
+            </>
           )}
-          <Text style={styles.narrativeText}>{narrative}</Text>
-          {narrative.includes('baseline') && (
-            <Text style={styles.narrativeSubtext}>
-              Koan builds your baseline first. Patterns emerge gradually over the first few weeks.
-            </Text>
+          {insightState === 'forming' && (
+            <>
+              <Text style={styles.narrativeCategoryLabel}>PATTERNS FORMING</Text>
+              <Text style={styles.narrativeText}>Koan has been observing your patterns.</Text>
+              <Text style={styles.narrativeSubtext}>
+                Your first weekly reflection arrives this Sunday.
+              </Text>
+            </>
+          )}
+          {insightState === 'ready' && (
+            <>
+              {categoryLabel && (
+                <Text style={styles.narrativeCategoryLabel}>{categoryLabel.toUpperCase()}</Text>
+              )}
+              <Text style={styles.narrativeText}>{narrative || 'Koan has been observing your patterns this week.'}</Text>
+              {narrative?.includes('baseline') && (
+                <Text style={styles.narrativeSubtext}>
+                  Koan builds your baseline first. Patterns emerge gradually over the first few weeks.
+                </Text>
+              )}
+            </>
           )}
         </View>
 
