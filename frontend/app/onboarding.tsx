@@ -85,6 +85,15 @@ export default function Onboarding() {
     try {
       await requestHealthKitPermissions();
       setHealthConnected(true);
+      try {
+        const prefs = await preferencesAPI.get();
+        const existing: string[] = prefs.connected_tools || [];
+        if (!existing.includes('apple_health')) {
+          await preferencesAPI.update({ connected_tools: [...existing, 'apple_health'] });
+        }
+      } catch {
+        // non-fatal
+      }
     } catch {
       Alert.alert('Apple Health is only available on iOS.');
     }
@@ -96,7 +105,18 @@ export default function Onboarding() {
       const result = await WebBrowser.openAuthSessionAsync(auth_url, 'koan://calendar-connected');
       if (result.type !== 'success') return;
       const status = await calendarAPI.getStatus();
-      if (status.connected) setGCalConnected(true);
+      if (status.connected) {
+        setGCalConnected(true);
+        try {
+          const prefs = await preferencesAPI.get();
+          const existing: string[] = prefs.connected_tools || [];
+          if (!existing.includes('gcalendar')) {
+            await preferencesAPI.update({ connected_tools: [...existing, 'gcalendar'] });
+          }
+        } catch {
+          // non-fatal
+        }
+      }
     } catch {
       Alert.alert('Error', 'Could not connect Google Calendar. Please try again.');
     }
@@ -108,7 +128,18 @@ export default function Onboarding() {
       const result = await WebBrowser.openAuthSessionAsync(auth_url, 'koan://microsoft-connected');
       if (result.type !== 'success') return;
       const status = await microsoftAPI.getStatus();
-      if (status.connected) setMsConnected(true);
+      if (status.connected) {
+        setMsConnected(true);
+        try {
+          const prefs = await preferencesAPI.get();
+          const existing: string[] = prefs.connected_tools || [];
+          if (!existing.includes('microsoft365')) {
+            await preferencesAPI.update({ connected_tools: [...existing, 'microsoft365'] });
+          }
+        } catch {
+          // non-fatal
+        }
+      }
     } catch {
       Alert.alert('Error', 'Could not connect Microsoft 365. Please try again.');
     }

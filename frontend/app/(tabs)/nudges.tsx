@@ -21,6 +21,7 @@ export default function NudgesScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [expandedNudge, setExpandedNudge] = useState<string | null>(null);
   const [patternsExpanded, setPatternsExpanded] = useState(false);
+  const [healthConnected, setHealthConnected] = useState(false);
   const [gcalConnected, setGcalConnected] = useState(false);
   const [msConnected, setMsConnected] = useState(false);
 
@@ -37,6 +38,7 @@ export default function NudgesScreen() {
         microsoftAPI.getStatus().catch(() => ({ connected: false })),
       ]);
       const tools: string[] = prefs.connected_tools || [];
+      setHealthConnected(tools.includes('apple_health'));
       setGcalConnected(calStatus.connected || tools.includes('gcalendar'));
       setMsConnected(msStatus.connected || tools.includes('microsoft365'));
     } catch {
@@ -85,8 +87,13 @@ export default function NudgesScreen() {
             <Text style={styles.emptyText}>
               For the next 24–48 hours, Koan is building your baseline from phone usage patterns — pickup frequency, app switches, and session length.
             </Text>
-            {(!gcalConnected || !msConnected) && (
+            {(!healthConnected || !gcalConnected || !msConnected) && (
               <Text style={styles.toolsLabel}>Connect your tools to unlock richer nudges:</Text>
+            )}
+            {!healthConnected && (
+              <TouchableOpacity style={styles.toolButton} onPress={() => router.push('/settings')}>
+                <Text style={styles.toolButtonText}>Apple Health</Text>
+              </TouchableOpacity>
             )}
             {!gcalConnected && (
               <TouchableOpacity style={styles.toolButton} onPress={() => router.push('/settings')}>

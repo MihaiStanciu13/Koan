@@ -194,7 +194,9 @@ export default function HomeScreen() {
   const [learningPhase, setLearningPhase] = useState(0); // Track which phase of learning we're in
   const [currentHint, setCurrentHint] = useState(0);
   const [show5thNudgeMilestone, setShow5thNudgeMilestone] = useState(false);
+  const [healthConnected, setHealthConnected] = useState(false);
   const [calendarConnected, setCalendarConnected] = useState(false);
+  const [msConnected, setMsConnected] = useState(false);
   const [weeklyPattern, setWeeklyPattern] = useState<any>(null);
   
   // Animation for pulsing dot
@@ -300,7 +302,10 @@ export default function HomeScreen() {
       }
 
       setAnchorAction(prefs.anchor_action || 'close one loop');
-      setCalendarConnected(!!prefs.google_calendar_connected);
+      const storedTools = prefs.connected_tools || [];
+      setHealthConnected(storedTools.includes('apple_health'));
+      setCalendarConnected(!!prefs.google_calendar_connected || storedTools.includes('gcalendar'));
+      setMsConnected(storedTools.includes('microsoft365'));
       // Load anchor actions array
       if (prefs.anchor_actions && Array.isArray(prefs.anchor_actions)) {
         const enabledActions = prefs.anchor_actions.filter((a: any) => a.enabled && a.text);
@@ -509,7 +514,7 @@ export default function HomeScreen() {
         )}
 
         {/* Calendar / Week card */}
-        {calendarConnected ? (
+        {calendarConnected && msConnected && healthConnected ? (
           <View style={styles.weekCard}>
             <Text style={styles.weekLabel}>THIS WEEK</Text>
             <View style={styles.weekRow}>
@@ -539,18 +544,30 @@ export default function HomeScreen() {
             <Text style={styles.calendarCardSubtitle}>
               Connect your calendar and communication tools to unlock pattern detection based on your meetings and energy levels.
             </Text>
-            <TouchableOpacity
-              style={styles.calendarButtonOutline}
-              onPress={() => router.push('/settings')}
-            >
-              <Text style={styles.calendarButtonOutlineText}>Connect Google Calendar</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.calendarButtonOutline}
-              onPress={() => router.push('/settings')}
-            >
-              <Text style={styles.calendarButtonOutlineText}>Connect Microsoft 365</Text>
-            </TouchableOpacity>
+            {!healthConnected && (
+              <TouchableOpacity
+                style={styles.calendarButtonOutline}
+                onPress={() => router.push('/settings')}
+              >
+                <Text style={styles.calendarButtonOutlineText}>Connect Apple Health</Text>
+              </TouchableOpacity>
+            )}
+            {!calendarConnected && (
+              <TouchableOpacity
+                style={styles.calendarButtonOutline}
+                onPress={() => router.push('/settings')}
+              >
+                <Text style={styles.calendarButtonOutlineText}>Connect Google Calendar</Text>
+              </TouchableOpacity>
+            )}
+            {!msConnected && (
+              <TouchableOpacity
+                style={styles.calendarButtonOutline}
+                onPress={() => router.push('/settings')}
+              >
+                <Text style={styles.calendarButtonOutlineText}>Connect Microsoft 365</Text>
+              </TouchableOpacity>
+            )}
           </View>
         )}
 

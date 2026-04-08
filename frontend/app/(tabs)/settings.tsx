@@ -15,9 +15,11 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useAuth } from '../../contexts/AuthContext';
 import { preferencesAPI, subscriptionAPI, authAPI, calendarAPI, microsoftAPI } from '../../services/api';
+import { requestHealthKitPermissions } from '../../services/healthKit';
 import * as WebBrowser from 'expo-web-browser';
 
 const WORKPLACE_TOOLS = [
+  { id: 'apple_health', name: 'Apple Health', icon: 'heart-outline', color: '#EA4335' },
   { id: 'gcalendar', name: 'Google Calendar', icon: 'calendar-outline', color: '#4285F4' },
   { id: 'microsoft365', name: 'Microsoft 365', icon: 'people-outline', color: '#0078D4' },
 ];
@@ -116,6 +118,24 @@ export default function SettingsScreen() {
   };
 
   const toggleWorkplaceTool = async (toolId: string) => {
+    // Special handling for Apple Health
+    if (toolId === 'apple_health') {
+      if (connectedTools.includes('apple_health')) {
+        const newTools = connectedTools.filter(t => t !== 'apple_health');
+        setConnectedTools(newTools);
+        await updatePreference('connected_tools', newTools);
+      } else {
+        try {
+          await requestHealthKitPermissions();
+          const newTools = [...connectedTools, 'apple_health'];
+          setConnectedTools(newTools);
+          await updatePreference('connected_tools', newTools);
+        } catch {
+          Alert.alert('Apple Health is only available on iOS.');
+        }
+      }
+      return;
+    }
     // Special handling for Google Calendar OAuth
     if (toolId === 'gcalendar') {
       if (connectedTools.includes('gcalendar')) {
