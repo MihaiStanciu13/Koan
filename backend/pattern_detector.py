@@ -61,6 +61,9 @@ class PatternDetector:
         baseline = await self.get_baseline(user_id)
         today_signal = signals[0] if signals else {}
         triggered = []
+        # Per-trigger context storage — populated during detection, read by
+        # detect_patterns_for_orchestrator to build richer candidate dicts.
+        self._pattern_contexts: dict = {}
 
         # ── Morning phone boundary ──
         early_pickups = [
@@ -224,6 +227,78 @@ class PatternDetector:
         if steps_ok and screen_ok and sleep_ok:
             triggered.append("rhythm_balanced_day")
 
+        # ── movement_work_hours_gap ──
+        # Requires optional hourly_steps field (dict: {"9": steps, "10": steps, ...}).
+        # If field is absent (not yet provided by health kit integration), detection is skipped.
+        work_windows = [(9, 12), (10, 13), (11, 14), (12, 15), (13, 16), (14, 17)]
+        qualifying_days = 0
+        calendar_overlap = False
+        for sig in signals[:7]:
+            hourly_steps = sig.get("hourly_steps")
+            if not hourly_steps:
+                continue
+            for win_start, win_end in work_windows:
+                window_steps = sum(
+                    hourly_steps.get(str(h), 0) for h in range(win_start, win_end)
+                )
+                if window_steps < 300:
+                    qualifying_days += 1
+                    break  # count each day at most once
+        if qualifying_days >= 3:
+            triggered.append("movement_work_hours_gap")
+            # Set calendar variant flag if back-to-back meetings were detected
+            # (density data already fetched in calendar context block above)
+            try:
+                if user and (user.get("google_calendar_token") or user.get("microsoft_access_token")):
+                    calendar_overlap = True
+            except Exception:
+                pass
+            self._pattern_contexts["movement_work_hours_gap"] = {
+                "use_calendar_variant": calendar_overlap
+            }
+
+        # ── sleep_late_bedtime ──
+        # Sleep start after 23:30 on 3+ nights in the last 7 days.
+        def _sleep_hour(t: str) -> float:
+            """Convert HH:MM to a float hour, treating post-midnight times as 24+."""
+            try:
+                h, m = map(int, t.split(":"))
+                val = h + m / 60.0
+                return val + 24.0 if val < 3.0 else val
+            except Exception:
+                return 0.0
+
+        sleep_starts_7d = [s.get("sleep_start") for s in signals[:7] if s.get("sleep_start")]
+        if len(sleep_starts_7d) >= 3:
+            late_nights = sum(1 for t in sleep_starts_7d if _sleep_hour(t) >= 23.5)
+            if late_nights >= 3:
+                triggered.append("sleep_late_bedtime")
+
+        # ── sleep_alarm_dependent ──
+        # Consistent wake time (< 15 min spread) with inconsistent bedtime (> 60 min spread).
+        # Requires at least 5 days of sleep data.
+        wake_times_7d = [s.get("wake_time") for s in signals[:7] if s.get("wake_time")]
+        sleep_starts_for_alarm = [s.get("sleep_start") for s in signals[:7] if s.get("sleep_start")]
+        if len(wake_times_7d) >= 5 and len(sleep_starts_for_alarm) >= 5:
+            def _to_minutes(t: str) -> int:
+                try:
+                    h, m = map(int, t.split(":"))
+                    return h * 60 + m
+                except Exception:
+                    return 0
+
+            wake_mins = [_to_minutes(t) for t in wake_times_7d[:5]]
+            # Adjust post-midnight sleep starts: anything before 3am → add 24h
+            sleep_mins_adj = []
+            for t in sleep_starts_for_alarm[:5]:
+                m = _to_minutes(t)
+                sleep_mins_adj.append(m + 1440 if m < 180 else m)
+
+            wake_range = max(wake_mins) - min(wake_mins)
+            sleep_range = max(sleep_mins_adj) - min(sleep_mins_adj)
+            if wake_range < 15 and sleep_range > 60:
+                triggered.append("sleep_alarm_dependent")
+
         return triggered
 
     async def get_priority_nudge(self, user_id: str) -> Optional[dict]:
@@ -247,11 +322,15 @@ class PatternDetector:
             "sleep_timing_inconsistent",
             "sleep_duration_short",
             "sleep_late_night_phone",
+            "sleep_late_bedtime",
+            "sleep_alarm_dependent",
             "outdoor_low_week",
             "morning_phone_early",
             "morning_phone_consistent",
             "movement_declining",
             "movement_sedentary_day",
+            "movement_work_hours_gap",
+            "standing_gap",
             "attention_social_media_heavy",
             "attention_high_pickups",
             "rhythm_weekend_recovery",
@@ -277,6 +356,21 @@ class PatternDetector:
                     return get_nudge_message(trigger_id)
 
         return None
+
+    async def detect_patterns_for_orchestrator(self, user_id: str) -> list:
+        """
+        Like detect_patterns() but returns a list of dicts with trigger_id and context.
+        Context entries are populated during detection (e.g. use_calendar_variant for
+        movement_work_hours_gap). Used by NudgeOrchestrator for richer candidate construction.
+        """
+        triggered = await self.detect_patterns(user_id)
+        return [
+            {
+                "trigger_id": t,
+                "context": self._pattern_contexts.get(t, {}),
+            }
+            for t in triggered
+        ]
 
     async def generate_weekly_narrative(
         self,

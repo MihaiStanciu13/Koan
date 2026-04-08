@@ -74,15 +74,18 @@ class NudgeOrchestrator:
 
         # ── System 2: multi-day pattern candidates ────────────────────────
         try:
-            triggered = await PatternDetector(self.db).detect_patterns(user_id)
-            for trigger_id in triggered:
+            detector = PatternDetector(self.db)
+            triggered_with_ctx = await detector.detect_patterns_for_orchestrator(user_id)
+            for item in triggered_with_ctx:
+                trigger_id = item["trigger_id"]
+                pattern_context = item["context"]
                 entry = NUDGE_LIBRARY.get(trigger_id, {})
                 candidates.append({
                     "source": "pattern",
                     "trigger_id": trigger_id,
                     "nudge_type": entry.get("category", trigger_id),
-                    # PatternDetector already requires multi-day evidence
-                    "context": {"_signal_count": 3},
+                    # PatternDetector already requires multi-day evidence; merge pattern context
+                    "context": {"_signal_count": 3, **pattern_context},
                     "relevance_score": 0.0,
                 })
         except Exception as exc:
@@ -183,11 +186,57 @@ class NudgeOrchestrator:
                 "relevance_score": 0.0,
             })
 
+        # standing_gap: no movement recorded in the past 2 hours during waking hours.
+        # Fires at most once per day. Requires the phone to have been recently active
+        # (phone_behaviors present) to confirm the user is awake and at their device.
+        if 7 <= now.hour < 22:
+            try:
+                two_hours_ago = now - timedelta(minutes=120)
+                today_date = now.strftime("%Y-%m-%d")
+                phone_active = await self.db.phone_behaviors.find_one(
+                    {"user_id": user_id, "timestamp": {"$gte": two_hours_ago}}
+                )
+                if phone_active:
+                    recent_step_signal = await self.db.health_signals.find_one(
+                        {
+                            "user_id": user_id,
+                            "date": today_date,
+                            "recorded_at": {"$gte": two_hours_ago},
+                        }
+                    )
+                    if not recent_step_signal:
+                        today_start = datetime.combine(now.date(), datetime.min.time())
+                        already_fired = await self.db.nudges.find_one({
+                            "user_id": user_id,
+                            "trigger_id": "standing_gap",
+                            "created_at": {"$gte": today_start},
+                        })
+                        if not already_fired:
+                            candidates.append({
+                                "source": "realtime",
+                                "trigger_id": "standing_gap",
+                                "nudge_type": "movement",
+                                "context": {"_signal_count": 2},
+                                "relevance_score": 0.0,
+                            })
+            except Exception as exc:
+                logger.error(f"standing_gap detection failed for user {user_id}: {exc}")
+
         return candidates
 
     # ──────────────────────────────────────────────────────────────────────
     # 2. RELEVANCE SCORING
     # ──────────────────────────────────────────────────────────────────────
+
+    # Positive reinforcement triggers: enforce 14-day minimum gap between fires.
+    _POSITIVE_TRIGGERS = frozenset({
+        "movement_good_streak",
+        "attention_screen_improving",
+        "outdoor_streak",
+        "recovery_good",
+        "rhythm_balanced_day",
+        "rhythm_weekend_recovery",
+    })
 
     async def score_candidate(self, candidate: dict, user_id: str) -> float:
         """
@@ -195,14 +244,33 @@ class NudgeOrchestrator:
 
         Scoring rules
         -------------
-        Wisdom nudges       : fixed 0.5
-        Signal strength     : _signal_count 1 → 0.4, 2 → 0.65, 3+ → 0.9
-        Recency penalty     : same nudge_type sent in last 7 days → -0.3
-        Engagement bonus    : last nudge of this type was opened  → +0.1
-        Minimum threshold   : 0.6 (enforced in orchestrate, not here)
+        Wisdom nudges            : fixed 0.5
+        standing_gap             : fixed 0.75 (daily dedup handled upstream)
+        Signal strength          : _signal_count 1 → 0.4, 2 → 0.65, 3+ → 0.9
+        Recency penalty          : same nudge_type sent in last 7 days → -0.3
+        Engagement bonus         : last nudge of this type was opened  → +0.1
+        Positive trigger cooldown: trigger_id in _POSITIVE_TRIGGERS fired in last
+                                   14 days → 0.0 (below threshold, will be dropped)
+        Minimum threshold        : 0.6 (enforced in orchestrate, not here)
         """
         if candidate["source"] == "wisdom":
             return 0.5
+
+        # standing_gap fires at a fixed relevance of 0.75; daily dedup is already
+        # enforced in _detect_realtime_candidates, so no further recency penalty.
+        if candidate["trigger_id"] == "standing_gap":
+            return 0.75
+
+        # Positive reinforcement triggers: suppress if fired within the last 14 days.
+        if candidate["trigger_id"] in self._POSITIVE_TRIGGERS:
+            fourteen_day_cutoff = datetime.utcnow() - timedelta(days=14)
+            recent_positive = await self.db.nudges.find_one({
+                "user_id": user_id,
+                "trigger_id": candidate["trigger_id"],
+                "created_at": {"$gte": fourteen_day_cutoff},
+            })
+            if recent_positive:
+                return 0.0
 
         signal_count = candidate["context"].get("_signal_count", 1)
         if signal_count >= 3:
@@ -311,10 +379,32 @@ class NudgeOrchestrator:
         nudge_style = prefs.get("nudge_style", "silent")
 
         if best["source"] in ("pattern", "wisdom"):
-            # Use pre-written library message
-            nudge_data = get_nudge_message(best["trigger_id"])
-            if not nudge_data:
-                return None
+            # Special message selection for movement_work_hours_gap:
+            # only include the [Calendar] variant when calendar overlap was detected.
+            if best["trigger_id"] == "movement_work_hours_gap":
+                lib_entry = NUDGE_LIBRARY.get("movement_work_hours_gap", {})
+                msgs = lib_entry.get("messages", [])
+                use_cal = best["context"].get("use_calendar_variant", False)
+                if use_cal:
+                    chosen = random.choice(msgs)
+                else:
+                    non_cal = [m for m in msgs if not m.startswith("[Calendar]")]
+                    chosen = random.choice(non_cal) if non_cal else random.choice(msgs)
+                # Strip [Calendar] prefix before delivery regardless of which variant was picked
+                if chosen.startswith("[Calendar]"):
+                    chosen = chosen[len("[Calendar]"):].strip()
+                nudge_data = {
+                    "trigger_id": "movement_work_hours_gap",
+                    "category": lib_entry.get("category", "movement"),
+                    "principle": lib_entry.get("principle", ""),
+                    "longevity_factor": lib_entry.get("longevity_factor", ""),
+                    "message": chosen,
+                }
+            else:
+                # Use pre-written library message (random variant selection)
+                nudge_data = get_nudge_message(best["trigger_id"])
+                if not nudge_data:
+                    return None
 
             message = nudge_data["message"]
             explanation = nudge_data["principle"]
@@ -328,7 +418,11 @@ class NudgeOrchestrator:
                 delivered=False,
                 silent=(nudge_style == "silent"),
             )
-            await self.db.nudges.insert_one(nudge_obj.dict())
+            # Store trigger_id alongside the nudge document (not part of Nudge model)
+            # so that per-trigger cooldown queries (positive triggers, standing_gap) work.
+            nudge_doc = nudge_obj.dict()
+            nudge_doc["trigger_id"] = best["trigger_id"]
+            await self.db.nudges.insert_one(nudge_doc)
             nudge_dict = nudge_obj.dict()
 
         else:
@@ -343,6 +437,11 @@ class NudgeOrchestrator:
                 return None
             nudge_dict = nudge_obj.dict()
             message = nudge_dict["message"]
+            # Store trigger_id for realtime nudges too
+            await self.db.nudges.update_one(
+                {"id": nudge_dict["id"]},
+                {"$set": {"trigger_id": best["trigger_id"]}},
+            )
 
         # 6. Push notification (non-fatal)
         try:
