@@ -17,7 +17,7 @@ import Svg, { Rect } from 'react-native-svg';
 import { storage } from '../services/storage';
 import { calendarAPI, microsoftAPI, preferencesAPI } from '../services/api';
 import { requestHealthKitPermissions } from '../services/healthKit';
-import Spacer from '../../components/Spacer';
+import Spacer from '../components/Spacer';
 
 const GCalIcon = ({ size = 32 }: { size?: number }) => (
   <Svg width={size} height={size} viewBox="0 0 48 48">
