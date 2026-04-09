@@ -238,7 +238,88 @@ class NudgeOrchestrator:
         "rhythm_weekend_recovery",
     })
 
-    async def score_candidate(self, candidate: dict, user_id: str) -> float:
+    # Urgent health signals receive a relevance boost before the recency penalty.
+    # standing_gap has a fixed return of 0.75 and is excluded here.
+    _PRIORITY_BOOST = {
+        "stress_hrv_low": 0.15,
+        "stress_resting_hr_elevated": 0.15,
+        "sleep_duration_short": 0.15,
+    }
+
+    # Compound trigger definitions. Each entry fires when both trigger_ids in "pair"
+    # are present among the collected candidates, and returns early with a high score.
+    _COMPOUND_TRIGGERS = [
+        {
+            "pair": {"movement_declining", "stress_heavy_meeting_day"},
+            "trigger_id": "compound_movement_meetings",
+            "nudge_type": "compound",
+            "source": "pattern",
+            "relevance_score": 0.92,
+            "context": {"_signal_count": 3},
+            "messages": [
+                "Movement has been fading while meetings have been piling up. The body and the calendar are telling the same story.",
+                "Less movement this week, more hours in rooms. The body needs the opposite of what the schedule is offering.",
+                "A heavy week on the calendar and a quiet week on your feet. Those two things compound faster than either does alone.",
+            ]
+        },
+        {
+            "pair": {"sleep_duration_short", "stress_hrv_low"},
+            "trigger_id": "compound_sleep_recovery",
+            "nudge_type": "compound",
+            "source": "pattern",
+            "relevance_score": 0.95,
+            "context": {"_signal_count": 3},
+            "messages": [
+                "Short sleep and low recovery signals at the same time. The body is asking clearly — this isn't a push-through moment.",
+                "Sleep has been short and recovery hasn't caught up. That combination ages the body faster than either does alone.",
+                "The two most important recovery signals are both low right now. The body doesn't have reserves it doesn't have.",
+            ]
+        },
+        {
+            "pair": {"boundary_evening_work", "sleep_late_bedtime"},
+            "trigger_id": "compound_evening_sleep",
+            "nudge_type": "compound",
+            "source": "pattern",
+            "relevance_score": 0.90,
+            "context": {"_signal_count": 3},
+            "messages": [
+                "Late meetings most evenings, late sleep most nights. One is causing the other — and the body is paying for both.",
+                "The workday keeps running past 7, and sleep keeps starting past midnight. The evening is where this gets fixed.",
+                "Evening work and late sleep have been running together this week. The day needs an end before the night can begin.",
+            ]
+        },
+        {
+            "pair": {"movement_declining", "stress_resting_hr_elevated"},
+            "trigger_id": "compound_movement_hr",
+            "nudge_type": "compound",
+            "source": "pattern",
+            "relevance_score": 0.92,
+            "context": {"_signal_count": 3},
+            "messages": [
+                "Less movement this week and a higher resting heart rate. The body notices the connection even when the mind doesn't.",
+                "Movement has been fading while resting heart rate has been climbing. The body uses movement to manage stress — it's not getting what it needs.",
+                "Fewer steps and elevated heart rate over the same stretch. Those two signals together mean something the individual numbers don't.",
+            ]
+        },
+    ]
+
+    # Maps anchor action keywords to category affinity multipliers used by the
+    # cold-start strategy to personalise scoring before engagement data exists.
+    _ANCHOR_CATEGORY_AFFINITIES = {
+        "meditation": {"recovery": 1.15, "sleep": 1.10, "morning_boundary": 1.10},
+        "breath":     {"recovery": 1.15, "stress": 1.10},
+        "walk":       {"movement": 1.15, "outdoor": 1.10},
+        "grateful":   {"wisdom": 1.15, "balance": 1.10},
+        "priority":   {"work_boundary": 1.15, "attention": 1.10},
+        "loop":       {"work_boundary": 1.10, "attention": 1.10},
+        "stretch":    {"movement": 1.15, "recovery": 1.10},
+        "sleep":      {"sleep": 1.20, "morning_boundary": 1.10},
+        "water":      {"movement": 1.05},
+        "thought":    {"wisdom": 1.10, "balance": 1.10},
+        "notification": {"attention": 1.15},
+    }
+
+    async def score_candidate(self, candidate: dict, user_id: str, multipliers: dict = None) -> float:
         """
         Return a relevance score 0.0–1.0 for a candidate.
 
@@ -247,10 +328,12 @@ class NudgeOrchestrator:
         Wisdom nudges            : fixed 0.5
         standing_gap             : fixed 0.75 (daily dedup handled upstream)
         Signal strength          : _signal_count 1 → 0.4, 2 → 0.65, 3+ → 0.9
+        Priority boost           : trigger_id in _PRIORITY_BOOST → +0.15 (before recency)
         Recency penalty          : same nudge_type sent in last 7 days → -0.3
         Engagement bonus         : last nudge of this type was opened  → +0.1
         Positive trigger cooldown: trigger_id in _POSITIVE_TRIGGERS fired in last
                                    14 days → 0.0 (below threshold, will be dropped)
+        Category multiplier      : per-user personalisation from get_category_multipliers
         Minimum threshold        : 0.6 (enforced in orchestrate, not here)
         """
         if candidate["source"] == "wisdom":
@@ -280,6 +363,10 @@ class NudgeOrchestrator:
         else:
             score = 0.4
 
+        # Priority boost for urgent health signals (applied before recency penalty)
+        boost = self._PRIORITY_BOOST.get(candidate["trigger_id"], 0.0)
+        score += boost
+
         nudge_type = candidate["nudge_type"]
         recency_cutoff = datetime.utcnow() - timedelta(days=7)
 
@@ -300,7 +387,116 @@ class NudgeOrchestrator:
         if last_of_type and last_of_type.get("opened"):
             score += 0.1
 
+        # Category multiplier from cold-start / engagement learning
+        if multipliers:
+            multiplier = multipliers.get(candidate.get("nudge_type", ""), 1.0)
+            score = score * multiplier
+
         return max(0.0, min(1.0, score))
+
+    def detect_compound(self, candidates: list) -> Optional[dict]:
+        """
+        Return a deepcopy of the first compound trigger whose pair is fully
+        represented in *candidates*, or None if no compound fires.
+        Compound candidates take precedence over all scored candidates and
+        bypass the _THRESHOLD gate.
+        """
+        import copy
+        trigger_ids_present = {c["trigger_id"] for c in candidates}
+        for compound in self._COMPOUND_TRIGGERS:
+            if compound["pair"].issubset(trigger_ids_present):
+                return copy.deepcopy(compound)
+        return None
+
+    async def get_anchor_affinities(self, user_id: str) -> dict:
+        """
+        Return category affinity multipliers derived from the anchor action
+        the user chose during onboarding (stored in preferences.anchor_action).
+        Returns an empty dict when no anchor action is on file.
+        """
+        prefs = await self.db.preferences.find_one({"user_id": user_id}) or {}
+        anchor = (prefs.get("anchor_action") or "").lower()
+        if not anchor:
+            return {}
+        for keyword, affinities in self._ANCHOR_CATEGORY_AFFINITIES.items():
+            if keyword in anchor:
+                return dict(affinities)
+        return {}
+
+    async def get_category_multipliers(self, user_id: str) -> dict:
+        """
+        Return per-category score multipliers for personalised ranking.
+
+        Three phases based on days since the user joined
+        ─────────────────────────────────────────────────
+        Phase 1 (days 0–7, anchor only)
+            Only anchor affinities are used — no engagement data yet.
+        Phase 2 (days 7–30, blend)
+            60 % anchor + 40 % observed open-rate multipliers.
+        Phase 3 (days 30+, full engagement)
+            Open-rate multipliers only; anchor no longer drives decisions.
+
+        Open-rate multiplier rules (require ≥3 delivered nudges for the category)
+        ─────────────────────────────────────────────────────────────────────────
+          open_rate > 0.50 → 1.15 ×
+          open_rate < 0.25 → 0.85 ×
+          otherwise        → 1.0  (neutral, omitted from returned dict)
+        """
+        user = (
+            await self.db.users.find_one({"_id": user_id})
+            or await self.db.users.find_one({"id": user_id})
+        )
+        if not user:
+            return {}
+
+        created_at = user.get("created_at") or user.get("trial_start")
+        days_since_join = (
+            (datetime.utcnow() - created_at).days if created_at else 0
+        )
+
+        anchor_multipliers = await self.get_anchor_affinities(user_id)
+
+        # Phase 1: cold-start — anchor affinities only
+        if days_since_join < 7:
+            return anchor_multipliers
+
+        # Compute per-category open rates from stored nudges
+        pipeline = [
+            {"$match": {"user_id": user_id}},
+            {
+                "$group": {
+                    "_id": "$nudge_type",
+                    "total": {"$sum": 1},
+                    "opened": {"$sum": {"$cond": ["$opened", 1, 0]}},
+                }
+            },
+        ]
+        rows = await self.db.nudges.aggregate(pipeline).to_list(100)
+        engagement_multipliers: dict = {}
+        for row in rows:
+            total = row["total"]
+            if total < 3:
+                continue
+            open_rate = row["opened"] / total
+            if open_rate > 0.5:
+                engagement_multipliers[row["_id"]] = 1.15
+            elif open_rate < 0.25:
+                engagement_multipliers[row["_id"]] = 0.85
+
+        # Phase 3: full engagement — open rates only
+        if days_since_join >= 30:
+            return engagement_multipliers
+
+        # Phase 2: blend (60 % anchor, 40 % engagement)
+        all_cats = set(anchor_multipliers) | set(engagement_multipliers)
+        return {
+            cat: round(
+                0.6 * anchor_multipliers.get(cat, 1.0)
+                + 0.4 * engagement_multipliers.get(cat, 1.0),
+                4,
+            )
+            for cat in all_cats
+        }
 
     # ──────────────────────────────────────────────────────────────────────
     # 3. DELIVERY GATE
@@ -343,26 +539,65 @@ class NudgeOrchestrator:
         Steps
         -----
         1. can_deliver gate
-        2. collect_candidates from all sources
-        3. score_candidate for each; drop those below _THRESHOLD
-        4. pick the highest-scoring candidate
-        5. generate message (library for pattern/wisdom, AI for realtime)
-        6. store in MongoDB + send push notification
-        7. return nudge dict
+        2. Fetch user preferences (nudge_style) — needed on every exit path
+        3. collect_candidates from all sources
+        4. Compound trigger check — returns early if a compound pair fires
+        5. score_candidate for each (with per-user category multipliers);
+           drop those below _THRESHOLD
+        6. Pick the highest-scoring candidate
+        7. Generate message (library for pattern/wisdom, AI for realtime)
+        8. Store in MongoDB + send push notification
+        9. Return nudge dict
         """
         # 1. Gate
         if not await self.can_deliver(user_id):
             return None
 
-        # 2. Collect
+        # 2. Preferences — fetched once, reused by both the compound path and the
+        #    normal path so we don't query twice.
+        prefs = await self.db.preferences.find_one({"user_id": user_id}) or {}
+        nudge_style = prefs.get("nudge_style", "silent")
+
+        # 3. Collect
         candidates = await self.collect_candidates(user_id, realtime_signal)
         if not candidates:
             return None
 
-        # 3. Score and filter
+        # 4. Compound trigger check — bypasses individual scoring / threshold
+        compound = self.detect_compound(candidates)
+        if compound:
+            message = random.choice(compound["messages"])
+            nudge_id = str(uuid.uuid4())
+            nudge_obj = Nudge(
+                id=nudge_id,
+                user_id=user_id,
+                nudge_type=compound["nudge_type"],
+                message=message,
+                explanation="",
+                delivered=False,
+                silent=(nudge_style == "silent"),
+            )
+            nudge_doc = nudge_obj.dict()
+            nudge_doc["trigger_id"] = compound["trigger_id"]
+            await self.db.nudges.insert_one(nudge_doc)
+            nudge_dict = nudge_obj.dict()
+            try:
+                await send_nudge_push(self.db, user_id, message, nudge_id=nudge_id)
+            except Exception as exc:
+                logger.error(f"Push notification failed for user {user_id}: {exc}")
+            logger.info(
+                f"Orchestrator delivered compound nudge "
+                f"(trigger={compound['trigger_id']}, "
+                f"score={compound['relevance_score']:.2f}) "
+                f"to user {user_id}"
+            )
+            return nudge_dict
+
+        # 5. Score and filter — compute personalisation multipliers once
+        multipliers = await self.get_category_multipliers(user_id)
         scored = []
         for candidate in candidates:
-            score = await self.score_candidate(candidate, user_id)
+            score = await self.score_candidate(candidate, user_id, multipliers)
             if score >= _THRESHOLD:
                 scored.append({**candidate, "relevance_score": score})
 
@@ -370,14 +605,11 @@ class NudgeOrchestrator:
             # Silence is the correct answer
             return None
 
-        # 4. Pick best
+        # 6. Pick best
         scored.sort(key=lambda c: c["relevance_score"], reverse=True)
         best = scored[0]
 
-        # 5. Generate content and store
-        prefs = await self.db.preferences.find_one({"user_id": user_id}) or {}
-        nudge_style = prefs.get("nudge_style", "silent")
-
+        # 7. Generate content and store
         if best["source"] in ("pattern", "wisdom"):
             # Special message selection for movement_work_hours_gap:
             # only include the [Calendar] variant when calendar overlap was detected.
@@ -390,7 +622,7 @@ class NudgeOrchestrator:
                 else:
                     non_cal = [m for m in msgs if not m.startswith("[Calendar]")]
                     chosen = random.choice(non_cal) if non_cal else random.choice(msgs)
-                # Strip [Calendar] prefix before delivery regardless of which variant was picked
+                # Strip [Calendar] prefix before delivery regardless of variant
                 if chosen.startswith("[Calendar]"):
                     chosen = chosen[len("[Calendar]"):].strip()
                 nudge_data = {
@@ -436,16 +668,17 @@ class NudgeOrchestrator:
             if not nudge_obj:
                 return None
             nudge_dict = nudge_obj.dict()
+            nudge_id = nudge_dict["id"]
             message = nudge_dict["message"]
             # Store trigger_id for realtime nudges too
             await self.db.nudges.update_one(
-                {"id": nudge_dict["id"]},
+                {"id": nudge_id},
                 {"$set": {"trigger_id": best["trigger_id"]}},
             )
 
-        # 6. Push notification (non-fatal)
+        # 8. Push notification (non-fatal)
         try:
-            await send_nudge_push(self.db, user_id, message)
+            await send_nudge_push(self.db, user_id, message, nudge_id=nudge_id)
         except Exception as exc:
             logger.error(f"Push notification failed for user {user_id}: {exc}")
 

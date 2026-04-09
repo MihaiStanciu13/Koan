@@ -80,22 +80,28 @@ async def send_push_notification(
         return False
 
 
-async def send_nudge_push(db, user_id: str, nudge_message: str) -> bool:
+async def send_nudge_push(db, user_id: str, nudge_message: str, nudge_id: str = "") -> bool:
     """
     Send a nudge as a push notification.
-    
+
     Args:
         db: MongoDB database instance
         user_id: User ID
         nudge_message: The nudge text to send
-        
+        nudge_id: Optional nudge ID included in the data payload so the
+                  frontend tap handler can mark the nudge as opened.
+                  If empty string, the nudgeId key is omitted (graceful fallback).
+
     Returns:
         bool: Success status
     """
+    data: dict = {"type": "nudge"}
+    if nudge_id:
+        data["nudgeId"] = nudge_id
     return await send_push_notification(
         db=db,
         user_id=user_id,
         title="Koan",
         body=nudge_message,
-        data={"type": "nudge"}
+        data=data,
     )
