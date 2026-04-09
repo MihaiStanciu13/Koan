@@ -61,8 +61,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const logout = async () => {
+    try {
+      await storage.removeAuthToken();
+    } catch (e) {
+      // ignore — proceed with logout regardless
+    }
     setUser(null);
-    await storage.removeAuthToken();
+    await storage.clearOnboardingComplete();
     router.replace('/');
   };
 

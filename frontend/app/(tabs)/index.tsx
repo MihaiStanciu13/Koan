@@ -194,15 +194,17 @@ export default function HomeScreen() {
   const [learningPhase, setLearningPhase] = useState(0); // Track which phase of learning we're in
   const [currentHint, setCurrentHint] = useState(0);
   const [show5thNudgeMilestone, setShow5thNudgeMilestone] = useState(false);
-  const [healthConnected, setHealthConnected] = useState(false);
   const [calendarConnected, setCalendarConnected] = useState(false);
-  const [msConnected, setMsConnected] = useState(false);
   const [weeklyPattern, setWeeklyPattern] = useState<any>(null);
-  
+
+  // Mount guard — prevents API calls from firing during navigation-away unmount
+  const isMounted = useRef(true);
+
   // Animation for pulsing dot
   const pulseAnim = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
+    isMounted.current = true;
     loadData();
     startPulseAnimation();
     determineLearningPhase();
@@ -218,14 +220,19 @@ export default function HomeScreen() {
       collectAndSendHealthData();
     }
 
-    return () => stopSignalCollection();
+    return () => {
+      isMounted.current = false;
+      stopSignalCollection();
+    };
   }, []);
 
   // Reload data when screen comes into focus (e.g., after returning from anchor actions)
   useFocusEffect(
     React.useCallback(() => {
-      loadData();
-    }, [])
+      if (user && isMounted.current) {
+        loadData();
+      }
+    }, [user])
   );
 
   const determineLearningPhase = async () => {
@@ -283,7 +290,7 @@ export default function HomeScreen() {
   };
 
   const loadData = async () => {
-    if (!user) return;
+    if (!user || !isMounted.current) return;
     try {
       const [prefs, nudges, subStatus, fallback, patternResult, weeklyResult] = await Promise.all([
         preferencesAPI.get(),
@@ -303,9 +310,7 @@ export default function HomeScreen() {
 
       setAnchorAction(prefs.anchor_action || 'close one loop');
       const storedTools = prefs.connected_tools || [];
-      setHealthConnected(storedTools.includes('apple_health'));
       setCalendarConnected(!!prefs.google_calendar_connected || storedTools.includes('gcalendar'));
-      setMsConnected(storedTools.includes('microsoft365'));
       // Load anchor actions array
       if (prefs.anchor_actions && Array.isArray(prefs.anchor_actions)) {
         const enabledActions = prefs.anchor_actions.filter((a: any) => a.enabled && a.text);
@@ -514,7 +519,7 @@ export default function HomeScreen() {
         )}
 
         {/* Calendar / Week card */}
-        {calendarConnected && msConnected && healthConnected ? (
+        {calendarConnected ? (
           <View style={styles.weekCard}>
             <Text style={styles.weekLabel}>THIS WEEK</Text>
             <View style={styles.weekRow}>
@@ -542,32 +547,14 @@ export default function HomeScreen() {
               <Text style={styles.calendarCardTitle}>Koan learns from your tools</Text>
             </View>
             <Text style={styles.calendarCardSubtitle}>
-              Connect your calendar and communication tools to unlock pattern detection based on your meetings and energy levels.
+              Connect Apple Health, Google Calendar, or Microsoft 365 to unlock richer pattern detection.
             </Text>
-            {!healthConnected && (
-              <TouchableOpacity
-                style={styles.calendarButtonOutline}
-                onPress={() => router.push('/settings')}
-              >
-                <Text style={styles.calendarButtonOutlineText}>Connect Apple Health</Text>
-              </TouchableOpacity>
-            )}
-            {!calendarConnected && (
-              <TouchableOpacity
-                style={styles.calendarButtonOutline}
-                onPress={() => router.push('/settings')}
-              >
-                <Text style={styles.calendarButtonOutlineText}>Connect Google Calendar</Text>
-              </TouchableOpacity>
-            )}
-            {!msConnected && (
-              <TouchableOpacity
-                style={styles.calendarButtonOutline}
-                onPress={() => router.push('/settings')}
-              >
-                <Text style={styles.calendarButtonOutlineText}>Connect Microsoft 365</Text>
-              </TouchableOpacity>
-            )}
+            <TouchableOpacity
+              style={styles.calendarButtonOutline}
+              onPress={() => router.push('/(tabs)/nudges')}
+            >
+              <Text style={styles.calendarButtonOutlineText}>Set up connections</Text>
+            </TouchableOpacity>
           </View>
         )}
 

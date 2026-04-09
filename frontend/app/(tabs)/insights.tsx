@@ -8,6 +8,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { patternsAPI, behaviorAPI } from '../../services/api';
+import Spacer from '../../components/Spacer';
 import { format } from 'date-fns';
 import { useAuth } from '../../contexts/AuthContext';
 
@@ -118,6 +119,7 @@ export default function InsightsScreen() {
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+        style={{ flex: 1 }}
       >
         {/* Week Period */}
         {insightState === 'observing' ? (
@@ -208,6 +210,14 @@ export default function InsightsScreen() {
         <Text style={styles.note}>
           Patterns emerge over time. Check back next week for deeper insights.
         </Text>
+
+        <Spacer minHeight={24} />
+
+        <View style={styles.philosophyCard}>
+          <Text style={[styles.philosophyText, { fontFamily: 'Georgia', fontStyle: 'italic' }]}>
+            Koan observes without judgment.
+          </Text>
+        </View>
       </ScrollView>
     </SafeAreaView>
   );
@@ -234,6 +244,7 @@ const styles = StyleSheet.create({
     opacity: 0.6,
   },
   scrollContent: {
+    flexGrow: 1,
     padding: 20,
     paddingTop: 0,
     paddingBottom: 40,

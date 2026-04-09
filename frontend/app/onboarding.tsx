@@ -17,6 +17,7 @@ import Svg, { Rect } from 'react-native-svg';
 import { storage } from '../services/storage';
 import { calendarAPI, microsoftAPI, preferencesAPI } from '../services/api';
 import { requestHealthKitPermissions } from '../services/healthKit';
+import Spacer from '../../components/Spacer';
 
 const GCalIcon = ({ size = 32 }: { size?: number }) => (
   <Svg width={size} height={size} viewBox="0 0 48 48">
@@ -231,29 +232,31 @@ export default function Onboarding() {
         </View>
         <Text style={styles.videoLabel}>2 MIN INTRO</Text>
       </View>
-      <View style={styles.interstitialLine}>
-        <Text style={styles.interstitialTitle}>Koan watches quietly.</Text>
-        <Text style={styles.interstitialBody}>
-          Health signals, phone pickups, app switches, meeting density. Nothing personal.
-        </Text>
-      </View>
-      <View style={[styles.interstitialLine, styles.interstitialLineBorder]}>
-        <Text style={styles.interstitialTitle}>Patterns emerge.</Text>
-        <Text style={styles.interstitialBody}>
-          After a few days, your rhythm becomes clear — when you focus, when you drift.
-        </Text>
-      </View>
-      <View style={[styles.interstitialLine, styles.interstitialLineBorder]}>
-        <Text style={styles.interstitialTitle}>A nudge arrives.</Text>
-        <Text style={styles.interstitialBody}>
-          Short. Calm. At exactly the right moment. Then silence again.
-        </Text>
-      </View>
-      <View style={[styles.interstitialLine, styles.interstitialLineBorder]}>
-        <Text style={styles.interstitialTitle}>Each week, a reflection.</Text>
-        <Text style={styles.interstitialBody}>
-          A quiet observation in Insights, every Sunday.
-        </Text>
+      <View style={{ flex: 1, justifyContent: 'space-evenly' }}>
+        <View style={styles.interstitialLine}>
+          <Text style={styles.interstitialTitle}>Koan watches quietly.</Text>
+          <Text style={styles.interstitialBody}>
+            Health signals, phone pickups, app switches, meeting density. Nothing personal.
+          </Text>
+        </View>
+        <View style={[styles.interstitialLine, styles.interstitialLineBorder]}>
+          <Text style={styles.interstitialTitle}>Patterns emerge.</Text>
+          <Text style={styles.interstitialBody}>
+            After a few days, your rhythm becomes clear — when you focus, when you drift.
+          </Text>
+        </View>
+        <View style={[styles.interstitialLine, styles.interstitialLineBorder]}>
+          <Text style={styles.interstitialTitle}>A nudge arrives.</Text>
+          <Text style={styles.interstitialBody}>
+            Short. Calm. At exactly the right moment. Then silence again.
+          </Text>
+        </View>
+        <View style={[styles.interstitialLine, styles.interstitialLineBorder]}>
+          <Text style={styles.interstitialTitle}>Each week, a reflection.</Text>
+          <Text style={styles.interstitialBody}>
+            A quiet observation in Insights, every Sunday.
+          </Text>
+        </View>
       </View>
     </>
   );
@@ -315,6 +318,7 @@ export default function Onboarding() {
           </Text>
         </TouchableOpacity>
       </View>
+      <Spacer minHeight={16} />
     </>
   );
 
@@ -377,6 +381,7 @@ export default function Onboarding() {
       <Text style={styles.connectionNote}>
         Connect one, both, or neither. You can add more in Settings.
       </Text>
+      <Spacer minHeight={16} />
     </>
   );
 
@@ -417,6 +422,7 @@ export default function Onboarding() {
           </View>
         </View>
       </View>
+      <Spacer minHeight={16} />
     </>
   );
 
@@ -465,6 +471,7 @@ export default function Onboarding() {
           );
         })}
       </View>
+      <Spacer minHeight={16} />
     </>
   );
 
@@ -678,12 +685,15 @@ const styles = StyleSheet.create({
 
   // ── Welcome screen ───────────────────────────────────────────────────────
   videoBlock: {
+    width: '100%',
+    alignSelf: 'stretch',
     height: 128,
     backgroundColor: '#EEF0EB',
     borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 12,
+    flexShrink: 0,
   },
   playButton: {
     width: 34,
@@ -713,7 +723,7 @@ const styles = StyleSheet.create({
     letterSpacing: 0.8,
   },
   interstitialLine: {
-    paddingVertical: 10,
+    paddingVertical: 4,
   },
   interstitialLineBorder: {
     borderTopWidth: 1,

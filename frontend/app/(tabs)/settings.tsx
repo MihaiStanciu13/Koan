@@ -245,8 +245,10 @@ export default function SettingsScreen() {
     setShowLogoutConfirm(false);
     try {
       await logout();
+      router.replace('/');
     } catch (error) {
       console.error('Logout error:', error);
+      router.replace('/');
     }
   };
 

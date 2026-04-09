@@ -10,6 +10,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { nudgeAPI, preferencesAPI, calendarAPI, microsoftAPI } from '../../services/api';
+import Spacer from '../../components/Spacer';
 import { format } from 'date-fns';
 import { useRouter } from 'expo-router';
 import { useAuth } from '../../contexts/AuthContext';
@@ -115,6 +116,12 @@ export default function NudgesScreen() {
                 </Text>
               </View>
             )}
+            <Spacer minHeight={24} />
+            <View style={[styles.philosophyCard, { alignSelf: 'stretch' }]}>
+              <Text style={styles.philosophyText}>
+                You know the next step. We just help you remember.
+              </Text>
+            </View>
           </View>
         ) : (
           nudges.map((nudge) => (
@@ -155,12 +162,6 @@ export default function NudgesScreen() {
           ))
         )}
       </ScrollView>
-
-      <View style={styles.philosophyCard}>
-        <Text style={styles.philosophyText}>
-          You know the next step. We just help you remember.
-        </Text>
-      </View>
     </SafeAreaView>
   );
 }
@@ -189,11 +190,13 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollContent: {
+    flexGrow: 1,
     padding: 20,
     paddingTop: 0,
     paddingBottom: 16,
   },
   emptyState: {
+    flex: 1,
     alignItems: 'center',
     paddingVertical: 24,
   },
