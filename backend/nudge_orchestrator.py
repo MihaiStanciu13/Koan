@@ -260,6 +260,9 @@ class NudgeOrchestrator:
                 "Movement has been fading while meetings have been piling up. The body and the calendar are telling the same story.",
                 "Less movement this week, more hours in rooms. The body needs the opposite of what the schedule is offering.",
                 "A heavy week on the calendar and a quiet week on your feet. Those two things compound faster than either does alone.",
+            ],
+            "personalised_messages": [
+                "Movement has been fading — {current_avg_steps} steps vs your usual {avg_steps_formatted} — while meetings have been piling up. The body and the calendar are telling the same story.",
             ]
         },
         {
@@ -273,6 +276,9 @@ class NudgeOrchestrator:
                 "Short sleep and low recovery signals at the same time. The body is asking clearly — this isn't a push-through moment.",
                 "Sleep has been short and recovery hasn't caught up. That combination ages the body faster than either does alone.",
                 "The two most important recovery signals are both low right now. The body doesn't have reserves it doesn't have.",
+            ],
+            "personalised_messages": [
+                "Averaging {avg_sleep_hours}h of sleep while your HRV sits {hrv_pct}% below baseline. The body is asking clearly — this isn't a push-through moment.",
             ]
         },
         {
@@ -393,6 +399,61 @@ class NudgeOrchestrator:
             score = score * multiplier
 
         return max(0.0, min(1.0, score))
+
+    async def personalise_message(
+        self,
+        trigger_id: str,
+        context: dict,
+        library_entry: dict = None,
+        compound_messages: list = None,
+    ) -> Optional[str]:
+        """
+        Attempt to return a personalised message variant with {placeholders} filled.
+
+        Returns None (caller falls back to standard random variant) if:
+        - No personalised_messages defined for this trigger
+        - All variants have at least one placeholder missing from context
+        - Any exception occurs
+
+        Parameters
+        ----------
+        trigger_id       : used only for error logging
+        context          : the candidate's context dict (may contain personalisation fields)
+        library_entry    : NUDGE_LIBRARY entry for this trigger (supplies personalised_messages)
+        compound_messages: personalised_messages list from a compound trigger (overrides library_entry)
+        """
+        try:
+            import re
+            import copy as _copy
+            import random as _random
+
+            if compound_messages is not None:
+                personalised_variants = compound_messages
+            elif library_entry is not None:
+                personalised_variants = library_entry.get("personalised_messages", [])
+            else:
+                return None
+
+            if not personalised_variants:
+                return None
+
+            # Shuffle so different variants surface across successive calls
+            variants = _copy.copy(personalised_variants)
+            _random.shuffle(variants)
+
+            for variant in variants:
+                placeholders = re.findall(r"\{(\w+)\}", variant)
+                if all(p in context and context[p] is not None for p in placeholders):
+                    try:
+                        return variant.format(**context)
+                    except (KeyError, ValueError):
+                        continue
+
+            return None  # All variants need data that isn't available
+
+        except Exception as exc:
+            logger.error(f"personalise_message failed for {trigger_id}: {exc}")
+            return None
 
     def detect_compound(self, candidates: list) -> Optional[dict]:
         """
@@ -566,7 +627,18 @@ class NudgeOrchestrator:
         # 4. Compound trigger check — bypasses individual scoring / threshold
         compound = self.detect_compound(candidates)
         if compound:
-            message = random.choice(compound["messages"])
+            # Merge the individual candidates' contexts so personalised variants
+            # can draw on data from both halves of the compound.
+            merged_context: dict = {}
+            for c in candidates:
+                if c["trigger_id"] in compound["pair"]:
+                    merged_context.update(c.get("context", {}))
+            personalised = await self.personalise_message(
+                compound["trigger_id"],
+                merged_context,
+                compound_messages=compound.get("personalised_messages", []),
+            )
+            message = personalised if personalised else random.choice(compound["messages"])
             nudge_id = str(uuid.uuid4())
             nudge_obj = Nudge(
                 id=nudge_id,
@@ -625,21 +697,25 @@ class NudgeOrchestrator:
                 # Strip [Calendar] prefix before delivery regardless of variant
                 if chosen.startswith("[Calendar]"):
                     chosen = chosen[len("[Calendar]"):].strip()
-                nudge_data = {
-                    "trigger_id": "movement_work_hours_gap",
-                    "category": lib_entry.get("category", "movement"),
-                    "principle": lib_entry.get("principle", ""),
-                    "longevity_factor": lib_entry.get("longevity_factor", ""),
-                    "message": chosen,
-                }
+                message = chosen
+                explanation = lib_entry.get("principle", "")
             else:
-                # Use pre-written library message (random variant selection)
-                nudge_data = get_nudge_message(best["trigger_id"])
-                if not nudge_data:
-                    return None
-
-            message = nudge_data["message"]
-            explanation = nudge_data["principle"]
+                # Attempt personalised variant; fall back to standard random selection
+                lib_entry = NUDGE_LIBRARY.get(best["trigger_id"])
+                personalised = await self.personalise_message(
+                    best["trigger_id"],
+                    best.get("context", {}),
+                    library_entry=lib_entry,
+                )
+                if personalised:
+                    message = personalised
+                    explanation = lib_entry.get("principle", "") if lib_entry else ""
+                else:
+                    nudge_data = get_nudge_message(best["trigger_id"])
+                    if not nudge_data:
+                        return None
+                    message = nudge_data["message"]
+                    explanation = nudge_data["principle"]
             nudge_id = str(uuid.uuid4())
             nudge_obj = Nudge(
                 id=nudge_id,

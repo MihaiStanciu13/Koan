@@ -21,6 +21,9 @@ NUDGE_LIBRARY = {
             "The first 30 minutes of the day are the most uncontested time you have. Your phone was already there.",
             "Two mornings in a row, the phone before anything else. That window shapes the cortisol pattern for everything that follows.",
             "Before coffee, before light, before a thought of your own — the phone. That first reach is a habit forming.",
+        ],
+        "personalised_messages": [
+            "Two mornings in a row, the phone before anything else. That first {first_pickup_time} sets the cortisol pattern for everything that follows.",
         ]
     },
     "morning_phone_consistent": {
@@ -45,6 +48,10 @@ NUDGE_LIBRARY = {
             "Movement has been fading since Monday. The longest-lived people don't exercise — they just never stop moving. Even 20 minutes changes the afternoon.",
             "Four days of fewer steps. The body notices drift before the mind does — and it takes longer to recover than to lose.",
             "This week's movement has been lower than your usual. A walk after dinner does more for the next morning than another hour at the desk.",
+        ],
+        "personalised_messages": [
+            "Four days of fewer steps than your usual {avg_steps_formatted}. The body notices drift before the mind does.",
+            "Movement has been fading this week — averaging {current_avg_steps} steps vs your usual {avg_steps_formatted}.",
         ]
     },
     "movement_sedentary_day": {
@@ -56,6 +63,9 @@ NUDGE_LIBRARY = {
             "Mostly still today. Ten minutes outside interrupts the pattern — the body responds faster than you'd expect.",
             "A long day on screens, a short day on your feet. Even a short walk after dinner resets more than another hour of catching up.",
             "Low movement day. The research is clear: it's the interruption of sitting, not just the total steps, that matters most.",
+        ],
+        "personalised_messages": [
+            "Fewer than {steps_today} steps today. Ten minutes outside interrupts the pattern — the body responds faster than you'd expect.",
         ]
     },
     "movement_good_streak": {
@@ -103,6 +113,9 @@ NUDGE_LIBRARY = {
             "Your sleep timing has been shifting all week. The body clock is more sensitive to when you sleep than how long.",
             "Different bedtimes most nights this week. Consistency of timing protects sleep quality more than adding an extra hour does.",
             "Koan has noticed your sleep schedule drifting this week. The circadian rhythm notices that before you do.",
+        ],
+        "personalised_messages": [
+            "Your sleep timing has shifted by up to {sleep_variance_minutes} minutes this week. The body clock notices that before you do.",
         ]
     },
     "sleep_late_night_phone": {
@@ -125,6 +138,9 @@ NUDGE_LIBRARY = {
             "A few short nights in a row. The body doesn't catch up as fast as it falls behind.",
             "Sleep has been short this week. Repair happens at night — less time means less of it.",
             "Short sleep compresses recovery. The deficit from this week will show up somewhere.",
+        ],
+        "personalised_messages": [
+            "A few short nights in a row — averaging {avg_sleep_hours}h instead of your usual {baseline_sleep_hours}h.",
         ]
     },
     "sleep_late_bedtime": {
@@ -136,6 +152,9 @@ NUDGE_LIBRARY = {
             "Lights out after midnight again. The hours before 12 recover you differently than the hours after.",
             "Three late nights. The body doesn't negotiate on sleep timing the way it does on sleep duration.",
             "Late to bed most of this week. The circadian clock keeps its own schedule regardless of yours.",
+        ],
+        "personalised_messages": [
+            "Lights out at {avg_bedtime} again. The hours before midnight recover you differently than the hours after.",
         ]
     },
     "sleep_alarm_dependent": {
@@ -160,6 +179,9 @@ NUDGE_LIBRARY = {
             "More than half of today's screen time was social media. That's not connection — that's drift.",
             "The feed is designed to keep you there. Noticing that is the first step.",
             "An hour of social media rarely leaves you feeling better. Today was heavy on it.",
+        ],
+        "personalised_messages": [
+            "{social_media_minutes} minutes of social media today — {social_pct}% of your screen time. That's not connection — that's drift.",
         ]
     },
     "attention_high_pickups": {
@@ -171,6 +193,9 @@ NUDGE_LIBRARY = {
             "You picked up your phone a lot today. Each pickup is a small interruption to whatever you were doing.",
             "Frequent pickups aren't always about the phone — sometimes they're about avoiding something else.",
             "A high pickup day. The phone becomes a reflex before it becomes a choice. That gap is worth noticing.",
+        ],
+        "personalised_messages": [
+            "{pickups_today} pickups today — {pickups_above_baseline} more than your usual. Each one is a small interruption.",
         ]
     },
     "attention_screen_improving": {
@@ -195,6 +220,9 @@ NUDGE_LIBRARY = {
             "Your body's recovery signals are low. This isn't a push-through moment.",
             "Low HRV doesn't mean something is wrong — it means something needs rest.",
             "The week has left its mark on your recovery signals. The body is asking for less, not more.",
+        ],
+        "personalised_messages": [
+            "Your HRV is {hrv_pct}% below where it usually sits. That's the body asking for rest, not a push-through moment.",
         ]
     },
     "stress_resting_hr_elevated": {
@@ -206,6 +234,9 @@ NUDGE_LIBRARY = {
             "Your resting heart rate has been higher than usual. The body is carrying something.",
             "Elevated heart rate over several days is the body asking for less, not more.",
             "Three days of elevated resting heart rate. That's not a one-off — it's a signal about load.",
+        ],
+        "personalised_messages": [
+            "Your resting heart rate has been {rhr_current}bpm this week — {rhr_delta}bpm above your usual. The body is carrying something.",
         ]
     },
     "stress_back_to_back_meetings": {
@@ -217,6 +248,9 @@ NUDGE_LIBRARY = {
             "Back-to-back meetings today. Even two minutes between them changes what the next one costs you.",
             "No gaps between meetings means no recovery between demands. That compounds through the day.",
             "A day without transitions. The mind needs even a short gap between demands — back-to-back erodes quality faster than people expect.",
+        ],
+        "personalised_messages": [
+            "{meeting_count} meetings today with fewer than 10 minutes between them. Even two minutes changes what the next one costs you.",
         ]
     },
     "stress_heavy_meeting_day": {
@@ -228,6 +262,9 @@ NUDGE_LIBRARY = {
             "A heavy meeting day. Tonight is for nothing in particular.",
             "Five hours of meetings is a lot of being on. The evening doesn't need to be productive.",
             "Most of the day was other people's agendas. The evening belongs to you.",
+        ],
+        "personalised_messages": [
+            "{meeting_hours} hours of meetings today. Tonight is for nothing in particular.",
         ]
     },
 

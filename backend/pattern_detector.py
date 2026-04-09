@@ -72,6 +72,17 @@ class PatternDetector:
         ]
         if len(early_pickups) >= 3:
             triggered.append("morning_phone_early")
+            ctx: dict = {}
+            try:
+                raw_time = early_pickups[0].get("first_pickup_time")
+                if raw_time:
+                    h, m = map(int, raw_time.split(":"))
+                    ampm = "am" if h < 12 else "pm"
+                    h12 = h % 12 or 12
+                    ctx["first_pickup_time"] = f"{h12}:{m:02d} {ampm}"
+            except Exception:
+                pass
+            self._pattern_contexts["morning_phone_early"] = ctx
         elif len(early_pickups) >= 2:
             triggered.append("morning_phone_consistent")
 
@@ -80,8 +91,26 @@ class PatternDetector:
         if len(step_counts) >= 4:
             if all(step_counts[i] > step_counts[i+1] for i in range(min(3, len(step_counts)-1))):
                 triggered.append("movement_declining")
+                ctx = {}
+                try:
+                    avg_steps = baseline.get("avg_steps")
+                    if avg_steps:
+                        ctx["avg_steps_formatted"] = f"{round(avg_steps):,}"
+                    recent = step_counts[:4]
+                    ctx["current_avg_steps"] = f"{round(sum(recent) / len(recent)):,}"
+                except Exception:
+                    pass
+                self._pattern_contexts["movement_declining"] = ctx
         if today_signal.get("steps", 0) < 3000 and today_signal.get("total_screen_time_minutes", 0) > 240:
             triggered.append("movement_sedentary_day")
+            ctx = {}
+            try:
+                steps_val = today_signal.get("steps")
+                if steps_val is not None:
+                    ctx["steps_today"] = steps_val
+            except Exception:
+                pass
+            self._pattern_contexts["movement_sedentary_day"] = ctx
         if len(step_counts) >= 5 and all(s > 7000 for s in step_counts[:5]):
             triggered.append("movement_good_streak")
 
@@ -91,19 +120,53 @@ class PatternDetector:
             times = [int(t.replace(":", "")) for t in sleep_starts]
             if max(times) - min(times) > 130:
                 triggered.append("sleep_timing_inconsistent")
+                ctx = {}
+                try:
+                    def _hhmm_to_mins(t_str: str) -> int:
+                        hh, mm = map(int, t_str.split(":"))
+                        mins = hh * 60 + mm
+                        return mins + 1440 if hh < 3 else mins
+                    mins_list = [_hhmm_to_mins(t) for t in sleep_starts]
+                    ctx["sleep_variance_minutes"] = max(mins_list) - min(mins_list)
+                except Exception:
+                    pass
+                self._pattern_contexts["sleep_timing_inconsistent"] = ctx
         sleep_durations = [s.get("sleep_duration_minutes") for s in signals[:3] if s.get("sleep_duration_minutes")]
         if len(sleep_durations) >= 2 and all(d < 390 for d in sleep_durations):
             triggered.append("sleep_duration_short")
+            ctx = {}
+            try:
+                ctx["avg_sleep_hours"] = round(sum(sleep_durations) / len(sleep_durations) / 60, 1)
+                baseline_sleep = baseline.get("avg_sleep_duration")
+                if baseline_sleep:
+                    ctx["baseline_sleep_hours"] = round(baseline_sleep / 60, 1)
+            except Exception:
+                pass
+            self._pattern_contexts["sleep_duration_short"] = ctx
 
         # ── Attention & screen ──
         total = today_signal.get("total_screen_time_minutes", 0)
         social = today_signal.get("social_media_minutes", 0)
         if total > 0 and social > 0 and (social / total) > 0.5 and social > 60:
             triggered.append("attention_social_media_heavy")
+            ctx = {}
+            try:
+                ctx["social_media_minutes"] = social
+                ctx["social_pct"] = round(social / total * 100)
+            except Exception:
+                pass
+            self._pattern_contexts["attention_social_media_heavy"] = ctx
         pickups = today_signal.get("total_pickups", 0)
         baseline_pickups = baseline.get("avg_pickups") or 20
         if pickups > baseline_pickups * 1.5 and pickups > 30:
             triggered.append("attention_high_pickups")
+            ctx = {}
+            try:
+                ctx["pickups_today"] = pickups
+                ctx["pickups_above_baseline"] = max(0, pickups - round(baseline_pickups))
+            except Exception:
+                pass
+            self._pattern_contexts["attention_high_pickups"] = ctx
         recent_screens = [s.get("total_screen_time_minutes") for s in signals[:5] if s.get("total_screen_time_minutes")]
         if len(recent_screens) >= 3 and baseline.get("avg_screen_time"):
             if all(s < baseline["avg_screen_time"] * 0.7 for s in recent_screens[:3]):
@@ -114,10 +177,25 @@ class PatternDetector:
         if len(hrv_values) >= 2 and baseline.get("avg_hrv"):
             if all(h < baseline["avg_hrv"] * 0.8 for h in hrv_values[:2]):
                 triggered.append("stress_hrv_low")
+                ctx = {}
+                try:
+                    pct_below = round((1.0 - hrv_values[0] / baseline["avg_hrv"]) * 100)
+                    ctx["hrv_pct"] = max(0, pct_below)
+                except Exception:
+                    pass
+                self._pattern_contexts["stress_hrv_low"] = ctx
         rhr_values = [s.get("resting_heart_rate") for s in signals[:4] if s.get("resting_heart_rate")]
         if len(rhr_values) >= 3 and baseline.get("avg_resting_hr"):
             if all(h > baseline["avg_resting_hr"] * 1.1 for h in rhr_values[:3]):
                 triggered.append("stress_resting_hr_elevated")
+                ctx = {}
+                try:
+                    rhr_avg = sum(rhr_values[:3]) / 3
+                    ctx["rhr_current"] = round(rhr_avg)
+                    ctx["rhr_delta"] = round(rhr_avg - baseline["avg_resting_hr"])
+                except Exception:
+                    pass
+                self._pattern_contexts["stress_resting_hr_elevated"] = ctx
 
         # ── Calendar context ──
         try:
@@ -130,8 +208,25 @@ class PatternDetector:
                 )
                 if density.get("back_to_back"):
                     triggered.append("stress_back_to_back_meetings")
+                    ctx = {}
+                    try:
+                        count = (density.get("back_to_back_count")
+                                 or density.get("meeting_count"))
+                        if count:
+                            ctx["meeting_count"] = count
+                    except Exception:
+                        pass
+                    self._pattern_contexts["stress_back_to_back_meetings"] = ctx
                 if density.get("meeting_minutes", 0) > 300:
                     triggered.append("stress_heavy_meeting_day")
+                    ctx = {}
+                    try:
+                        ctx["meeting_hours"] = round(
+                            density.get("meeting_minutes", 0) / 60, 1
+                        )
+                    except Exception:
+                        pass
+                    self._pattern_contexts["stress_heavy_meeting_day"] = ctx
         except Exception:
             pass  # calendar unavailable, continue without it
 
@@ -143,9 +238,26 @@ class PatternDetector:
                 if ms_data.get("back_to_back"):
                     if "stress_back_to_back_meetings" not in triggered:
                         triggered.append("stress_back_to_back_meetings")
+                        ctx = {}
+                        try:
+                            count = (ms_data.get("back_to_back_count")
+                                     or ms_data.get("meeting_count"))
+                            if count:
+                                ctx["meeting_count"] = count
+                        except Exception:
+                            pass
+                        self._pattern_contexts["stress_back_to_back_meetings"] = ctx
                 if ms_data.get("meeting_minutes", 0) > 300:
                     if "stress_heavy_meeting_day" not in triggered:
                         triggered.append("stress_heavy_meeting_day")
+                        ctx = {}
+                        try:
+                            ctx["meeting_hours"] = round(
+                                ms_data.get("meeting_minutes", 0) / 60, 1
+                            )
+                        except Exception:
+                            pass
+                        self._pattern_contexts["stress_heavy_meeting_day"] = ctx
         except Exception:
             pass
 
@@ -273,6 +385,22 @@ class PatternDetector:
             late_nights = sum(1 for t in sleep_starts_7d if _sleep_hour(t) >= 23.5)
             if late_nights >= 3:
                 triggered.append("sleep_late_bedtime")
+                ctx = {}
+                try:
+                    # Average bedtime across the most recent 3 nights
+                    sample = sleep_starts_7d[:3]
+                    avg_hour = sum(_sleep_hour(t) for t in sample) / len(sample)
+                    avg_hour = avg_hour % 24  # normalise back to 0–24 range
+                    h = int(avg_hour)
+                    m = round((avg_hour - h) * 60)
+                    if m == 60:
+                        h, m = (h + 1) % 24, 0
+                    ampm = "am" if h < 12 else "pm"
+                    h12 = h % 12 or 12
+                    ctx["avg_bedtime"] = f"{h12}:{m:02d} {ampm}"
+                except Exception:
+                    pass
+                self._pattern_contexts["sleep_late_bedtime"] = ctx
 
         # ── sleep_alarm_dependent ──
         # Consistent wake time (< 15 min spread) with inconsistent bedtime (> 60 min spread).
