@@ -105,7 +105,7 @@ export default function IntroScreen() {
         toValue: 0,
         duration: 280,
         useNativeDriver: true,
-      }).start(() => router.push('/story'));
+      }).start(() => router.push('/landing'));
     }
   };
 
