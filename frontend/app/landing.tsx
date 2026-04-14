@@ -196,20 +196,22 @@ export default function LandingPage() {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.inner}>
-        {/* Concentric dot icon */}
-        <View style={styles.iconContainer}>
-          <ConcentricDots />
+        {/* Hero — dot + headline + subline, vertically centered */}
+        <View style={styles.heroSection}>
+          <View style={styles.iconContainer}>
+            <ConcentricDots />
+          </View>
+
+          {/* Headline */}
+          <Text style={styles.headline}>
+            {'Everything\nyou really need to know,\nyou already know.'}
+          </Text>
+
+          {/* Subline */}
+          <Text style={styles.subline}>
+            {'Create an account to start\nlistening with Koan.'}
+          </Text>
         </View>
-
-        {/* Headline */}
-        <Text style={styles.headline}>
-          {'Everything\nyou really need to know,\nyou already know.'}
-        </Text>
-
-        {/* Subline */}
-        <Text style={styles.subline}>
-          {'Create an account to start\nlistening with Koan.'}
-        </Text>
 
         {/* Apple button */}
         <TouchableOpacity
@@ -262,7 +264,7 @@ export default function LandingPage() {
           <Text style={styles.emailButtonText}>Create account with email</Text>
         </TouchableOpacity>
 
-        {/* Log in link — anchored to bottom */}
+        {/* Log in link — anchors to bottom via marginTop auto on loginLink style */}
         <TouchableOpacity style={styles.loginLink} onPress={handleLogin}>
           <Text style={styles.loginLinkText}>
             Already have an account?{' '}
@@ -284,6 +286,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 32,
     paddingTop: 48,
     paddingBottom: 32,
+  },
+  heroSection: {
+    flex: 1,
+    justifyContent: 'center',
   },
   iconContainer: {
     alignItems: 'center',

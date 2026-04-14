@@ -7,6 +7,7 @@ import {
   ScrollView,
   Alert,
   Animated,
+  Dimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -18,6 +19,8 @@ import { storage } from '../services/storage';
 import { calendarAPI, microsoftAPI, preferencesAPI } from '../services/api';
 import { requestHealthKitPermissions } from '../services/healthKit';
 import Spacer from '../components/Spacer';
+
+const { width: screenWidth } = Dimensions.get('window');
 
 const GCalIcon = ({ size = 32 }: { size?: number }) => (
   <Svg width={size} height={size} viewBox="0 0 48 48">
@@ -66,6 +69,7 @@ export default function Onboarding() {
 
   const haloScale = useRef(new Animated.Value(1)).current;
   const haloOpacity = useRef(new Animated.Value(0.25)).current;
+  const slideAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     Animated.loop(
@@ -81,6 +85,17 @@ export default function Onboarding() {
       ])
     ).start();
   }, []);
+
+  // Slide new content in from the right
+  const slideToStep = (step: number) => {
+    slideAnim.setValue(screenWidth);
+    setCurrentStep(step);
+    Animated.timing(slideAnim, {
+      toValue: 0,
+      duration: 250,
+      useNativeDriver: true,
+    }).start();
+  };
 
   const handleConnectHealth = async () => {
     try {
@@ -148,7 +163,7 @@ export default function Onboarding() {
 
   const handleEnableNotifications = async () => {
     await Notifications.requestPermissionsAsync();
-    setCurrentStep(4);
+    slideToStep(3);
   };
 
   const toggleAnchor = (chip: string) => {
@@ -174,7 +189,7 @@ export default function Onboarding() {
         // Don't block navigation on failure
       }
     }
-    setCurrentStep(5);
+    slideToStep(4);
   };
 
   const handleBegin = async () => {
@@ -185,7 +200,7 @@ export default function Onboarding() {
   // ── Header ──────────────────────────────────────────────────────────────
 
   const renderHeader = () => {
-    if (currentStep === 5) {
+    if (currentStep === 4) {
       return (
         <View style={styles.headerCentered}>
           <Text style={styles.wordmarkCentered}>Koan</Text>
@@ -206,7 +221,7 @@ export default function Onboarding() {
         </View>
         <Text style={styles.wordmark}>Koan</Text>
         <View style={styles.dotsRow}>
-          {[0, 1, 2, 3, 4, 5].map(i => (
+          {[0, 1, 2, 3, 4].map(i => (
             <View
               key={i}
               style={[
@@ -221,47 +236,7 @@ export default function Onboarding() {
     );
   };
 
-  // ── Screen 0: Welcome ────────────────────────────────────────────────────
-
-  const renderWelcome = () => (
-    <>
-      <Text style={styles.sectionLabel}>HOW IT WORKS</Text>
-      <View style={styles.videoBlock}>
-        <View style={styles.playButton}>
-          <View style={styles.playTriangle} />
-        </View>
-        <Text style={styles.videoLabel}>2 MIN INTRO</Text>
-      </View>
-      <View style={{ flex: 1, justifyContent: 'space-evenly' }}>
-        <View style={styles.interstitialLine}>
-          <Text style={styles.interstitialTitle}>Koan watches quietly.</Text>
-          <Text style={styles.interstitialBody}>
-            Health signals, phone pickups, app switches, meeting density. Nothing personal.
-          </Text>
-        </View>
-        <View style={[styles.interstitialLine, styles.interstitialLineBorder]}>
-          <Text style={styles.interstitialTitle}>Patterns emerge.</Text>
-          <Text style={styles.interstitialBody}>
-            After a few days, your rhythm becomes clear — when you focus, when you drift.
-          </Text>
-        </View>
-        <View style={[styles.interstitialLine, styles.interstitialLineBorder]}>
-          <Text style={styles.interstitialTitle}>A nudge arrives.</Text>
-          <Text style={styles.interstitialBody}>
-            Short. Calm. At exactly the right moment. Then silence again.
-          </Text>
-        </View>
-        <View style={[styles.interstitialLine, styles.interstitialLineBorder]}>
-          <Text style={styles.interstitialTitle}>Each week, a reflection.</Text>
-          <Text style={styles.interstitialBody}>
-            A quiet observation in Insights, every Sunday.
-          </Text>
-        </View>
-      </View>
-    </>
-  );
-
-  // ── Screen 1: Phone signals ──────────────────────────────────────────────
+  // ── Screen 0: Phone signals ──────────────────────────────────────────────
 
   const renderPhoneSignals = () => (
     <>
@@ -322,7 +297,7 @@ export default function Onboarding() {
     </>
   );
 
-  // ── Screen 2: Work tools ─────────────────────────────────────────────────
+  // ── Screen 1: Work tools ─────────────────────────────────────────────────
 
   const renderWorkTools = () => (
     <>
@@ -385,7 +360,7 @@ export default function Onboarding() {
     </>
   );
 
-  // ── Screen 3: Notifications ──────────────────────────────────────────────
+  // ── Screen 2: Notifications ──────────────────────────────────────────────
 
   const renderNotifications = () => (
     <>
@@ -426,14 +401,14 @@ export default function Onboarding() {
     </>
   );
 
-  // ── Screen 4: Anchor ─────────────────────────────────────────────────────
+  // ── Screen 3: Anchor ─────────────────────────────────────────────────────
 
   const renderAnchor = () => (
     <>
-      <Text style={styles.sectionLabel}>ANCHOR</Text>
-      <Text style={styles.screenTitle}>Set your anchor</Text>
+      <Text style={styles.sectionLabel}>WHILE KOAN LISTENS</Text>
+      <Text style={styles.screenTitle}>One thing to come back to</Text>
       <Text style={styles.screenSubtitle}>
-        A small, repeatable action that grounds your day. Select up to 3.
+        A small, repeatable action that grounds your day. Koan will remind you of it gently — and notice when life gets in the way.
       </Text>
       <View style={{
         backgroundColor: '#D9F7EB',
@@ -475,23 +450,25 @@ export default function Onboarding() {
     </>
   );
 
-  // ── Screen 5: Ready ──────────────────────────────────────────────────────
+  // ── Screen 4: Ready ──────────────────────────────────────────────────────
 
   const renderReady = () => (
     <View style={styles.readyBody}>
-      <View style={styles.dotContainer}>
-        <Animated.View
-          style={[
-            styles.dotHalo,
-            { transform: [{ scale: haloScale }], opacity: haloOpacity },
-          ]}
-        />
-        <View style={styles.dotCore} />
+      <View style={{ alignItems: 'center', width: '100%' }}>
+        <View style={styles.dotContainer}>
+          <Animated.View
+            style={[
+              styles.dotHalo,
+              { transform: [{ scale: haloScale }], opacity: haloOpacity },
+            ]}
+          />
+          <View style={styles.dotCore} />
+        </View>
+        <Text style={styles.readyTitle}>Koan is ready.</Text>
+        <Text style={styles.readySubtitle}>
+          It will listen quietly. You won't hear from it until it has something worth saying.
+        </Text>
       </View>
-      <Text style={styles.readyTitle}>Koan is ready.</Text>
-      <Text style={styles.readySubtitle}>
-        It will listen quietly. You won't hear from it until it has something worth saying.
-      </Text>
       <View style={styles.trialPill}>
         <Text style={styles.trialPillLabel}>14-DAY FREE TRIAL</Text>
         <Text style={styles.trialPillSub}>Full access · No credit card required</Text>
@@ -505,44 +482,38 @@ export default function Onboarding() {
     switch (currentStep) {
       case 0:
         return (
-          <TouchableOpacity style={styles.primaryButton} onPress={() => setCurrentStep(1)} activeOpacity={0.8}>
-            <Text style={styles.primaryButtonText}>Continue →</Text>
-          </TouchableOpacity>
+          <>
+            <TouchableOpacity style={styles.primaryButton} onPress={() => slideToStep(1)} activeOpacity={0.8}>
+              <Text style={styles.primaryButtonText}>Continue</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.ghostButton} onPress={() => slideToStep(1)} activeOpacity={0.6}>
+              <Text style={styles.ghostButtonText}>Skip Apple Health</Text>
+            </TouchableOpacity>
+          </>
         );
       case 1:
         return (
           <>
-            <TouchableOpacity style={styles.primaryButton} onPress={() => setCurrentStep(2)} activeOpacity={0.8}>
+            <TouchableOpacity style={styles.primaryButton} onPress={() => slideToStep(2)} activeOpacity={0.8}>
               <Text style={styles.primaryButtonText}>Continue</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.ghostButton} onPress={() => setCurrentStep(2)} activeOpacity={0.6}>
-              <Text style={styles.ghostButtonText}>Skip Apple Health</Text>
+            <TouchableOpacity style={styles.ghostButton} onPress={() => slideToStep(2)} activeOpacity={0.6}>
+              <Text style={styles.ghostButtonText}>Skip for now</Text>
             </TouchableOpacity>
           </>
         );
       case 2:
         return (
           <>
-            <TouchableOpacity style={styles.primaryButton} onPress={() => setCurrentStep(3)} activeOpacity={0.8}>
-              <Text style={styles.primaryButtonText}>Continue</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.ghostButton} onPress={() => setCurrentStep(3)} activeOpacity={0.6}>
-              <Text style={styles.ghostButtonText}>Skip for now</Text>
-            </TouchableOpacity>
-          </>
-        );
-      case 3:
-        return (
-          <>
             <TouchableOpacity style={styles.primaryButton} onPress={handleEnableNotifications} activeOpacity={0.8}>
               <Text style={styles.primaryButtonText}>Enable notifications</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.ghostButton} onPress={() => setCurrentStep(4)} activeOpacity={0.6}>
+            <TouchableOpacity style={styles.ghostButton} onPress={() => slideToStep(3)} activeOpacity={0.6}>
               <Text style={styles.ghostButtonText}>Not now</Text>
             </TouchableOpacity>
           </>
         );
-      case 4:
+      case 3:
         return (
           <>
             <TouchableOpacity
@@ -553,12 +524,12 @@ export default function Onboarding() {
             >
               <Text style={styles.primaryButtonText}>Continue</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.ghostButton} onPress={() => setCurrentStep(5)} activeOpacity={0.6}>
+            <TouchableOpacity style={styles.ghostButton} onPress={() => slideToStep(4)} activeOpacity={0.6}>
               <Text style={styles.ghostButtonText}>Set this later</Text>
             </TouchableOpacity>
           </>
         );
-      case 5:
+      case 4:
         return (
           <>
             <TouchableOpacity style={styles.beginButton} onPress={handleBegin} activeOpacity={0.8}>
@@ -582,12 +553,13 @@ export default function Onboarding() {
           contentContainerStyle={{ flexGrow: 1, paddingHorizontal: 20, paddingTop: 12, paddingBottom: 16 }}
           showsVerticalScrollIndicator={false}
         >
-          {currentStep === 0 && renderWelcome()}
-          {currentStep === 1 && renderPhoneSignals()}
-          {currentStep === 2 && renderWorkTools()}
-          {currentStep === 3 && renderNotifications()}
-          {currentStep === 4 && renderAnchor()}
-          {currentStep === 5 && renderReady()}
+          <Animated.View style={{ transform: [{ translateX: slideAnim }] }}>
+            {currentStep === 0 && renderPhoneSignals()}
+            {currentStep === 1 && renderWorkTools()}
+            {currentStep === 2 && renderNotifications()}
+            {currentStep === 3 && renderAnchor()}
+            {currentStep === 4 && renderReady()}
+          </Animated.View>
         </ScrollView>
         <View style={{ paddingHorizontal: 20, paddingBottom: 28, paddingTop: 8, gap: 6 }}>
           {renderFooterButtons()}
@@ -681,68 +653,6 @@ const styles = StyleSheet.create({
     opacity: 0.65,
     lineHeight: 20,
     marginBottom: 10,
-  },
-
-  // ── Welcome screen ───────────────────────────────────────────────────────
-  videoBlock: {
-    width: '100%',
-    alignSelf: 'stretch',
-    height: 128,
-    backgroundColor: '#EEF0EB',
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 12,
-    flexShrink: 0,
-  },
-  playButton: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    backgroundColor: '#5FAD8E',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  playTriangle: {
-    width: 0,
-    height: 0,
-    borderTopWidth: 6,
-    borderBottomWidth: 6,
-    borderLeftWidth: 10,
-    borderTopColor: 'transparent',
-    borderBottomColor: 'transparent',
-    borderLeftColor: '#FFFFFF',
-    marginLeft: 2,
-  },
-  videoLabel: {
-    marginTop: 8,
-    fontSize: 9,
-    textTransform: 'uppercase',
-    color: '#3A3A3A',
-    opacity: 0.4,
-    letterSpacing: 0.8,
-  },
-  interstitialLine: {
-    paddingVertical: 4,
-  },
-  interstitialLineBorder: {
-    borderTopWidth: 1,
-    borderTopColor: '#E6E6E4',
-  },
-  interstitialTitle: {
-    fontFamily: 'Georgia',
-    fontSize: 15.5,
-    fontStyle: 'italic',
-    fontWeight: '400',
-    color: '#3A3A3A',
-    marginBottom: 3,
-  },
-  interstitialBody: {
-    fontSize: 11,
-    fontWeight: '300',
-    color: '#3A3A3A',
-    opacity: 0.65,
-    lineHeight: 19,
   },
 
   // ── Integration cards ────────────────────────────────────────────────────
@@ -985,7 +895,8 @@ const styles = StyleSheet.create({
   readyBody: {
     flex: 1,
     alignItems: 'center',
-    justifyContent: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 16,
   },
   dotContainer: {
     width: 72,

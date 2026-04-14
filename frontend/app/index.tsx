@@ -21,7 +21,6 @@ import * as LocalAuthentication from 'expo-local-authentication';
 import * as SecureStore from 'expo-secure-store';
 import { useAuth } from '../contexts/AuthContext';
 import { storage } from '../services/storage';
-import SplashScreen from './splash';
 import StoryScreen from './story';
 
 // Login Screen with Koan Branding
@@ -354,7 +353,6 @@ function LandingPageScreen({ onGetStarted, onSignIn }: any) {
 export default function Index() {
   const { user, loading } = useAuth();
   const [showLogin, setShowLogin] = useState<boolean | null>(null); // null = landing, true = login, false = signup
-  const [showSplash, setShowSplash] = useState(false);
   const [showStory, setShowStory] = useState(false);
   const [checkingOnboarding, setCheckingOnboarding] = useState(false);
   const router = useRouter();
@@ -373,14 +371,14 @@ export default function Index() {
     }
   }, [params.auth, params.showStory]);
 
-  // Check whether to show splash (first open only, for logged-out users)
+  // Navigate directly to intro on first open (for logged-out users)
   useEffect(() => {
     if (!loading && !user && !splashChecked.current) {
       splashChecked.current = true;
       storage.hasSplashSeen().then((seen) => {
         if (!seen) {
-          setShowSplash(true);
           storage.setSplashSeen();
+          router.push('/intro');
         }
       });
     }
@@ -393,7 +391,6 @@ export default function Index() {
         checkOnboardingAndNavigate();
       } else if (previousUserRef.current !== null && user === null) {
         // User just logged out — reset all screen state to landing page
-        setShowSplash(false);
         setShowStory(false);
         setShowLogin(null);
         setCheckingOnboarding(false);
@@ -447,20 +444,7 @@ export default function Index() {
     );
   }
 
-  // First-time user — show splash
-  if (showSplash) {
-    return (
-      <SplashScreen
-        onDone={() => setShowSplash(false)}
-        onBegin={() => {
-          setShowSplash(false);
-          router.push('/intro');
-        }}
-      />
-    );
-  }
-
-  // First-time user — show story after splash
+  // First-time user — show story after intro
   if (showStory) {
     return (
       <StoryScreen

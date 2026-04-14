@@ -5,12 +5,15 @@ import {
   StyleSheet,
   ScrollView,
   RefreshControl,
+  TouchableOpacity,
+  Modal,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { patternsAPI, behaviorAPI } from '../../services/api';
 import Spacer from '../../components/Spacer';
 import { format } from 'date-fns';
 import { useAuth } from '../../contexts/AuthContext';
+import Story from '../story';
 
 const PATTERN_LABELS: Record<string, string> = {
   morning_phone_early: 'Morning phone habit',
@@ -67,6 +70,7 @@ function deriveCategoryLabel(patterns: string[]): string | null {
 export default function InsightsScreen() {
   const { user } = useAuth();
   const [refreshing, setRefreshing] = useState(false);
+  const [showStory, setShowStory] = useState(false);
   const [narrative, setNarrative] = useState('');
   const [patternsDetected, setPatternsDetected] = useState<string[]>([]);
   const [weekStart, setWeekStart] = useState<Date | null>(null);
@@ -121,6 +125,16 @@ export default function InsightsScreen() {
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
         style={{ flex: 1 }}
       >
+        {/* Story card — tappable, appears first */}
+        <TouchableOpacity style={styles.narrativeCard} onPress={() => setShowStory(true)} activeOpacity={0.8}>
+          <Text style={styles.narrativeCategoryLabel}>WHY KOAN EXISTS</Text>
+          <Text style={styles.narrativeText}>My grandparents lived past ninety.</Text>
+          <Text style={[styles.narrativeSubtext, { fontStyle: 'italic', marginTop: 8 }]}>
+            The story behind the quiet.
+          </Text>
+          <Text style={{ alignSelf: 'flex-end', color: '#8aab98', fontSize: 20, marginTop: 12 }}>›</Text>
+        </TouchableOpacity>
+
         {/* Week Period */}
         {insightState === 'observing' ? (
           <View style={styles.periodCard}>
@@ -219,6 +233,14 @@ export default function InsightsScreen() {
           </Text>
         </View>
       </ScrollView>
+      <Modal
+        visible={showStory}
+        animationType="slide"
+        transparent={false}
+        onRequestClose={() => setShowStory(false)}
+      >
+        <Story onContinue={() => setShowStory(false)} />
+      </Modal>
     </SafeAreaView>
   );
 }

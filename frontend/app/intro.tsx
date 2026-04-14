@@ -1,25 +1,16 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   TouchableOpacity,
+  Animated,
+  Dimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import Svg, { Circle } from 'react-native-svg';
 
-function ConcentricDots() {
-  return (
-    <Svg width={80} height={80} viewBox="0 0 80 80">
-      <Circle cx={40} cy={40} r={38} stroke="#d0e8da" strokeWidth={1} fill="none" />
-      <Circle cx={40} cy={40} r={25} stroke="#c0e0cf" strokeWidth={1} fill="none" />
-      <Circle cx={40} cy={40} r={13} stroke="#aad4be" strokeWidth={1} fill="none" />
-      <Circle cx={40} cy={40} r={5} fill="#c0e0cf" />
-      <Circle cx={40} cy={40} r={2.5} fill="#5FAD8E" />
-    </Svg>
-  );
-}
+const { width: screenWidth } = Dimensions.get('window');
 
 type HeadlinePart = { text: string; italic: boolean };
 
@@ -75,31 +66,71 @@ export default function IntroScreen() {
   const [step, setStep] = useState(0);
   const router = useRouter();
 
+  // Breathing dot animation (same as splash.tsx)
+  const pulseScale = useRef(new Animated.Value(1)).current;
+  const pulseOpacity = useRef(new Animated.Value(0.25)).current;
+
+  // Horizontal slide animation for content transitions
+  const slideAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    Animated.loop(
+      Animated.sequence([
+        Animated.parallel([
+          Animated.timing(pulseScale, { toValue: 1.25, duration: 3500, useNativeDriver: true }),
+          Animated.timing(pulseOpacity, { toValue: 0.55, duration: 3500, useNativeDriver: true }),
+        ]),
+        Animated.parallel([
+          Animated.timing(pulseScale, { toValue: 1, duration: 3500, useNativeDriver: true }),
+          Animated.timing(pulseOpacity, { toValue: 0.25, duration: 3500, useNativeDriver: true }),
+        ]),
+      ])
+    ).start();
+  }, []);
+
   const screen = SCREENS[step];
 
   const handleButton = () => {
+    // New content starts off-screen to the right, then slides in
+    slideAnim.setValue(screenWidth);
     if (step < SCREENS.length - 1) {
       setStep(step + 1);
+      Animated.timing(slideAnim, {
+        toValue: 0,
+        duration: 280,
+        useNativeDriver: true,
+      }).start();
     } else {
-      router.push('/story');
+      Animated.timing(slideAnim, {
+        toValue: 0,
+        duration: 280,
+        useNativeDriver: true,
+      }).start(() => router.push('/story'));
     }
   };
 
   const handleLogIn = () => {
-    // Navigate to the login screen (index route with auth param)
     router.navigate({ pathname: '/', params: { auth: 'login' } } as any);
   };
 
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.inner}>
-        {/* Concentric dot icon — between top safe area and headline */}
+        {/* Breathing dot — not animated with slide, stays fixed */}
         <View style={styles.iconContainer}>
-          <ConcentricDots />
+          <View style={styles.dotContainer}>
+            <Animated.View
+              style={[
+                styles.dotHalo,
+                { transform: [{ scale: pulseScale }], opacity: pulseOpacity },
+              ]}
+            />
+            <View style={styles.dotCore} />
+          </View>
         </View>
 
-        {/* Headline + body */}
-        <View style={styles.content}>
+        {/* Headline + body — slides on step change */}
+        <Animated.View style={[styles.content, { transform: [{ translateX: slideAnim }] }]}>
           <Text style={styles.headline}>
             {screen.headlineParts.map((part, i) => (
               <Text key={i} style={part.italic ? styles.headlineAccent : undefined}>
@@ -108,7 +139,7 @@ export default function IntroScreen() {
             ))}
           </Text>
           <Text style={styles.body}>{screen.body}</Text>
-        </View>
+        </Animated.View>
 
         {/* Bottom: button, optional log-in link, progress dots */}
         <View style={styles.bottom}>
@@ -156,6 +187,25 @@ const styles = StyleSheet.create({
     paddingTop: 40,
     paddingBottom: 32,
   },
+  dotContainer: {
+    width: 88,
+    height: 88,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  dotHalo: {
+    position: 'absolute',
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    backgroundColor: '#A8D4BC',
+  },
+  dotCore: {
+    width: 14,
+    height: 14,
+    borderRadius: 7,
+    backgroundColor: '#5FAD8E',
+  },
   content: {
     flex: 1,
     justifyContent: 'center',
@@ -197,17 +247,19 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#5FAD8E',
   },
+  // Begin button matches splash.tsx exactly
   buttonFilled: {
     backgroundColor: '#5FAD8E',
-    borderRadius: 50,
-    paddingVertical: 14,
-    width: '100%',
+    paddingVertical: 16,
+    borderRadius: 12,
     alignItems: 'center',
+    width: '100%',
   },
   buttonFilledText: {
-    fontFamily: 'Georgia',
-    fontSize: 16,
     color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
+    letterSpacing: 0.2,
   },
   loginLink: {
     marginTop: 10,
