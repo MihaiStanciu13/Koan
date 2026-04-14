@@ -358,7 +358,7 @@ export default function Index() {
   const [showStory, setShowStory] = useState(false);
   const [checkingOnboarding, setCheckingOnboarding] = useState(false);
   const router = useRouter();
-  const params = useLocalSearchParams<{ auth?: string }>();
+  const params = useLocalSearchParams<{ auth?: string; showStory?: string }>();
   const previousUserRef = useRef(user);
   const splashChecked = useRef(false);
 
@@ -368,8 +368,10 @@ export default function Index() {
       setShowLogin(true);
     } else if (params.auth === 'signup') {
       setShowLogin(false);
+    } else if (params.showStory === '1') {
+      setShowStory(true);
     }
-  }, [params.auth]);
+  }, [params.auth, params.showStory]);
 
   // Check whether to show splash (first open only, for logged-out users)
   useEffect(() => {
@@ -452,7 +454,7 @@ export default function Index() {
         onDone={() => setShowSplash(false)}
         onBegin={() => {
           setShowSplash(false);
-          setShowStory(true);
+          router.push('/intro');
         }}
       />
     );
