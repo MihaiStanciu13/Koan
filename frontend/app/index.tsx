@@ -371,7 +371,7 @@ export default function Index() {
     }
   }, [params.auth, params.showStory]);
 
-  // Navigate directly to intro on first open (for logged-out users)
+  // Route unauthenticated users: intro on first open, /landing for returning logged-out users
   useEffect(() => {
     if (!loading && !user && !splashChecked.current) {
       splashChecked.current = true;
@@ -379,6 +379,8 @@ export default function Index() {
         if (!seen) {
           storage.setSplashSeen();
           router.push('/intro');
+        } else {
+          router.replace('/landing');
         }
       });
     }

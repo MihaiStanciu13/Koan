@@ -212,7 +212,7 @@ export default function Onboarding() {
         <View style={styles.headerLeft}>
           {currentStep > 0 && (
             <TouchableOpacity
-              onPress={() => setCurrentStep(prev => prev - 1)}
+              onPress={() => slideToStep(currentStep - 1)}
               hitSlop={{ top: 10, left: 10, bottom: 10, right: 10 }}
             >
               <Ionicons name="chevron-back" size={22} color="#3A3A3A" />
