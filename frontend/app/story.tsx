@@ -8,6 +8,7 @@ import {
   ScrollView,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useRouter } from 'expo-router';
 
 const PARAGRAPHS = [
   "My grandparents lived past ninety.",
@@ -27,10 +28,11 @@ function delayAfterChar(char: string, nextChar?: string): number {
 }
 
 interface StoryProps {
-  onContinue: () => void;
+  onContinue?: () => void;
 }
 
 export default function Story({ onContinue }: StoryProps) {
+  const router = useRouter();
   const [completedParagraphs, setCompletedParagraphs] = useState<string[]>([]);
   const [currentParagraphIndex, setCurrentParagraphIndex] = useState(0);
   const [currentText, setCurrentText] = useState('');
@@ -152,7 +154,7 @@ export default function Story({ onContinue }: StoryProps) {
 
           {done && (
             <Animated.View style={{ opacity: continueAnim, alignItems: 'flex-end', marginTop: 8 }}>
-              <Text style={styles.continueText} onPress={onContinue}>
+              <Text style={styles.continueText} onPress={() => router.push('/landing')}>
                 Continue →
               </Text>
             </Animated.View>

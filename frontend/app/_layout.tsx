@@ -24,6 +24,7 @@ function RootLayoutNav() {
     <Stack screenOptions={{ headerShown: false }}>
       <Stack.Screen name="index" />
       <Stack.Screen name="intro" />
+      <Stack.Screen name="landing" />
       <Stack.Screen name="onboarding" />
       <Stack.Screen name="learn-more" options={{ headerShown: false }} />
       <Stack.Screen name="(tabs)" />

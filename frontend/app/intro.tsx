@@ -81,8 +81,7 @@ export default function IntroScreen() {
     if (step < SCREENS.length - 1) {
       setStep(step + 1);
     } else {
-      // Navigate to the story screen (index route with showStory param)
-      router.navigate({ pathname: '/', params: { showStory: '1' } } as any);
+      router.push('/story');
     }
   };
 

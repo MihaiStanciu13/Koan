@@ -94,7 +94,7 @@ export default function SplashScreen({ onDone, onBegin }: SplashScreenProps) {
         {/* Bottom — CTAs */}
         <View style={styles.bottomSection}>
           <Animated.View style={[{ width: '100%' }, { opacity: buttonOpacity }]}>
-            <TouchableOpacity style={styles.beginButton} onPress={onBegin}>
+            <TouchableOpacity style={styles.beginButton} onPress={() => router.push('/intro')}>
               <Text style={styles.beginButtonText}>Begin</Text>
             </TouchableOpacity>
           </Animated.View>
