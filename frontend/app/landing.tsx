@@ -1,8 +1,29 @@
-import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
 import Svg, { Circle, Path } from 'react-native-svg';
+import * as WebBrowser from 'expo-web-browser';
+import * as Google from 'expo-auth-session/providers/google';
+import * as AppleAuthentication from 'expo-apple-authentication';
+import * as SecureStore from 'expo-secure-store';
+import { useAuth } from '../contexts/AuthContext';
+import { storage } from '../services/storage';
+import Constants from 'expo-constants';
+import { useRouter } from 'expo-router';
+
+// Required for expo-auth-session to close the browser on redirect
+WebBrowser.maybeCompleteAuthSession();
+
+// Google OAuth client ID — set EXPO_PUBLIC_GOOGLE_CLIENT_ID in your .env file.
+// Create credentials at console.cloud.google.com → APIs & Services → Credentials.
+const GOOGLE_CLIENT_ID = process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID ?? '';
+
+const API_URL =
+  Constants.expoConfig?.extra?.EXPO_PUBLIC_BACKEND_URL ??
+  process.env.EXPO_PUBLIC_BACKEND_URL ??
+  'https://koan-production.up.railway.app';
+
+// ── Icons ─────────────────────────────────────────────────────────────────────
 
 function ConcentricDots() {
   return (
@@ -60,11 +81,109 @@ function OrDivider() {
   );
 }
 
+// ── Main component ────────────────────────────────────────────────────────────
+
 export default function LandingPage() {
   const router = useRouter();
+  const { loginWithToken } = useAuth();
 
-  const handleApple = () => console.log('Apple sign in tapped');
-  const handleGoogle = () => console.log('Google sign in tapped');
+  const [appleAvailable, setAppleAvailable] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
+  const [appleLoading, setAppleLoading] = useState(false);
+
+  // Google OAuth — expo-auth-session
+  // EXPO_PUBLIC_GOOGLE_CLIENT_ID must be set in your .env file (see .env.example)
+  const [request, response, promptAsync] = Google.useAuthRequest({
+    clientId: GOOGLE_CLIENT_ID,
+    scopes: ['openid', 'email', 'profile'],
+  });
+
+  // Check Apple Sign In availability on mount
+  useEffect(() => {
+    AppleAuthentication.isAvailableAsync().then(setAppleAvailable).catch(() => setAppleAvailable(false));
+  }, []);
+
+  // Handle Google OAuth response
+  useEffect(() => {
+    if (response?.type === 'success') {
+      const accessToken = response.authentication?.accessToken;
+      if (accessToken) {
+        exchangeGoogleToken(accessToken);
+      } else {
+        setGoogleLoading(false);
+        Alert.alert('Google Sign In', 'Could not retrieve access token. Please try again.');
+      }
+    } else if (response?.type === 'error' || response?.type === 'dismiss') {
+      setGoogleLoading(false);
+    }
+  }, [response]);
+
+  const exchangeGoogleToken = async (accessToken: string) => {
+    try {
+      const res = await fetch(`${API_URL}/api/auth/google`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ access_token: accessToken }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.detail ?? 'Google sign in failed');
+      }
+      const data = await res.json();
+      // Store JWT under 'auth_token' — same key used by the axios interceptor in services/api.ts
+      await storage.setAuthToken(data.access_token);
+      await loginWithToken(data.access_token, data.user);
+    } catch (e: any) {
+      Alert.alert('Google Sign In Failed', e.message ?? 'Please try again.');
+    } finally {
+      setGoogleLoading(false);
+    }
+  };
+
+  const handleGoogle = async () => {
+    if (!GOOGLE_CLIENT_ID) {
+      Alert.alert('Not configured', 'Google Sign In is not configured yet. Set EXPO_PUBLIC_GOOGLE_CLIENT_ID in your .env file.');
+      return;
+    }
+    setGoogleLoading(true);
+    await promptAsync();
+    // loading state cleared in the response useEffect
+  };
+
+  const handleApple = async () => {
+    setAppleLoading(true);
+    try {
+      const credential = await AppleAuthentication.signInAsync({
+        requestedScopes: [
+          AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
+          AppleAuthentication.AppleAuthenticationScope.EMAIL,
+        ],
+      });
+
+      const identityToken = credential.identityToken;
+      if (!identityToken) throw new Error('No identity token returned by Apple');
+
+      const res = await fetch(`${API_URL}/api/auth/apple`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ identity_token: identityToken }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.detail ?? 'Apple sign in failed');
+      }
+      const data = await res.json();
+      // Store JWT under 'auth_token' — same key used by the axios interceptor in services/api.ts
+      await storage.setAuthToken(data.access_token);
+      await loginWithToken(data.access_token, data.user);
+    } catch (e: any) {
+      if (e.code !== 'ERR_REQUEST_CANCELED') {
+        Alert.alert('Apple Sign In Failed', e.message ?? 'Please try again.');
+      }
+    } finally {
+      setAppleLoading(false);
+    }
+  };
 
   // Email signup: navigates to index route (defined in _layout.tsx as "index") with auth=signup param
   const handleEmailSignup = () =>
@@ -93,19 +212,44 @@ export default function LandingPage() {
         </Text>
 
         {/* Apple button */}
-        <TouchableOpacity style={styles.appleButton} onPress={handleApple} activeOpacity={0.85}>
+        <TouchableOpacity
+          style={[styles.appleButton, appleLoading && styles.buttonDisabled]}
+          onPress={handleApple}
+          activeOpacity={0.85}
+          disabled={appleLoading}
+        >
           <View style={styles.buttonIconLeft}>
-            <AppleIcon />
+            {appleLoading ? (
+              <ActivityIndicator size="small" color="#FFFFFF" />
+            ) : (
+              <AppleIcon />
+            )}
           </View>
           <Text style={styles.appleButtonText}>Continue with Apple</Text>
         </TouchableOpacity>
 
+        {/* Inline message when Apple Sign In is unavailable (Expo Go / simulator) */}
+        {!appleAvailable && (
+          <Text style={styles.appleUnavailableText}>
+            Apple Sign In requires a development build
+          </Text>
+        )}
+
         <View style={styles.buttonGap} />
 
         {/* Google button */}
-        <TouchableOpacity style={styles.googleButton} onPress={handleGoogle} activeOpacity={0.85}>
+        <TouchableOpacity
+          style={[styles.googleButton, googleLoading && styles.buttonDisabled]}
+          onPress={handleGoogle}
+          activeOpacity={0.85}
+          disabled={googleLoading || !request}
+        >
           <View style={styles.buttonIconLeft}>
-            <GoogleIcon />
+            {googleLoading ? (
+              <ActivityIndicator size="small" color="#1a2e24" />
+            ) : (
+              <GoogleIcon />
+            )}
           </View>
           <Text style={styles.googleButtonText}>Continue with Google</Text>
         </TouchableOpacity>
@@ -179,6 +323,12 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: '#FFFFFF',
   },
+  appleUnavailableText: {
+    fontSize: 11,
+    color: '#8aab98',
+    textAlign: 'center',
+    marginTop: 6,
+  },
   buttonGap: {
     height: 10,
   },
@@ -197,6 +347,9 @@ const styles = StyleSheet.create({
     fontFamily: 'Georgia',
     fontSize: 13,
     color: '#1a2e24',
+  },
+  buttonDisabled: {
+    opacity: 0.6,
   },
   dividerRow: {
     flexDirection: 'row',

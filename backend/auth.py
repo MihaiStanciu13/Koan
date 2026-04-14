@@ -6,11 +6,13 @@ from jose import JWTError, jwt
 from datetime import datetime, timedelta
 from typing import Optional
 from pathlib import Path
+from pydantic import BaseModel
 from dotenv import load_dotenv
 import os
 import uuid
 import certifi
-from models import UserCreate, UserLogin, User, SubscriptionStatus
+import httpx
+from models import UserCreate, UserLogin, User, SubscriptionStatus, Preferences, MicroMode
 
 # Load environment
 ROOT_DIR = Path(__file__).parent
@@ -189,3 +191,174 @@ async def delete_account(current_user: User = Depends(get_current_user)):
     await db.behavior_events.delete_many({"user_id": current_user.id})
     await db.nudges.delete_many({"user_id": current_user.id})
     return {"message": "Account deleted"}
+
+
+# ── Google SSO ────────────────────────────────────────────────────────────────
+
+class GoogleAuthRequest(BaseModel):
+    access_token: str
+
+@router.post("/google")
+async def google_auth(data: GoogleAuthRequest):
+    """Exchange a Google OAuth access token for a Koan JWT.
+
+    The frontend sends the access_token obtained from expo-auth-session.
+    We verify it with Google's userinfo endpoint, then find-or-create the user.
+    """
+    async with httpx.AsyncClient() as client:
+        resp = await client.get(
+            "https://www.googleapis.com/oauth2/v2/userinfo",
+            params={"access_token": data.access_token},
+        )
+
+    if resp.status_code != 200:
+        raise HTTPException(status_code=401, detail="Invalid Google access token")
+
+    google_user = resp.json()
+    google_id = google_user.get("id")
+    email = google_user.get("email")
+    name = google_user.get("name") or google_user.get("given_name") or "Koan User"
+
+    if not google_id or not email:
+        raise HTTPException(status_code=401, detail="Google token missing required fields")
+
+    # Find existing user by google_id first, then by email
+    user = await db.users.find_one({"google_id": google_id})
+    if not user:
+        user = await db.users.find_one({"email": email})
+
+    if user:
+        # Link google_id if this is the first Google login for an existing account
+        if not user.get("google_id"):
+            await db.users.update_one({"id": user["id"]}, {"$set": {"google_id": google_id}})
+    else:
+        # Create new user
+        user_id = str(uuid.uuid4())
+        trial_start = datetime.utcnow()
+        trial_ends = trial_start + timedelta(days=14)
+        new_user = User(
+            id=user_id,
+            email=email,
+            name=name,
+            hashed_password="",
+            google_id=google_id,
+            subscription_status=SubscriptionStatus.TRIAL,
+            trial_start=trial_start,
+            trial_ends=trial_ends,
+        )
+        await db.users.insert_one(new_user.dict())
+        await db.preferences.insert_one(
+            Preferences(user_id=user_id, micro_mode=MicroMode.STANDARD).dict()
+        )
+        user = new_user.dict()
+
+    access_token = create_access_token(data={"sub": user["id"]})
+    return {
+        "access_token": access_token,
+        "token_type": "bearer",
+        "user": {
+            "id": user["id"],
+            "email": user["email"],
+            "name": user["name"],
+            "subscription_status": user["subscription_status"],
+            "trial_ends": user.get("trial_ends"),
+        },
+    }
+
+
+# ── Apple SSO ─────────────────────────────────────────────────────────────────
+# Apple team ID and bundle ID are read from environment variables.
+# TODO: Set APPLE_TEAM_ID and APPLE_BUNDLE_ID in Railway once the developer account is active.
+
+class AppleAuthRequest(BaseModel):
+    identity_token: str
+
+@router.post("/apple")
+async def apple_auth(data: AppleAuthRequest):
+    """Exchange an Apple identity token for a Koan JWT.
+
+    The frontend sends the identityToken from expo-apple-authentication.
+    We verify it against Apple's public JWKS, then find-or-create the user.
+    """
+    # Fetch Apple's public keys
+    async with httpx.AsyncClient() as client:
+        jwks_resp = await client.get("https://appleid.apple.com/auth/keys")
+
+    if jwks_resp.status_code != 200:
+        raise HTTPException(status_code=503, detail="Could not fetch Apple public keys")
+
+    jwks = jwks_resp.json()
+
+    # Peek at the token header to select the right key
+    try:
+        header = jwt.get_unverified_header(data.identity_token)
+    except Exception:
+        raise HTTPException(status_code=401, detail="Malformed Apple identity token")
+
+    kid = header.get("kid")
+    apple_key = next((k for k in jwks.get("keys", []) if k.get("kid") == kid), None)
+    if not apple_key:
+        raise HTTPException(status_code=401, detail="Apple public key not found for token kid")
+
+    # Bundle ID used as the JWT audience — set APPLE_BUNDLE_ID in Railway
+    apple_bundle_id = os.getenv("APPLE_BUNDLE_ID", "com.koan.app")
+
+    try:
+        claims = jwt.decode(
+            data.identity_token,
+            apple_key,
+            algorithms=["RS256"],
+            audience=apple_bundle_id,
+            issuer="https://appleid.apple.com",
+        )
+    except JWTError as e:
+        raise HTTPException(status_code=401, detail=f"Apple token verification failed: {e}")
+
+    apple_id = claims.get("sub")
+    email = claims.get("email")
+
+    if not apple_id:
+        raise HTTPException(status_code=401, detail="Apple token missing sub claim")
+
+    # Find existing user by apple_id first, then by email
+    user = await db.users.find_one({"apple_id": apple_id})
+    if not user and email:
+        user = await db.users.find_one({"email": email})
+
+    if user:
+        if not user.get("apple_id"):
+            await db.users.update_one({"id": user["id"]}, {"$set": {"apple_id": apple_id}})
+    else:
+        user_id = str(uuid.uuid4())
+        trial_start = datetime.utcnow()
+        trial_ends = trial_start + timedelta(days=14)
+        # Apple may withhold email on repeat sign-ins; use a private relay placeholder
+        user_email = email or f"apple.{apple_id}@privaterelay.appleid.com"
+        new_user = User(
+            id=user_id,
+            email=user_email,
+            name="Koan User",
+            hashed_password="",
+            apple_id=apple_id,
+            subscription_status=SubscriptionStatus.TRIAL,
+            trial_start=trial_start,
+            trial_ends=trial_ends,
+        )
+        await db.users.insert_one(new_user.dict())
+        await db.preferences.insert_one(
+            Preferences(user_id=user_id, micro_mode=MicroMode.STANDARD).dict()
+        )
+        user = new_user.dict()
+
+    access_token = create_access_token(data={"sub": user["id"]})
+    return {
+        "access_token": access_token,
+        "token_type": "bearer",
+        "user": {
+            "id": user["id"],
+            "email": user["email"],
+            "name": user["name"],
+            "subscription_status": user["subscription_status"],
+            "trial_ends": user.get("trial_ends"),
+        },
+    }

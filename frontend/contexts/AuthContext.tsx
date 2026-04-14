@@ -8,6 +8,7 @@ interface AuthContextType {
   loading: boolean;
   login: (email: string, password: string) => Promise<void>;
   signup: (email: string, password: string, name: string) => Promise<void>;
+  loginWithToken: (token: string, user: User) => Promise<void>;
   logout: () => Promise<void>;
   isAuthenticated: boolean;
   isExpired: boolean;
@@ -60,6 +61,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setUser(response.user);
   };
 
+  const loginWithToken = async (token: string, user: User) => {
+    await storage.setAuthToken(token);
+    setUser(user);
+  };
+
   const logout = async () => {
     try {
       await storage.removeAuthToken();
@@ -78,6 +84,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         loading,
         login,
         signup,
+        loginWithToken,
         logout,
         isAuthenticated: !!user,
         isExpired: user?.subscription_status === 'expired',

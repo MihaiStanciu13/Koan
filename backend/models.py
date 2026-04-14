@@ -38,6 +38,8 @@ class User(BaseModel):
     push_token: Optional[str] = None  # Expo push notification token
     google_calendar_token: Optional[str] = None  # Google OAuth access token
     google_calendar_refresh_token: Optional[str] = None  # Google OAuth refresh token
+    google_id: Optional[str] = None  # Google SSO user ID
+    apple_id: Optional[str] = None  # Apple SSO user ID
 
 # Behavioral Data Models
 class PhoneBehavior(BaseModel):
