@@ -33,7 +33,8 @@ SECRET_KEY = os.getenv("SECRET_KEY")
 if not SECRET_KEY:
     raise RuntimeError("SECRET_KEY environment variable is not set")
 ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_DAYS = 30
+# ACCESS_TOKEN_EXPIRE_DAYS — set this env var in Railway (recommended: 7 for mobile apps)
+ACCESS_TOKEN_EXPIRE_DAYS = int(os.getenv("ACCESS_TOKEN_EXPIRE_DAYS", "7"))
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 

@@ -1,6 +1,7 @@
 import axios from 'axios';
 import * as SecureStore from 'expo-secure-store';
 import Constants from 'expo-constants';
+import { router } from 'expo-router';
 
 const API_URL = Constants.expoConfig?.extra?.EXPO_PUBLIC_BACKEND_URL || process.env.EXPO_PUBLIC_BACKEND_URL || 'https://koan-production.up.railway.app';
 
@@ -21,6 +22,18 @@ api.interceptors.request.use(
     return config;
   },
   (error) => Promise.reject(error)
+);
+
+// On 401: token is expired or invalid — clear it and redirect to landing
+api.interceptors.response.use(
+  (response) => response,
+  async (error) => {
+    if (error.response?.status === 401) {
+      await SecureStore.deleteItemAsync('auth_token');
+      router.replace('/landing');
+    }
+    return Promise.reject(error);
+  }
 );
 
 export interface SignupData {
