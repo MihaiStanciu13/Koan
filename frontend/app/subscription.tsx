@@ -6,14 +6,16 @@ import {
   TouchableOpacity,
   ScrollView,
   ActivityIndicator,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import Purchases, { PurchasesPackage, PurchasesOffering } from 'react-native-purchases';
+import RevenueCatUI, { CUSTOMER_CENTER_RESULT } from 'react-native-purchases-ui';
 import { subscriptionAPI } from '../services/api';
 
-const REVENUECAT_API_KEY = process.env.EXPO_PUBLIC_REVENUECAT_API_KEY ?? '';
+const ENTITLEMENT_ID = 'Koan Premium';
 
 const FEATURES = [
   'AI nudges based on your patterns',
@@ -22,21 +24,38 @@ const FEATURES = [
   'Cancel anytime',
 ];
 
+type Plan = 'monthly' | 'yearly' | 'lifetime';
+
 export default function SubscriptionScreen() {
   const router = useRouter();
-  const [plan, setPlan] = useState<'annual' | 'monthly'>('annual');
+  const [plan, setPlan] = useState<Plan>('yearly');
   const [offering, setOffering] = useState<PurchasesOffering | null>(null);
+  const [isPremium, setIsPremium] = useState(false);
   const [loadingOfferings, setLoadingOfferings] = useState(true);
   const [purchasing, setPurchasing] = useState(false);
   const [restoring, setRestoring] = useState(false);
+  const [managingSubscription, setManagingSubscription] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (REVENUECAT_API_KEY) {
-      Purchases.configure({ apiKey: REVENUECAT_API_KEY });
+    // configure must be called before any other Purchases method
+    const apiKey = process.env.EXPO_PUBLIC_REVENUECAT_API_KEY ?? '';
+    if (apiKey) {
+      Purchases.configure({ apiKey });
     }
-    fetchOfferings();
+    // Check existing entitlement and fetch offerings in parallel
+    Promise.all([checkEntitlement(), fetchOfferings()]);
   }, []);
+
+  const checkEntitlement = async () => {
+    try {
+      const customerInfo = await Purchases.getCustomerInfo();
+      const isPremiumActive = customerInfo.entitlements.active[ENTITLEMENT_ID] !== undefined;
+      setIsPremium(isPremiumActive);
+    } catch {
+      // Non-fatal: proceed without entitlement info
+    }
+  };
 
   const fetchOfferings = async () => {
     setLoadingOfferings(true);
@@ -44,9 +63,13 @@ export default function SubscriptionScreen() {
     try {
       const offerings = await Purchases.getOfferings();
       setOffering(offerings.current);
-      // Default to annual if available, otherwise monthly
-      if (!offerings.current?.annual && offerings.current?.monthly) {
-        setPlan('monthly');
+      // Default plan selection: yearly → monthly → lifetime
+      if (!offerings.current?.annual) {
+        if (offerings.current?.monthly) {
+          setPlan('monthly');
+        } else if (offerings.current?.lifetime) {
+          setPlan('lifetime');
+        }
       }
     } catch (e: any) {
       setError('Could not load subscription options. Please try again.');
@@ -55,11 +78,14 @@ export default function SubscriptionScreen() {
     }
   };
 
-  const selectedPackage: PurchasesPackage | null | undefined =
-    plan === 'annual' ? offering?.annual : offering?.monthly;
+  const monthlyPackage = offering?.monthly ?? null;
+  const yearlyPackage = offering?.annual ?? null;
+  const lifetimePackage = offering?.lifetime ?? null;
 
-  const annualPackage = offering?.annual;
-  const monthlyPackage = offering?.monthly;
+  const selectedPackage: PurchasesPackage | null =
+    plan === 'yearly' ? yearlyPackage :
+    plan === 'lifetime' ? lifetimePackage :
+    monthlyPackage;
 
   const handleSubscribe = async () => {
     if (!selectedPackage) return;
@@ -67,9 +93,13 @@ export default function SubscriptionScreen() {
     setError(null);
     try {
       await Purchases.purchasePackage(selectedPackage);
-      // Notify backend to flip subscription_status → ACTIVE
-      await subscriptionAPI.activate();
-      router.replace('/(tabs)');
+      // Verify entitlement is now active
+      const customerInfo = await Purchases.getCustomerInfo();
+      const nowPremium = customerInfo.entitlements.active[ENTITLEMENT_ID] !== undefined;
+      if (nowPremium) {
+        await subscriptionAPI.activate();
+        setIsPremium(true);
+      }
     } catch (e: any) {
       if (!e.userCancelled) {
         setError(e.message ?? 'Purchase failed. Please try again.');
@@ -84,10 +114,10 @@ export default function SubscriptionScreen() {
     setError(null);
     try {
       const customerInfo = await Purchases.restorePurchases();
-      const hasActive = Object.keys(customerInfo.entitlements.active).length > 0;
-      if (hasActive) {
+      const nowPremium = customerInfo.entitlements.active[ENTITLEMENT_ID] !== undefined;
+      if (nowPremium) {
         await subscriptionAPI.activate();
-        router.replace('/(tabs)');
+        setIsPremium(true);
       } else {
         setError('No previous purchases found for this account.');
       }
@@ -98,28 +128,41 @@ export default function SubscriptionScreen() {
     }
   };
 
-  // Derive display strings from RevenueCat package, or fall back to placeholders
-  const annualPriceString = annualPackage?.product.priceString ?? '—';
-  const monthlyPriceString = monthlyPackage?.product.priceString ?? '—';
+  const handleManageSubscription = async () => {
+    setManagingSubscription(true);
+    try {
+      await RevenueCatUI.presentCustomerCenter();
+      // Re-check entitlement in case the user cancelled or downgraded
+      await checkEntitlement();
+    } catch {
+      // Non-fatal: Customer Center dismissed or unavailable
+    } finally {
+      setManagingSubscription(false);
+    }
+  };
 
-  const selectedPriceString = plan === 'annual' ? annualPriceString : monthlyPriceString;
-
-  // Compute per-month equivalent for annual to show savings blurb
-  const annualPerMonth = (() => {
-    const price = annualPackage?.product.price;
+  // Per-month breakdown for yearly plan
+  const yearlyPerMonth = (() => {
+    const price = yearlyPackage?.product.price;
     if (!price) return null;
     const perMonth = price / 12;
-    const symbol = annualPackage?.product.currencyCode === 'USD' ? '$' : '';
+    const symbol = yearlyPackage?.product.currencyCode === 'USD' ? '$' : '';
     return `${symbol}${perMonth.toFixed(2)}/month`;
   })();
 
   const savingsPct = (() => {
-    const annual = annualPackage?.product.price;
+    const yearly = yearlyPackage?.product.price;
     const monthly = monthlyPackage?.product.price;
-    if (!annual || !monthly) return null;
-    const pct = Math.round((1 - annual / (monthly * 12)) * 100);
+    if (!yearly || !monthly) return null;
+    const pct = Math.round((1 - yearly / (monthly * 12)) * 100);
     return pct > 0 ? pct : null;
   })();
+
+  const selectedPriceString = selectedPackage?.product.priceString ?? '—';
+  const selectedPeriodLabel =
+    plan === 'yearly' ? '/year' :
+    plan === 'lifetime' ? ' one-time' :
+    '/month';
 
   return (
     <SafeAreaView style={styles.container}>
@@ -134,7 +177,50 @@ export default function SubscriptionScreen() {
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color="#5FAD8E" />
         </View>
+      ) : isPremium ? (
+        /* ── Subscribed state ───────────────────────────────────────── */
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+        >
+          <View style={styles.subscribedContainer}>
+            <Text style={styles.subscribedTitle}>You're subscribed</Text>
+            <Text style={styles.subscribedSubtitle}>
+              {'Koan Premium is active on your account.'}
+            </Text>
+          </View>
+
+          {error && <Text style={styles.errorText}>{error}</Text>}
+
+          {/* Manage subscription — Customer Center */}
+          <TouchableOpacity
+            style={[styles.subscribeButton, managingSubscription && styles.buttonDisabled]}
+            onPress={handleManageSubscription}
+            activeOpacity={0.85}
+            disabled={managingSubscription}
+          >
+            {managingSubscription ? (
+              <ActivityIndicator size="small" color="#FFFFFF" />
+            ) : (
+              <Text style={styles.subscribeButtonText}>Manage subscription</Text>
+            )}
+          </TouchableOpacity>
+
+          {/* Restore */}
+          <TouchableOpacity
+            style={styles.restoreLink}
+            onPress={handleRestore}
+            disabled={restoring}
+          >
+            {restoring ? (
+              <ActivityIndicator size="small" color="#8aab98" />
+            ) : (
+              <Text style={styles.restoreLinkText}>Restore purchases</Text>
+            )}
+          </TouchableOpacity>
+        </ScrollView>
       ) : (
+        /* ── Purchase state ─────────────────────────────────────────── */
         <ScrollView
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
@@ -153,14 +239,14 @@ export default function SubscriptionScreen() {
               </TouchableOpacity>
             )}
 
-            {annualPackage && (
+            {yearlyPackage && (
               <TouchableOpacity
-                style={[styles.togglePill, plan === 'annual' && styles.togglePillActive]}
-                onPress={() => setPlan('annual')}
+                style={[styles.togglePill, plan === 'yearly' && styles.togglePillActive]}
+                onPress={() => setPlan('yearly')}
                 activeOpacity={0.8}
               >
-                <Text style={[styles.toggleText, plan === 'annual' && styles.toggleTextActive]}>
-                  Annual
+                <Text style={[styles.toggleText, plan === 'yearly' && styles.toggleTextActive]}>
+                  Yearly
                 </Text>
                 {savingsPct != null && (
                   <View style={styles.saveBadge}>
@@ -169,25 +255,39 @@ export default function SubscriptionScreen() {
                 )}
               </TouchableOpacity>
             )}
+
+            {lifetimePackage && (
+              <TouchableOpacity
+                style={[styles.togglePill, plan === 'lifetime' && styles.togglePillActive]}
+                onPress={() => setPlan('lifetime')}
+                activeOpacity={0.8}
+              >
+                <Text style={[styles.toggleText, plan === 'lifetime' && styles.toggleTextActive]}>
+                  Lifetime
+                </Text>
+              </TouchableOpacity>
+            )}
           </View>
 
           {/* Price */}
           <View style={styles.priceBlock}>
             <Text style={styles.price}>{selectedPriceString}</Text>
-            <Text style={styles.pricePeriod}>{plan === 'annual' ? '/year' : '/month'}</Text>
+            <Text style={styles.pricePeriod}>{selectedPeriodLabel}</Text>
           </View>
 
-          {plan === 'annual' && annualPerMonth != null && (
+          {plan === 'yearly' && yearlyPerMonth != null && (
             <Text style={styles.annualSavings}>
-              {annualPerMonth}
+              {yearlyPerMonth}
               {savingsPct != null ? ` — save ${savingsPct}%` : ''}
             </Text>
           )}
 
           {/* Trial badge */}
-          <View style={styles.trialBadge}>
-            <Text style={styles.trialBadgeText}>14-DAY FREE TRIAL</Text>
-          </View>
+          {plan !== 'lifetime' && (
+            <View style={styles.trialBadge}>
+              <Text style={styles.trialBadgeText}>14-DAY FREE TRIAL</Text>
+            </View>
+          )}
 
           {/* Feature list */}
           <View style={styles.featuresCard}>
@@ -201,11 +301,20 @@ export default function SubscriptionScreen() {
               </View>
             ))}
 
-            {plan === 'annual' && (
+            {plan === 'yearly' && (
               <View style={[styles.featureRow, styles.featureRowBorder]}>
                 <View style={[styles.featureDot, styles.featureDotGreen]} />
                 <Text style={[styles.featureText, styles.featureTextGreen]}>
                   Best value · price locked for your first year
+                </Text>
+              </View>
+            )}
+
+            {plan === 'lifetime' && (
+              <View style={[styles.featureRow, styles.featureRowBorder]}>
+                <View style={[styles.featureDot, styles.featureDotGreen]} />
+                <Text style={[styles.featureText, styles.featureTextGreen]}>
+                  Pay once, use forever
                 </Text>
               </View>
             )}
@@ -225,14 +334,20 @@ export default function SubscriptionScreen() {
               <ActivityIndicator size="small" color="#FFFFFF" />
             ) : (
               <Text style={styles.subscribeButtonText}>
-                {plan === 'annual' ? 'Start free trial — best value' : 'Start free trial'}
+                {plan === 'yearly'
+                  ? 'Start free trial — best value'
+                  : plan === 'lifetime'
+                  ? 'Get lifetime access'
+                  : 'Start free trial'}
               </Text>
             )}
           </TouchableOpacity>
 
           <Text style={styles.finePrint}>
-            {plan === 'annual'
+            {plan === 'yearly'
               ? 'Cancel anytime. Renews annually.'
+              : plan === 'lifetime'
+              ? 'One-time purchase. No recurring charges.'
               : 'Cancel anytime. No commitment.'}
           </Text>
 
@@ -278,6 +393,26 @@ const styles = StyleSheet.create({
     paddingTop: 24,
     paddingBottom: 48,
     alignItems: 'center',
+  },
+
+  // Subscribed state
+  subscribedContainer: {
+    alignItems: 'center',
+    marginBottom: 36,
+  },
+  subscribedTitle: {
+    fontFamily: 'Georgia',
+    fontSize: 26,
+    color: '#5FAD8E',
+    marginBottom: 12,
+    textAlign: 'center',
+  },
+  subscribedSubtitle: {
+    fontFamily: 'Georgia',
+    fontSize: 14,
+    color: '#5a7868',
+    lineHeight: 22,
+    textAlign: 'center',
   },
 
   // Plan toggle
