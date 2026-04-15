@@ -33,6 +33,9 @@ export const storage = {
     const complete = await AsyncStorage.getItem('onboarding_complete');
     return complete === 'true';
   },
+  clearOnboardingComplete: async () => {
+    await AsyncStorage.removeItem('onboarding_complete');
+  },
   
   // Splash
   setSplashSeen: async () => {

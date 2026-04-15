@@ -74,7 +74,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
     setUser(null);
     await storage.clearOnboardingComplete();
-    router.replace('/');
+    router.replace('/landing');
   };
 
   return (
