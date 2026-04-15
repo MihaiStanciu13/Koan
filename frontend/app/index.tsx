@@ -352,6 +352,7 @@ function LandingPageScreen({ onGetStarted, onSignIn }: any) {
 // Main App Router
 export default function Index() {
   const { user, loading } = useAuth();
+  const [splashCheckDone, setSplashCheckDone] = useState(false);
   const [showLogin, setShowLogin] = useState<boolean | null>(null); // null = landing, true = login, false = signup
   const [showStory, setShowStory] = useState(false);
   const [checkingOnboarding, setCheckingOnboarding] = useState(false);
@@ -373,14 +374,21 @@ export default function Index() {
 
   // Route unauthenticated users: intro on first open, /landing for returning logged-out users
   useEffect(() => {
+    if (params.auth === 'login' || params.auth === 'signup') {
+      setSplashCheckDone(true);
+      splashChecked.current = true;
+      return;
+    }
     if (!loading && !user && !splashChecked.current) {
       splashChecked.current = true;
       storage.hasSplashSeen().then((seen) => {
         if (!seen) {
           storage.setSplashSeen();
           router.push('/intro');
+          setSplashCheckDone(true);
         } else {
           router.replace('/landing');
+          setSplashCheckDone(true);
         }
       });
     }
@@ -421,6 +429,8 @@ export default function Index() {
       setCheckingOnboarding(false);
     }
   };
+
+  if (!splashCheckDone && !user && !loading) return null;
 
   // Show loading while checking auth
   if (loading) {

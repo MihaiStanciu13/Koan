@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import Svg, { Circle, Path } from 'react-native-svg';
+import Svg, { Path } from 'react-native-svg';
 import * as WebBrowser from 'expo-web-browser';
 import * as Google from 'expo-auth-session/providers/google';
 import * as AppleAuthentication from 'expo-apple-authentication';
@@ -24,18 +24,6 @@ const API_URL =
   'https://koan-production.up.railway.app';
 
 // ── Icons ─────────────────────────────────────────────────────────────────────
-
-function ConcentricDots() {
-  return (
-    <Svg width={80} height={80} viewBox="0 0 80 80">
-      <Circle cx={40} cy={40} r={38} stroke="#d0e8da" strokeWidth={1} fill="none" />
-      <Circle cx={40} cy={40} r={25} stroke="#c0e0cf" strokeWidth={1} fill="none" />
-      <Circle cx={40} cy={40} r={13} stroke="#aad4be" strokeWidth={1} fill="none" />
-      <Circle cx={40} cy={40} r={5} fill="#c0e0cf" />
-      <Circle cx={40} cy={40} r={2.5} fill="#5FAD8E" />
-    </Svg>
-  );
-}
 
 function AppleIcon() {
   return (
@@ -196,10 +184,11 @@ export default function LandingPage() {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.inner}>
-        {/* Hero — dot + headline + subline, vertically centered */}
+        {/* Hero — brand block + headline + subline, vertically centered */}
         <View style={styles.heroSection}>
-          <View style={styles.iconContainer}>
-            <ConcentricDots />
+          <View style={styles.brand}>
+            <Text style={styles.wordmark}>Koan</Text>
+            <View style={styles.brandDot} />
           </View>
 
           {/* Headline */}
@@ -289,11 +278,27 @@ const styles = StyleSheet.create({
   },
   heroSection: {
     flex: 1,
-    justifyContent: 'center',
-  },
-  iconContainer: {
+    flexDirection: 'column',
     alignItems: 'center',
-    marginBottom: 28,
+    justifyContent: 'center',
+    gap: 24,
+  },
+  brand: {
+    alignItems: 'center',
+    gap: 10,
+  },
+  wordmark: {
+    fontFamily: 'Georgia',
+    fontSize: 36,
+    fontWeight: '400',
+    color: '#1a2e24',
+    textAlign: 'center',
+  },
+  brandDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#5FAD8E',
   },
   headline: {
     fontFamily: 'Georgia',
@@ -301,7 +306,6 @@ const styles = StyleSheet.create({
     color: '#1a2e24',
     lineHeight: 28,
     textAlign: 'center',
-    marginBottom: 20,
   },
   subline: {
     fontFamily: 'Georgia',
@@ -309,7 +313,6 @@ const styles = StyleSheet.create({
     color: '#5a7868',
     lineHeight: 21,
     textAlign: 'center',
-    marginBottom: 36,
   },
   appleButton: {
     flexDirection: 'row',
@@ -389,7 +392,7 @@ const styles = StyleSheet.create({
   },
   loginLink: {
     alignItems: 'center',
-    marginTop: 'auto' as any,
+    marginTop: 16,
   },
   loginLinkText: {
     fontSize: 11,
