@@ -191,6 +191,9 @@ async def delete_account(current_user: User = Depends(get_current_user)):
     await db.preferences.delete_many({"user_id": current_user.id})
     await db.behavior_events.delete_many({"user_id": current_user.id})
     await db.nudges.delete_many({"user_id": current_user.id})
+    await db.health_signals.delete_many({"user_id": current_user.id})
+    await db.phone_behaviors.delete_many({"user_id": current_user.id})
+    await db.api_usage.delete_many({"user_id": current_user.id})
     return {"message": "Account deleted"}
 
 
