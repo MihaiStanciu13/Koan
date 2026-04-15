@@ -135,6 +135,19 @@ class HealthSignal(BaseModel):
     # Location (opt-in)
     location_variety: Optional[int] = None  # distinct places visited
     time_outdoors_minutes: Optional[int] = None
+    # Sleep detail
+    sleep_deep_minutes: Optional[float] = None       # deep sleep stage duration
+    sleep_rem_minutes: Optional[float] = None         # REM stage duration
+    sleep_core_minutes: Optional[float] = None        # core/light sleep stage duration
+    sleep_efficiency: Optional[float] = None          # sleep efficiency percentage 0-100
+    # Recovery
+    spo2_avg: Optional[float] = None                  # average blood oxygen during sleep
+    respiratory_rate_avg: Optional[float] = None      # avg breaths per minute during sleep
+    # Activity
+    workout_minutes: Optional[float] = None           # total workout duration for the day
+    mindful_minutes: Optional[float] = None           # mindfulness/meditation minutes
+    # Screen Time (refined)
+    real_pickups: Optional[int] = None                # actual pickup count from DeviceActivity
 
 class HealthSignalCreate(BaseModel):
     date: str
@@ -156,3 +169,12 @@ class HealthSignalCreate(BaseModel):
     hrv_ms: Optional[float] = Field(None, ge=0, le=300)
     location_variety: Optional[int] = None
     time_outdoors_minutes: Optional[int] = None
+    sleep_deep_minutes: Optional[float] = None
+    sleep_rem_minutes: Optional[float] = None
+    sleep_core_minutes: Optional[float] = None
+    sleep_efficiency: Optional[float] = Field(None, ge=0, le=100)
+    spo2_avg: Optional[float] = Field(None, ge=50, le=100)
+    respiratory_rate_avg: Optional[float] = Field(None, ge=0, le=60)
+    workout_minutes: Optional[float] = None
+    mindful_minutes: Optional[float] = None
+    real_pickups: Optional[int] = Field(None, ge=0, le=1000)

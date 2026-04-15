@@ -236,6 +236,7 @@ class NudgeOrchestrator:
         "recovery_good",
         "rhythm_balanced_day",
         "rhythm_weekend_recovery",
+        "mindful_streak",
     })
 
     # Urgent health signals receive a relevance boost before the recency penalty.
@@ -244,6 +245,34 @@ class NudgeOrchestrator:
         "stress_hrv_low": 0.15,
         "stress_resting_hr_elevated": 0.15,
         "sleep_duration_short": 0.15,
+        "recovery_compound": 0.15,
+        "hrv_workout_compound": 0.10,
+    }
+
+    # Message variants for new patterns not yet in NUDGE_LIBRARY.
+    # Follows the same structure as compound trigger messages:
+    # calm, observational, third-person, 1-2 sentences, no imperatives.
+    _NEW_PATTERN_MESSAGES: dict = {
+        "poor_deep_sleep": [
+            "Deep sleep has been short this week — under an hour most nights. The body does its repair work there. It's worth noticing what might be pulling against it.",
+            "Something has been interrupting the deeper layers of sleep. Not the hours, just the quality. The body notices even when you don't.",
+        ],
+        "hrv_workout_compound": [
+            "Recovery has been lower than usual, and movement has been absent. The two are connected. Even a short walk changes the signal.",
+            "HRV has been sitting below your baseline while exercise has paused. The body is asking for something simple.",
+        ],
+        "social_media_spike": [
+            "Time on social apps has been climbing while movement has slowed. One often follows the other — not a judgment, just a pattern.",
+            "The phone has been pulling more attention than usual, while the body has been moving less. Worth a moment of noticing.",
+        ],
+        "mindful_streak": [
+            "Five of the last seven days included a moment of stillness. That consistency is rare. It's working.",
+            "Mindfulness has been showing up regularly this week. The pattern is building something.",
+        ],
+        "recovery_compound": [
+            "Sleep quality signals — oxygen and breathing — have been off for a couple of nights. This is the body's quiet way of asking for recovery.",
+            "Two nights of lower oxygen or elevated breathing rate. Worth protecting the next sleep window carefully.",
+        ],
     }
 
     # Compound trigger definitions. Each entry fires when both trigger_ids in "pair"
@@ -712,10 +741,16 @@ class NudgeOrchestrator:
                     explanation = lib_entry.get("principle", "") if lib_entry else ""
                 else:
                     nudge_data = get_nudge_message(best["trigger_id"])
-                    if not nudge_data:
-                        return None
-                    message = nudge_data["message"]
-                    explanation = nudge_data["principle"]
+                    if nudge_data:
+                        message = nudge_data["message"]
+                        explanation = nudge_data["principle"]
+                    else:
+                        # Fall back to locally-defined messages for new pattern types
+                        local_msgs = self._NEW_PATTERN_MESSAGES.get(best["trigger_id"])
+                        if not local_msgs:
+                            return None
+                        message = random.choice(local_msgs)
+                        explanation = ""
             nudge_id = str(uuid.uuid4())
             nudge_obj = Nudge(
                 id=nudge_id,

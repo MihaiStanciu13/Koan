@@ -329,6 +329,128 @@ class PatternDetector:
         except Exception:
             pass
 
+        # ── Poor deep sleep ──
+        deep_sleep_values = [
+            s.get("sleep_deep_minutes") for s in signals[:5]
+            if s.get("sleep_deep_minutes") is not None
+        ]
+        if len(deep_sleep_values) >= 3:
+            nights_under_60 = sum(1 for v in deep_sleep_values if v < 60)
+            if nights_under_60 >= 3:
+                triggered.append("poor_deep_sleep")
+                ctx = {}
+                try:
+                    ctx["avg_deep_minutes"] = round(
+                        sum(deep_sleep_values) / len(deep_sleep_values), 1
+                    )
+                except Exception:
+                    pass
+                self._pattern_contexts["poor_deep_sleep"] = ctx
+
+        # ── HRV + workout compound ──
+        if baseline.get("avg_hrv"):
+            hrv_baseline = baseline["avg_hrv"]
+            consecutive_low_no_workout = 0
+            for sig in signals[:5]:
+                hrv = sig.get("hrv_ms")
+                if hrv is None:
+                    break
+                workout = sig.get("workout_minutes")
+                if hrv < hrv_baseline * 0.85 and (workout is None or workout == 0):
+                    consecutive_low_no_workout += 1
+                else:
+                    break
+            if consecutive_low_no_workout >= 3:
+                triggered.append("hrv_workout_compound")
+                ctx = {}
+                try:
+                    recent_hrv = [
+                        s.get("hrv_ms") for s in signals[:consecutive_low_no_workout]
+                        if s.get("hrv_ms") is not None
+                    ]
+                    if recent_hrv:
+                        avg_recent = sum(recent_hrv) / len(recent_hrv)
+                        ctx["hrv_pct_below"] = round(
+                            (1.0 - avg_recent / hrv_baseline) * 100
+                        )
+                    ctx["days_without_workout"] = consecutive_low_no_workout
+                except Exception:
+                    pass
+                self._pattern_contexts["hrv_workout_compound"] = ctx
+
+        # ── Social media spike ──
+        consecutive_spike = 0
+        for sig in signals[:5]:
+            sm = sig.get("social_media_minutes")
+            steps = sig.get("steps")
+            if sm is not None and steps is not None and sm > 120 and steps < 3000:
+                consecutive_spike += 1
+            else:
+                break
+        if consecutive_spike >= 2:
+            triggered.append("social_media_spike")
+            ctx = {}
+            try:
+                sample = signals[:consecutive_spike]
+                sm_vals = [s["social_media_minutes"] for s in sample if s.get("social_media_minutes") is not None]
+                step_vals = [s["steps"] for s in sample if s.get("steps") is not None]
+                if sm_vals:
+                    ctx["avg_social_minutes"] = round(sum(sm_vals) / len(sm_vals))
+                if step_vals:
+                    ctx["avg_steps"] = round(sum(step_vals) / len(step_vals))
+            except Exception:
+                pass
+            self._pattern_contexts["social_media_spike"] = ctx
+
+        # ── Mindful streak (positive reinforcement) ──
+        mindful_values = [
+            s.get("mindful_minutes") for s in signals[:7]
+            if s.get("mindful_minutes") is not None
+        ]
+        if len(mindful_values) >= 5:
+            days_with_mindful = sum(1 for v in mindful_values if v > 0)
+            if days_with_mindful >= 5:
+                triggered.append("mindful_streak")
+                self._pattern_contexts["mindful_streak"] = {"streak_days": days_with_mindful}
+
+        # ── Recovery compound ──
+        # Fires when spo2_avg < 94 OR (respiratory_rate_avg > 18 AND sleep_efficiency < 80)
+        # for 2+ of the last 5 nights where data exists.
+        poor_recovery_count = 0
+        recovery_ctx_samples: list = []
+        for sig in signals[:5]:
+            spo2 = sig.get("spo2_avg")
+            resp_rate = sig.get("respiratory_rate_avg")
+            sleep_eff = sig.get("sleep_efficiency")
+            if spo2 is None and resp_rate is None:
+                continue
+            spo2_poor = spo2 is not None and spo2 < 94
+            resp_eff_poor = (
+                resp_rate is not None
+                and sleep_eff is not None
+                and resp_rate > 18
+                and sleep_eff < 80
+            )
+            if spo2_poor or resp_eff_poor:
+                poor_recovery_count += 1
+                recovery_ctx_samples.append(sig)
+        if poor_recovery_count >= 2:
+            triggered.append("recovery_compound")
+            ctx = {}
+            try:
+                spo2_vals = [s["spo2_avg"] for s in recovery_ctx_samples if s.get("spo2_avg") is not None]
+                resp_vals = [s["respiratory_rate_avg"] for s in recovery_ctx_samples if s.get("respiratory_rate_avg") is not None]
+                eff_vals = [s["sleep_efficiency"] for s in recovery_ctx_samples if s.get("sleep_efficiency") is not None]
+                if spo2_vals:
+                    ctx["spo2_avg"] = round(sum(spo2_vals) / len(spo2_vals), 1)
+                if resp_vals:
+                    ctx["respiratory_rate_avg"] = round(sum(resp_vals) / len(resp_vals), 1)
+                if eff_vals:
+                    ctx["sleep_efficiency"] = round(sum(eff_vals) / len(eff_vals), 1)
+            except Exception:
+                pass
+            self._pattern_contexts["recovery_compound"] = ctx
+
         # ── Balance & rhythm ──
         is_weekend = datetime.utcnow().weekday() >= 5
         if is_weekend:
@@ -440,6 +562,8 @@ class PatternDetector:
             return None
 
         priority_order = [
+            "recovery_compound",
+            "hrv_workout_compound",
             "stress_hrv_low",
             "stress_resting_hr_elevated",
             "recovery_insufficient",
@@ -447,6 +571,7 @@ class PatternDetector:
             "stress_heavy_meeting_day",
             "boundary_evening_work",
             "boundary_weekend_meetings",
+            "poor_deep_sleep",
             "sleep_timing_inconsistent",
             "sleep_duration_short",
             "sleep_late_night_phone",
@@ -459,6 +584,7 @@ class PatternDetector:
             "movement_sedentary_day",
             "movement_work_hours_gap",
             "standing_gap",
+            "social_media_spike",
             "attention_social_media_heavy",
             "attention_high_pickups",
             "rhythm_weekend_recovery",
@@ -467,6 +593,7 @@ class PatternDetector:
             "outdoor_streak",
             "recovery_good",
             "attention_screen_improving",
+            "mindful_streak",
         ]
 
         # Get recently sent nudge types to avoid repetition
