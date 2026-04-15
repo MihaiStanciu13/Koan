@@ -128,9 +128,9 @@ export default function InsightsScreen() {
         {/* Story card — tappable, appears first */}
         <TouchableOpacity style={styles.narrativeCard} onPress={() => setShowStory(true)} activeOpacity={0.8}>
           <Text style={styles.narrativeCategoryLabel}>WHY KOAN EXISTS</Text>
-          <Text style={styles.narrativeText}>My grandparents lived past ninety.</Text>
+          <Text style={styles.narrativeText}>The people who lived longest never tracked anything.</Text>
           <Text style={[styles.narrativeSubtext, { fontStyle: 'italic', marginTop: 8 }]}>
-            The story behind the quiet.
+            The story behind Koan.
           </Text>
           <Text style={{ alignSelf: 'flex-end', color: '#8aab98', fontSize: 20, marginTop: 12 }}>›</Text>
         </TouchableOpacity>
@@ -225,13 +225,6 @@ export default function InsightsScreen() {
           Patterns emerge over time. Check back next week for deeper insights.
         </Text>
 
-        <Spacer minHeight={24} />
-
-        <View style={styles.philosophyCard}>
-          <Text style={[styles.philosophyText, { fontFamily: 'Georgia', fontStyle: 'italic' }]}>
-            Koan observes without judgment.
-          </Text>
-        </View>
       </ScrollView>
       <Modal
         visible={showStory}

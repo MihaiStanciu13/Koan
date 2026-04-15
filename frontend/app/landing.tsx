@@ -285,7 +285,7 @@ const styles = StyleSheet.create({
   },
   brand: {
     alignItems: 'center',
-    gap: 10,
+    gap: 12,
   },
   wordmark: {
     fontFamily: 'Georgia',

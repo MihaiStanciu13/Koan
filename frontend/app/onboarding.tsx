@@ -8,6 +8,7 @@ import {
   Alert,
   Animated,
   Dimensions,
+  Modal,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -66,6 +67,7 @@ export default function Onboarding() {
   const [gCalConnected, setGCalConnected] = useState(false);
   const [msConnected, setMsConnected] = useState(false);
   const [selectedAnchors, setSelectedAnchors] = useState<string[]>([]);
+  const [showPlans, setShowPlans] = useState(false);
 
   const haloScale = useRef(new Animated.Value(1)).current;
   const haloOpacity = useRef(new Animated.Value(0.25)).current;
@@ -406,9 +408,9 @@ export default function Onboarding() {
   const renderAnchor = () => (
     <>
       <Text style={styles.sectionLabel}>WHILE KOAN LISTENS</Text>
-      <Text style={styles.screenTitle}>One thing to come back to</Text>
+      <Text style={styles.screenTitle}>One thing you can start with right now</Text>
       <Text style={styles.screenSubtitle}>
-        A small, repeatable action that grounds your day. Koan will remind you of it gently — and notice when life gets in the way.
+        Choose an anchor — a small, repeatable action that grounds your day. Koan will remind you of it gently, and notice when life gets in the way.
       </Text>
       <View style={{
         backgroundColor: '#D9F7EB',
@@ -454,25 +456,27 @@ export default function Onboarding() {
 
   const renderReady = () => (
     <View style={styles.readyBody}>
-      <View style={{ alignItems: 'center', width: '100%' }}>
-        <View style={styles.dotContainer}>
-          <Animated.View
-            style={[
-              styles.dotHalo,
-              { transform: [{ scale: haloScale }], opacity: haloOpacity },
-            ]}
-          />
-          <View style={styles.dotCore} />
-        </View>
-        <Text style={styles.readyTitle}>Koan is ready.</Text>
-        <Text style={styles.readySubtitle}>
-          It will listen quietly. You won't hear from it until it has something worth saying.
-        </Text>
+      <View style={styles.dotContainer}>
+        <Animated.View
+          style={[
+            styles.dotHalo,
+            { transform: [{ scale: haloScale }], opacity: haloOpacity },
+          ]}
+        />
+        <View style={styles.dotCore} />
       </View>
+      <Text style={styles.readyTitle}>Koan is ready.</Text>
+      <Text style={styles.readySubtitle}>
+        It will listen quietly. You won't hear from it until it has something worth saying.
+      </Text>
       <View style={styles.trialPill}>
         <Text style={styles.trialPillLabel}>14-DAY FREE TRIAL</Text>
         <Text style={styles.trialPillSub}>Full access · No credit card required</Text>
       </View>
+      <Text style={styles.pricingNote}>After 14 days, plans from €4.99/month.</Text>
+      <TouchableOpacity onPress={() => setShowPlans(true)}>
+        <Text style={styles.seePlansLink}>See all plans →</Text>
+      </TouchableOpacity>
     </View>
   );
 
@@ -565,6 +569,42 @@ export default function Onboarding() {
           {renderFooterButtons()}
         </View>
       </View>
+
+      <Modal animationType="slide" transparent={true} visible={showPlans} onRequestClose={() => setShowPlans(false)}>
+        <View style={styles.modalBackdrop}>
+          <View style={styles.modalCard}>
+            <Text style={styles.modalTitle}>Plans</Text>
+
+            {/* Monthly */}
+            <View style={styles.planCard}>
+              <Text style={styles.planName}>Monthly</Text>
+              <Text style={styles.planPrice}>€7.99/month</Text>
+              <Text style={styles.planDesc}>Full access, cancel anytime.</Text>
+            </View>
+
+            {/* Yearly — highlighted */}
+            <View style={[styles.planCard, styles.planCardHighlight]}>
+              <View style={styles.bestValueBadge}>
+                <Text style={styles.bestValueText}>Best value</Text>
+              </View>
+              <Text style={styles.planName}>Yearly</Text>
+              <Text style={styles.planPrice}>€4.99/month</Text>
+              <Text style={styles.planDesc}>Billed €59.99/year. Save 37%.</Text>
+            </View>
+
+            {/* Lifetime */}
+            <View style={styles.planCard}>
+              <Text style={styles.planName}>Lifetime</Text>
+              <Text style={styles.planPrice}>€89.99 once</Text>
+              <Text style={styles.planDesc}>One payment, yours forever.</Text>
+            </View>
+
+            <TouchableOpacity style={styles.gotItButton} onPress={() => setShowPlans(false)} activeOpacity={0.8}>
+              <Text style={styles.gotItButtonText}>Got it</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -895,8 +935,9 @@ const styles = StyleSheet.create({
   readyBody: {
     flex: 1,
     alignItems: 'center',
-    justifyContent: 'space-between',
+    justifyContent: 'center',
     paddingVertical: 16,
+    gap: 24,
   },
   dotContainer: {
     width: 72,
@@ -998,5 +1039,91 @@ const styles = StyleSheet.create({
     color: '#3A3A3A',
     opacity: 0.38,
     textAlign: 'center',
+  },
+  pricingNote: {
+    fontSize: 11,
+    color: '#3A3A3A',
+    opacity: 0.5,
+    textAlign: 'center',
+  },
+  seePlansLink: {
+    fontSize: 11,
+    color: '#5FAD8E',
+    textAlign: 'center',
+  },
+
+  // ── Plans modal ──────────────────────────────────────────────────────────
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    justifyContent: 'flex-end',
+  },
+  modalCard: {
+    backgroundColor: '#FFFFFF',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    padding: 24,
+  },
+  modalTitle: {
+    fontFamily: 'Georgia',
+    fontSize: 18,
+    color: '#1a2e24',
+    marginBottom: 16,
+  },
+  planCard: {
+    backgroundColor: '#FAFDFA',
+    borderRadius: 12,
+    padding: 13,
+    borderWidth: 1,
+    borderColor: '#E6E6E4',
+    marginBottom: 9,
+  },
+  planCardHighlight: {
+    backgroundColor: '#D9F7EB',
+    borderColor: 'rgba(95,173,142,0.35)',
+  },
+  bestValueBadge: {
+    alignSelf: 'flex-start',
+    backgroundColor: '#D9F7EB',
+    borderRadius: 4,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    marginBottom: 6,
+  },
+  bestValueText: {
+    fontSize: 10,
+    color: '#2D6B4E',
+    fontWeight: '500',
+  },
+  planName: {
+    fontSize: 13,
+    fontWeight: '500',
+    color: '#3A3A3A',
+    marginBottom: 2,
+  },
+  planPrice: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#2D6B4E',
+    marginBottom: 2,
+  },
+  planDesc: {
+    fontSize: 11,
+    fontWeight: '300',
+    color: '#3A3A3A',
+    opacity: 0.65,
+  },
+  gotItButton: {
+    borderWidth: 1.5,
+    borderColor: '#5FAD8E',
+    borderRadius: 12,
+    paddingVertical: 13,
+    alignItems: 'center',
+    marginTop: 4,
+  },
+  gotItButtonText: {
+    color: '#5FAD8E',
+    fontSize: 15,
+    fontWeight: '600',
   },
 });

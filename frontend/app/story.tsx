@@ -154,7 +154,7 @@ export default function Story({ onContinue }: StoryProps) {
 
           {done && (
             <Animated.View style={{ opacity: continueAnim, alignItems: 'flex-end', marginTop: 8 }}>
-              <Text style={styles.continueText} onPress={() => router.push('/landing')}>
+              <Text style={styles.continueText} onPress={() => onContinue ? onContinue() : router.push('/landing')}>
                 Continue →
               </Text>
             </Animated.View>
