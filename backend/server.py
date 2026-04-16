@@ -18,14 +18,6 @@ from contextlib import asynccontextmanager
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
 
-# ── Sentry — imported here, initialised inside lifespan after DB is ready ─────
-# Required env vars on Railway: SENTRY_DSN, ENVIRONMENT (optional, defaults to
-# "production"). MONGO_URL and SECRET_KEY are also required (see below).
-import sentry_sdk
-from sentry_sdk.integrations.pymongo import PyMongoIntegration
-from sentry_sdk.integrations.threading import ThreadingIntegration
-# ──────────────────────────────────────────────────────────────────────────────
-
 # Import routers
 from auth import router as auth_router, get_current_user, require_active_subscription
 from behavioral_monitor import router as behavior_router
@@ -118,21 +110,6 @@ scheduler = AsyncIOScheduler()
 async def lifespan(app: FastAPI):
     # Startup
     logger.info(f"Starting app, connecting to MongoDB at {mongo_url}")
-
-    # Initialise Sentry inside the async context, after DB connection is established.
-    # PyMongoIntegration and ThreadingIntegration are explicitly disabled to prevent
-    # them from instrumenting motor's async driver and breaking its event loop context.
-    sentry_sdk.init(
-        dsn=os.getenv("SENTRY_DSN"),
-        integrations=[],
-        disabled_integrations=[
-            PyMongoIntegration(),
-            ThreadingIntegration(),
-        ],
-        auto_enabling_integrations=False,
-        traces_sample_rate=0.0,
-        environment=os.getenv("ENVIRONMENT", "production"),
-    )
 
     scheduler.add_job(run_daily_nudge_evaluation, CronTrigger(hour=9, minute=0))
     scheduler.add_job(send_weekly_summary_notifications, CronTrigger(day_of_week="sun", hour=8, minute=0))

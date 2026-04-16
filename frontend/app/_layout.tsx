@@ -2,14 +2,6 @@ import React, { useEffect } from 'react';
 import { Stack, router } from 'expo-router';
 import { AuthProvider, useAuth } from '../contexts/AuthContext';
 import { NotificationProvider } from '../contexts/NotificationContext';
-import * as Sentry from '@sentry/react-native';
-
-Sentry.init({
-  dsn: process.env.EXPO_PUBLIC_SENTRY_DSN,
-  enableInExpoDevelopment: false,
-  debug: false,
-  tracesSampleRate: 0.2,
-});
 
 function RootLayoutNav() {
   const { isAuthenticated, isExpired, loading } = useAuth();
@@ -42,4 +34,4 @@ function RootLayout() {
   );
 }
 
-export default Sentry.wrap(RootLayout);
+export default RootLayout;
