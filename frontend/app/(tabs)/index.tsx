@@ -217,7 +217,14 @@ export default function HomeScreen() {
     flushToBackend(); // send any pending signals from previous session
 
     if (Platform.OS === 'ios') {
-      collectAndSendHealthData();
+      (async () => {
+        const today = new Date().toISOString().split('T')[0];
+        const lastCollected = await AsyncStorage.getItem('koan_health_collected_date');
+        if (lastCollected !== today) {
+          await collectAndSendHealthData();
+          await AsyncStorage.setItem('koan_health_collected_date', today);
+        }
+      })();
     }
 
     return () => {
