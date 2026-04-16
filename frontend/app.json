@@ -58,7 +58,8 @@
         "react-native-device-activity",
         {
           "appleTeamId": "J3W8B3M59W",
-          "devTeamId": "J3W8B3M59W"
+          "devTeamId": "J3W8B3M59W",
+          "appGroup": "group.com.getkoan.app"
         }
       ]
     ],
