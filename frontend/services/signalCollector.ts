@@ -93,6 +93,18 @@ async function onAppBackground() {
 async function flushToBackend() {
   try {
     const signal = await getSignal();
+
+    // Check Screen Time authorization status (non-blocking — fails silently if
+    // the Family Controls entitlement has not yet been approved by Apple).
+    let screen_time_authorized: boolean | undefined;
+    try {
+      const { getScreenTimeAuthorizationStatus } = await import('./screenTime');
+      const status = await getScreenTimeAuthorizationStatus();
+      screen_time_authorized = status === 'authorized';
+    } catch {
+      // entitlement not available yet — omit field
+    }
+
     await healthAPI.recordSignal({
       date: signal.date,
       total_pickups: signal.total_pickups,
@@ -100,6 +112,7 @@ async function flushToBackend() {
       total_screen_time_minutes: signal.total_screen_time_minutes,
       social_media_minutes: signal.social_media_minutes || 0,
       evening_session_minutes: signal.evening_session_minutes || 0,
+      ...(screen_time_authorized !== undefined && { screen_time_authorized }),
     });
   } catch (e) {
     // fail silently — will retry next time

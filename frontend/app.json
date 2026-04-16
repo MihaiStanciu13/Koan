@@ -21,6 +21,10 @@
       "infoPlist": {
         "NSHealthShareUsageDescription": "Koan uses health data to understand your movement, sleep, and energy patterns and deliver more relevant nudges.",
         "NSHealthUpdateUsageDescription": "Koan does not write to Health."
+      },
+      "entitlements": {
+        "com.apple.developer.family-controls": true,
+        "com.apple.security.application-groups": ["group.com.getkoan.app"]
       }
     },
     "android": {
@@ -48,6 +52,13 @@
         {
           "healthSharePermission": "Koan uses health data to understand your movement, sleep, and energy patterns and deliver more relevant nudges.",
           "healthUpdatePermission": "Koan does not write to Health."
+        }
+      ],
+      [
+        "react-native-device-activity",
+        {
+          "appleTeamId": "J3W8B3M59W",
+          "devTeamId": "J3W8B3M59W"
         }
       ]
     ],

@@ -19,6 +19,7 @@ import Svg, { Rect } from 'react-native-svg';
 import { storage } from '../services/storage';
 import { calendarAPI, microsoftAPI, preferencesAPI } from '../services/api';
 import { requestHealthKitPermissions } from '../services/healthKit';
+import { requestScreenTimeAuthorization } from '../services/screenTime';
 import Spacer from '../components/Spacer';
 
 const { width: screenWidth } = Dimensions.get('window');
@@ -64,6 +65,7 @@ export default function Onboarding() {
   const router = useRouter();
   const [currentStep, setCurrentStep] = useState(0);
   const [healthConnected, setHealthConnected] = useState(false);
+  const [screenTimeConnected, setScreenTimeConnected] = useState(false);
   const [gCalConnected, setGCalConnected] = useState(false);
   const [msConnected, setMsConnected] = useState(false);
   const [selectedAnchors, setSelectedAnchors] = useState<string[]>([]);
@@ -97,6 +99,15 @@ export default function Onboarding() {
       duration: 250,
       useNativeDriver: true,
     }).start();
+  };
+
+  const handleConnectScreenTime = async () => {
+    try {
+      const granted = await requestScreenTimeAuthorization();
+      if (granted) setScreenTimeConnected(true);
+    } catch {
+      Alert.alert('Screen Time authorization is only available on iOS.');
+    }
   };
 
   const handleConnectHealth = async () => {
@@ -165,7 +176,7 @@ export default function Onboarding() {
 
   const handleEnableNotifications = async () => {
     await Notifications.requestPermissionsAsync();
-    slideToStep(3);
+    slideToStep(4);
   };
 
   const toggleAnchor = (chip: string) => {
@@ -191,7 +202,7 @@ export default function Onboarding() {
         // Don't block navigation on failure
       }
     }
-    slideToStep(4);
+    slideToStep(5);
   };
 
   const handleBegin = async () => {
@@ -202,7 +213,7 @@ export default function Onboarding() {
   // ── Header ──────────────────────────────────────────────────────────────
 
   const renderHeader = () => {
-    if (currentStep === 4) {
+    if (currentStep === 5) {
       return (
         <View style={styles.headerCentered}>
           <Text style={styles.wordmarkCentered}>Koan</Text>
@@ -223,7 +234,7 @@ export default function Onboarding() {
         </View>
         <Text style={styles.wordmark}>Koan</Text>
         <View style={styles.dotsRow}>
-          {[0, 1, 2, 3, 4].map(i => (
+          {[0, 1, 2, 3, 4, 5].map(i => (
             <View
               key={i}
               style={[
@@ -299,7 +310,55 @@ export default function Onboarding() {
     </>
   );
 
-  // ── Screen 1: Work tools ─────────────────────────────────────────────────
+  // ── Screen 1: Screen Time ─────────────────────────────────────────────────
+
+  const renderScreenTime = () => (
+    <>
+      <Text style={styles.sectionLabel}>PHONE SIGNALS</Text>
+      <Text style={styles.screenTitle}>See how your attention moves</Text>
+      <Text style={styles.screenSubtitle}>
+        Koan uses Screen Time data to understand your app usage patterns — which categories pull your attention and when. Read-only. Never shared.
+      </Text>
+      <View style={styles.integrationCard}>
+        <View style={styles.integrationHeader}>
+          <View style={[styles.emojiIconContainer, { backgroundColor: '#F0F4FF' }]}>
+            <Text style={styles.emojiIcon}>📱</Text>
+          </View>
+          <View style={styles.integrationInfo}>
+            <Text style={styles.integrationName}>Screen Time</Text>
+            <Text style={styles.integrationSubtext}>App usage · Categories · Read-only</Text>
+          </View>
+        </View>
+        <Text style={styles.integrationDesc}>
+          Koan reads app category totals — not which sites you visited. Requires Apple's Family Controls framework.
+        </Text>
+        <TouchableOpacity
+          style={[styles.connectButton, screenTimeConnected && styles.connectedButton]}
+          onPress={handleConnectScreenTime}
+          disabled={screenTimeConnected}
+          activeOpacity={0.8}
+        >
+          <Text style={[styles.connectButtonText, screenTimeConnected && styles.connectedButtonText]}>
+            {screenTimeConnected ? '✓ Authorized' : 'Authorize Screen Time'}
+          </Text>
+        </TouchableOpacity>
+      </View>
+      <View style={styles.infoCard}>
+        <View style={styles.infoCardRow}>
+          <View style={styles.infoDot} />
+          <View style={styles.infoCardContent}>
+            <Text style={styles.infoCardTitle}>Requires App Store approval</Text>
+            <Text style={styles.infoCardBody}>
+              Apple's Family Controls entitlement is reviewed manually. This feature activates once approved.
+            </Text>
+          </View>
+        </View>
+      </View>
+      <Spacer minHeight={16} />
+    </>
+  );
+
+  // ── Screen 2: Work tools ─────────────────────────────────────────────────
 
   const renderWorkTools = () => (
     <>
@@ -362,7 +421,7 @@ export default function Onboarding() {
     </>
   );
 
-  // ── Screen 2: Notifications ──────────────────────────────────────────────
+  // ── Screen 3: Notifications ──────────────────────────────────────────────
 
   const renderNotifications = () => (
     <>
@@ -403,7 +462,7 @@ export default function Onboarding() {
     </>
   );
 
-  // ── Screen 3: Anchor ─────────────────────────────────────────────────────
+  // ── Screen 4: Anchor ─────────────────────────────────────────────────────
 
   const renderAnchor = () => (
     <>
@@ -452,7 +511,7 @@ export default function Onboarding() {
     </>
   );
 
-  // ── Screen 4: Ready ──────────────────────────────────────────────────────
+  // ── Screen 5: Ready ──────────────────────────────────────────────────────
 
   const renderReady = () => (
     <View style={styles.readyBody}>
@@ -509,15 +568,26 @@ export default function Onboarding() {
       case 2:
         return (
           <>
-            <TouchableOpacity style={styles.primaryButton} onPress={handleEnableNotifications} activeOpacity={0.8}>
-              <Text style={styles.primaryButtonText}>Enable notifications</Text>
+            <TouchableOpacity style={styles.primaryButton} onPress={() => slideToStep(3)} activeOpacity={0.8}>
+              <Text style={styles.primaryButtonText}>Continue</Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.ghostButton} onPress={() => slideToStep(3)} activeOpacity={0.6}>
-              <Text style={styles.ghostButtonText}>Not now</Text>
+              <Text style={styles.ghostButtonText}>Skip for now</Text>
             </TouchableOpacity>
           </>
         );
       case 3:
+        return (
+          <>
+            <TouchableOpacity style={styles.primaryButton} onPress={handleEnableNotifications} activeOpacity={0.8}>
+              <Text style={styles.primaryButtonText}>Enable notifications</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.ghostButton} onPress={() => slideToStep(4)} activeOpacity={0.6}>
+              <Text style={styles.ghostButtonText}>Not now</Text>
+            </TouchableOpacity>
+          </>
+        );
+      case 4:
         return (
           <>
             <TouchableOpacity
@@ -528,12 +598,12 @@ export default function Onboarding() {
             >
               <Text style={styles.primaryButtonText}>Continue</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.ghostButton} onPress={() => slideToStep(4)} activeOpacity={0.6}>
+            <TouchableOpacity style={styles.ghostButton} onPress={() => slideToStep(5)} activeOpacity={0.6}>
               <Text style={styles.ghostButtonText}>Set this later</Text>
             </TouchableOpacity>
           </>
         );
-      case 4:
+      case 5:
         return (
           <>
             <TouchableOpacity style={styles.beginButton} onPress={handleBegin} activeOpacity={0.8}>
@@ -559,10 +629,11 @@ export default function Onboarding() {
         >
           <Animated.View style={{ transform: [{ translateX: slideAnim }] }}>
             {currentStep === 0 && renderPhoneSignals()}
-            {currentStep === 1 && renderWorkTools()}
-            {currentStep === 2 && renderNotifications()}
-            {currentStep === 3 && renderAnchor()}
-            {currentStep === 4 && renderReady()}
+            {currentStep === 1 && renderScreenTime()}
+            {currentStep === 2 && renderWorkTools()}
+            {currentStep === 3 && renderNotifications()}
+            {currentStep === 4 && renderAnchor()}
+            {currentStep === 5 && renderReady()}
           </Animated.View>
         </ScrollView>
         <View style={{ paddingHorizontal: 20, paddingBottom: 28, paddingTop: 8, gap: 6 }}>
