@@ -9,6 +9,7 @@ import {
   TextInput,
   Alert,
   Modal,
+  Linking,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -430,6 +431,22 @@ export default function SettingsScreen() {
             </View>
           </TouchableOpacity>
 
+          <TouchableOpacity
+            style={styles.card}
+            onPress={() => Linking.openURL('https://rust-trip-647.notion.site/Koan-Privacy-Policy-34554cbb0f5c80118eecf04e73d94e26?pvs=74')}
+          >
+            <View style={styles.preferenceRow}>
+              <Text style={styles.preferenceName}>Privacy Policy</Text>
+              <Ionicons name="chevron-forward" size={20} color="#3A3A3A" style={{ opacity: 0.4 }} />
+            </View>
+          </TouchableOpacity>
+
+          <View style={styles.card}>
+            <Text style={styles.disclaimerText}>
+              Koan is not a medical device and does not provide medical advice.
+            </Text>
+          </View>
+
           <TouchableOpacity style={styles.card} onPress={handleDeleteAccount}>
             <View style={styles.preferenceRow}>
               <Text style={styles.deleteAccountText}>Delete account</Text>
@@ -642,6 +659,11 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '500',
     color: '#E53535',
+  },
+  disclaimerText: {
+    fontSize: 12,
+    color: '#3A3A3A',
+    opacity: 0.6,
   },
   brandingSection: {
     alignItems: 'center',
