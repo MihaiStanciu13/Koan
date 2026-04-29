@@ -20,11 +20,17 @@
       "icon": "./assets/icon.png",
       "infoPlist": {
         "NSHealthShareUsageDescription": "Koan uses health data to understand your movement, sleep, and energy patterns and deliver more relevant nudges.",
-        "NSHealthUpdateUsageDescription": "Koan does not write to Health."
+        "NSHealthUpdateUsageDescription": "Koan does not write to Health.",
+        "ITSAppUsesNonExemptEncryption": false
       },
+      "backgroundModes": ["healthkit", "fetch"],
       "entitlements": {
+        "com.apple.developer.healthkit": true,
         "com.apple.developer.family-controls": true,
-        "com.apple.security.application-groups": ["group.com.getkoan.app"]
+        "com.apple.security.application-groups": [
+          "group.com.getkoan.app",
+          "group.com.getkoan.app"
+        ]
       }
     },
     "android": {
@@ -39,6 +45,7 @@
     },
     "plugins": [
       "expo-router",
+      "./plugins/withHealthKitBackgroundDelivery",
       [
         "expo-notifications",
         {
@@ -70,7 +77,45 @@
     "extra": {
       "router": {},
       "eas": {
-        "projectId": "ff1d935e-a6dd-493d-b3ca-9620410e93be"
+        "projectId": "ff1d935e-a6dd-493d-b3ca-9620410e93be",
+        "build": {
+          "experimental": {
+            "ios": {
+              "appExtensions": [
+                {
+                  "bundleIdentifier": "com.getkoan.app.ShieldConfiguration",
+                  "targetName": "ShieldConfiguration",
+                  "entitlements": {
+                    "com.apple.developer.family-controls": true,
+                    "com.apple.security.application-groups": [
+                      "group.com.getkoan.app"
+                    ]
+                  }
+                },
+                {
+                  "bundleIdentifier": "com.getkoan.app.ShieldAction",
+                  "targetName": "ShieldAction",
+                  "entitlements": {
+                    "com.apple.developer.family-controls": true,
+                    "com.apple.security.application-groups": [
+                      "group.com.getkoan.app"
+                    ]
+                  }
+                },
+                {
+                  "bundleIdentifier": "com.getkoan.app.ActivityMonitorExtension",
+                  "targetName": "ActivityMonitorExtension",
+                  "entitlements": {
+                    "com.apple.developer.family-controls": true,
+                    "com.apple.security.application-groups": [
+                      "group.com.getkoan.app"
+                    ]
+                  }
+                }
+              ]
+            }
+          }
+        }
       }
     }
   }
