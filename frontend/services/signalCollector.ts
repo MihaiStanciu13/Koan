@@ -1,4 +1,4 @@
-import { AppState, AppStateStatus } from 'react-native';
+import { AppState, AppStateStatus, Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { healthAPI } from './api';
 
@@ -98,9 +98,13 @@ async function flushToBackend() {
     // the Family Controls entitlement has not yet been approved by Apple).
     let screen_time_authorized: boolean | undefined;
     try {
-      const { getScreenTimeAuthorizationStatus } = await import('./screenTime');
+      const { getScreenTimeAuthorizationStatus, startDailyMonitoring } = await import('./screenTime');
       const status = await getScreenTimeAuthorizationStatus();
-      screen_time_authorized = status === 'authorized';
+      screen_time_authorized = status === 'approved';
+      if (screen_time_authorized) {
+        // Fire-and-forget: starts the daily monitoring cycle if not already running.
+        startDailyMonitoring().catch(() => {});
+      }
     } catch {
       // entitlement not available yet — omit field
     }
@@ -120,6 +124,7 @@ async function flushToBackend() {
 }
 
 let subscription: any = null;
+let daSubscription: any = null;
 
 export function startSignalCollection() {
   if (subscription) return;
@@ -127,12 +132,31 @@ export function startSignalCollection() {
     if (state === 'active') onAppForeground();
     if (state === 'background' || state === 'inactive') onAppBackground();
   });
+
+  // Listen for DeviceActivity daily interval end — fires at midnight when the
+  // monitoring period resets. Use it to flush the accumulated daily signal so
+  // the nudge engine has fresh data even if the user hasn't opened the app.
+  if (Platform.OS === 'ios') {
+    import('react-native-device-activity')
+      .then(({ onDeviceActivityMonitorEvent }) => {
+        daSubscription = onDeviceActivityMonitorEvent((event: any) => {
+          if (event.callbackName === 'intervalDidEnd') {
+            flushToBackend();
+          }
+        });
+      })
+      .catch(() => {});
+  }
 }
 
 export function stopSignalCollection() {
   if (subscription) {
     subscription.remove();
     subscription = null;
+  }
+  if (daSubscription) {
+    daSubscription.remove();
+    daSubscription = null;
   }
 }
 
