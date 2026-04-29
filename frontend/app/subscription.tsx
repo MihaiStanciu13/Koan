@@ -14,8 +14,9 @@ import { useRouter } from 'expo-router';
 import Purchases, { PurchasesPackage, PurchasesOffering } from 'react-native-purchases';
 import RevenueCatUI, { CUSTOMER_CENTER_RESULT } from 'react-native-purchases-ui';
 import { subscriptionAPI } from '../services/api';
+import { useAuth } from '../contexts/AuthContext';
 
-const ENTITLEMENT_ID = 'Koan Premium';
+const ENTITLEMENT_ID = 'premium';
 
 const FEATURES = [
   'AI nudges based on your patterns',
@@ -28,6 +29,7 @@ type Plan = 'monthly' | 'yearly' | 'lifetime';
 
 export default function SubscriptionScreen() {
   const router = useRouter();
+  const { refreshAuth } = useAuth();
   const [plan, setPlan] = useState<Plan>('yearly');
   const [offering, setOffering] = useState<PurchasesOffering | null>(null);
   const [isPremium, setIsPremium] = useState(false);
@@ -38,12 +40,6 @@ export default function SubscriptionScreen() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    // configure must be called before any other Purchases method
-    const apiKey = process.env.EXPO_PUBLIC_REVENUECAT_API_KEY ?? '';
-    if (apiKey) {
-      Purchases.configure({ apiKey });
-    }
-    // Check existing entitlement and fetch offerings in parallel
     Promise.all([checkEntitlement(), fetchOfferings()]);
   }, []);
 
@@ -99,6 +95,7 @@ export default function SubscriptionScreen() {
       if (nowPremium) {
         await subscriptionAPI.activate();
         setIsPremium(true);
+        await refreshAuth();
       }
     } catch (e: any) {
       if (!e.userCancelled) {
@@ -118,6 +115,7 @@ export default function SubscriptionScreen() {
       if (nowPremium) {
         await subscriptionAPI.activate();
         setIsPremium(true);
+        await refreshAuth();
       } else {
         setError('No previous purchases found for this account.');
       }
@@ -285,7 +283,7 @@ export default function SubscriptionScreen() {
           {/* Trial badge */}
           {plan !== 'lifetime' && (
             <View style={styles.trialBadge}>
-              <Text style={styles.trialBadgeText}>14-DAY FREE TRIAL</Text>
+              <Text style={styles.trialBadgeText}>30-DAY FREE TRIAL</Text>
             </View>
           )}
 

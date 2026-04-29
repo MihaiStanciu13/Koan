@@ -9,6 +9,8 @@ import {
   Animated,
   Dimensions,
   Modal,
+  ActivityIndicator,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -16,6 +18,7 @@ import { useRouter } from 'expo-router';
 import * as WebBrowser from 'expo-web-browser';
 import * as Notifications from 'expo-notifications';
 import Svg, { Rect } from 'react-native-svg';
+import Purchases, { PurchasesOffering } from 'react-native-purchases';
 import { storage } from '../services/storage';
 import { calendarAPI, microsoftAPI, preferencesAPI } from '../services/api';
 import { requestHealthKitPermissions } from '../services/healthKit';
@@ -70,6 +73,8 @@ export default function Onboarding() {
   const [msConnected, setMsConnected] = useState(false);
   const [selectedAnchors, setSelectedAnchors] = useState<string[]>([]);
   const [showPlans, setShowPlans] = useState(false);
+  const [planOffering, setPlanOffering] = useState<PurchasesOffering | null>(null);
+  const [plansLoading, setPlansLoading] = useState(false);
 
   const haloScale = useRef(new Animated.Value(1)).current;
   const haloOpacity = useRef(new Animated.Value(0.25)).current;
@@ -89,6 +94,16 @@ export default function Onboarding() {
       ])
     ).start();
   }, []);
+
+  // Lazy-load RC offerings when the Plans modal opens.
+  useEffect(() => {
+    if (!showPlans || planOffering || plansLoading || Platform.OS !== 'ios') return;
+    setPlansLoading(true);
+    Purchases.getOfferings()
+      .then(o => setPlanOffering(o.current))
+      .catch(() => {})
+      .finally(() => setPlansLoading(false));
+  }, [showPlans]);
 
   // Slide new content in from the right
   const slideToStep = (step: number) => {
@@ -529,10 +544,10 @@ export default function Onboarding() {
         It will listen quietly. You won't hear from it until it has something worth saying.
       </Text>
       <View style={styles.trialPill}>
-        <Text style={styles.trialPillLabel}>14-DAY FREE TRIAL</Text>
+        <Text style={styles.trialPillLabel}>30-DAY FREE TRIAL</Text>
         <Text style={styles.trialPillSub}>Full access · No credit card required</Text>
       </View>
-      <Text style={styles.pricingNote}>After 14 days, plans from €4.99/month.</Text>
+      <Text style={styles.pricingNote}>After 30 days, choose a plan to continue.</Text>
       <TouchableOpacity onPress={() => setShowPlans(true)}>
         <Text style={styles.seePlansLink}>See all plans →</Text>
       </TouchableOpacity>
@@ -646,29 +661,71 @@ export default function Onboarding() {
           <View style={styles.modalCard}>
             <Text style={styles.modalTitle}>Plans</Text>
 
-            {/* Monthly */}
-            <View style={styles.planCard}>
-              <Text style={styles.planName}>Monthly</Text>
-              <Text style={styles.planPrice}>€7.99/month</Text>
-              <Text style={styles.planDesc}>Full access, cancel anytime.</Text>
-            </View>
+            {plansLoading ? (
+              <ActivityIndicator size="small" color="#5FAD8E" style={{ marginVertical: 24 }} />
+            ) : (() => {
+              const monthly = planOffering?.monthly;
+              const yearly = planOffering?.annual;
+              const lifetime = planOffering?.lifetime;
+              const savingsPct = (() => {
+                const y = yearly?.product.price;
+                const m = monthly?.product.price;
+                if (!y || !m) return null;
+                const pct = Math.round((1 - y / (m * 12)) * 100);
+                return pct > 0 ? pct : null;
+              })();
+              const yearlyPerMonth = (() => {
+                const y = yearly?.product.price;
+                if (!y) return null;
+                const sym = yearly?.product.currencyCode === 'USD' ? '$' : (yearly?.product.priceString?.charAt(0) ?? '');
+                return `${sym}${(y / 12).toFixed(2)}/month`;
+              })();
 
-            {/* Yearly — highlighted */}
-            <View style={[styles.planCard, styles.planCardHighlight]}>
-              <View style={styles.bestValueBadge}>
-                <Text style={styles.bestValueText}>Best value</Text>
-              </View>
-              <Text style={styles.planName}>Yearly</Text>
-              <Text style={styles.planPrice}>€4.99/month</Text>
-              <Text style={styles.planDesc}>Billed €59.99/year. Save 37%.</Text>
-            </View>
+              return (
+                <>
+                  {/* Monthly */}
+                  {monthly && (
+                    <View style={styles.planCard}>
+                      <Text style={styles.planName}>Monthly</Text>
+                      <Text style={styles.planPrice}>{monthly.product.priceString}/month</Text>
+                      <Text style={styles.planDesc}>Full access, cancel anytime. 30-day free trial.</Text>
+                    </View>
+                  )}
 
-            {/* Lifetime */}
-            <View style={styles.planCard}>
-              <Text style={styles.planName}>Lifetime</Text>
-              <Text style={styles.planPrice}>€89.99 once</Text>
-              <Text style={styles.planDesc}>One payment, yours forever.</Text>
-            </View>
+                  {/* Yearly — highlighted */}
+                  {yearly && (
+                    <View style={[styles.planCard, styles.planCardHighlight]}>
+                      <View style={styles.bestValueBadge}>
+                        <Text style={styles.bestValueText}>Best value{savingsPct != null ? ` · save ${savingsPct}%` : ''}</Text>
+                      </View>
+                      <Text style={styles.planName}>Yearly</Text>
+                      <Text style={styles.planPrice}>
+                        {yearlyPerMonth ?? yearly.product.priceString}{yearlyPerMonth ? '' : '/year'}
+                      </Text>
+                      <Text style={styles.planDesc}>
+                        Billed {yearly.product.priceString}/year. 30-day free trial.
+                      </Text>
+                    </View>
+                  )}
+
+                  {/* Lifetime */}
+                  {lifetime && (
+                    <View style={styles.planCard}>
+                      <Text style={styles.planName}>Lifetime</Text>
+                      <Text style={styles.planPrice}>{lifetime.product.priceString} once</Text>
+                      <Text style={styles.planDesc}>One payment, yours forever.</Text>
+                    </View>
+                  )}
+
+                  {/* Fallback when offerings unavailable */}
+                  {!monthly && !yearly && !lifetime && (
+                    <Text style={[styles.planDesc, { textAlign: 'center', marginVertical: 16 }]}>
+                      Subscription options are loading. Try again shortly.
+                    </Text>
+                  )}
+                </>
+              );
+            })()}
 
             <TouchableOpacity style={styles.gotItButton} onPress={() => setShowPlans(false)} activeOpacity={0.8}>
               <Text style={styles.gotItButtonText}>Got it</Text>

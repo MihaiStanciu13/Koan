@@ -1,7 +1,20 @@
 import React, { useEffect } from 'react';
+import { Platform } from 'react-native';
 import { Stack, router } from 'expo-router';
+import Purchases from 'react-native-purchases';
 import { AuthProvider, useAuth } from '../contexts/AuthContext';
 import { NotificationProvider } from '../contexts/NotificationContext';
+
+// Configure RevenueCat once at module load, before any child component can call it.
+if (Platform.OS === 'ios') {
+  try {
+    Purchases.configure({
+      apiKey: process.env.EXPO_PUBLIC_REVENUECAT_API_KEY ?? 'test_xFJjPWiXVyCwvUPcGfRCoKnWzJF',
+    });
+  } catch (e) {
+    console.warn('RevenueCat configure failed:', e);
+  }
+}
 
 function RootLayoutNav() {
   const { isAuthenticated, isExpired, loading } = useAuth();
