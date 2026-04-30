@@ -90,9 +90,15 @@ class AppDelegate: ExpoAppDelegate {
     }
 
     let calendar = Calendar.current
-    let yesterday = calendar.date(byAdding: .day, value: -1, to: Date())!
+    guard let yesterday = calendar.date(byAdding: .day, value: -1, to: Date()) else {
+      completion()
+      return
+    }
     let startOfYesterday = calendar.startOfDay(for: yesterday)
-    let endOfYesterday = calendar.date(byAdding: .day, value: 1, to: startOfYesterday)!
+    guard let endOfYesterday = calendar.date(byAdding: .day, value: 1, to: startOfYesterday) else {
+      completion()
+      return
+    }
     let predicate = HKQuery.predicateForSamples(
       withStart: startOfYesterday,
       end: endOfYesterday,
