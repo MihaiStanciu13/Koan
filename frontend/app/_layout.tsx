@@ -9,7 +9,7 @@ import { NotificationProvider } from '../contexts/NotificationContext';
 if (Platform.OS === 'ios') {
   try {
     Purchases.configure({
-      apiKey: process.env.EXPO_PUBLIC_REVENUECAT_API_KEY ?? 'test_xFJjPWiXVyCwvUPcGfRCoKnWzJF',
+      apiKey: process.env.EXPO_PUBLIC_REVENUECAT_API_KEY ?? '',
     });
   } catch (e) {
     console.warn('RevenueCat configure failed:', e);
