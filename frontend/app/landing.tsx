@@ -206,64 +206,66 @@ export default function LandingPage() {
           </Text>
         </View>
 
-        {/* Apple button */}
-        <TouchableOpacity
-          style={[styles.appleButton, appleLoading && styles.buttonDisabled]}
-          onPress={handleApple}
-          activeOpacity={0.85}
-          disabled={appleLoading}
-        >
-          <View style={styles.buttonIconLeft}>
-            {appleLoading ? (
-              <ActivityIndicator size="small" color="#FFFFFF" />
-            ) : (
-              <AppleIcon />
-            )}
-          </View>
-          <Text style={styles.appleButtonText}>Continue with Apple</Text>
-        </TouchableOpacity>
+        <View>
+          {/* Apple button */}
+          <TouchableOpacity
+            style={[styles.appleButton, appleLoading && styles.buttonDisabled]}
+            onPress={handleApple}
+            activeOpacity={0.85}
+            disabled={appleLoading}
+          >
+            <View style={styles.buttonIconLeft}>
+              {appleLoading ? (
+                <ActivityIndicator size="small" color="#FFFFFF" />
+              ) : (
+                <AppleIcon />
+              )}
+            </View>
+            <Text style={styles.appleButtonText}>Continue with Apple</Text>
+          </TouchableOpacity>
 
-        {/* Inline message when Apple Sign In is unavailable (Expo Go / simulator) */}
-        {!appleAvailable && (
-          <Text style={styles.appleUnavailableText}>
-            Apple Sign In requires a development build
-          </Text>
-        )}
+          {/* Inline message when Apple Sign In is unavailable (Expo Go / simulator) */}
+          {!appleAvailable && (
+            <Text style={styles.appleUnavailableText}>
+              Apple Sign In requires a development build
+            </Text>
+          )}
 
-        <View style={styles.buttonGap} />
+          <View style={styles.buttonGap} />
 
-        {/* Google button */}
-        <TouchableOpacity
-          style={[styles.googleButton, googleLoading && styles.buttonDisabled]}
-          onPress={handleGoogle}
-          activeOpacity={0.85}
-          disabled={googleLoading || !request}
-        >
-          <View style={styles.buttonIconLeft}>
-            {googleLoading ? (
-              <ActivityIndicator size="small" color="#1a2e24" />
-            ) : (
-              <GoogleIcon />
-            )}
-          </View>
-          <Text style={styles.googleButtonText}>Continue with Google</Text>
-        </TouchableOpacity>
+          {/* Google button */}
+          <TouchableOpacity
+            style={[styles.googleButton, googleLoading && styles.buttonDisabled]}
+            onPress={handleGoogle}
+            activeOpacity={0.85}
+            disabled={googleLoading || !request}
+          >
+            <View style={styles.buttonIconLeft}>
+              {googleLoading ? (
+                <ActivityIndicator size="small" color="#1a2e24" />
+              ) : (
+                <GoogleIcon />
+              )}
+            </View>
+            <Text style={styles.googleButtonText}>Continue with Google</Text>
+          </TouchableOpacity>
 
-        {/* Divider */}
-        <OrDivider />
+          {/* Divider */}
+          <OrDivider />
 
-        {/* Email signup button */}
-        <TouchableOpacity style={styles.emailButton} onPress={handleEmailSignup} activeOpacity={0.8}>
-          <Text style={styles.emailButtonText}>Create account with email</Text>
-        </TouchableOpacity>
+          {/* Email signup button */}
+          <TouchableOpacity style={styles.emailButton} onPress={handleEmailSignup} activeOpacity={0.8}>
+            <Text style={styles.emailButtonText}>Create account with email</Text>
+          </TouchableOpacity>
 
-        {/* Log in link — anchors to bottom via marginTop auto on loginLink style */}
-        <TouchableOpacity style={styles.loginLink} onPress={handleLogin}>
-          <Text style={styles.loginLinkText}>
-            Already have an account?{' '}
-            <Text style={styles.loginLinkHighlight}>Log in</Text>
-          </Text>
-        </TouchableOpacity>
+          {/* Log in link */}
+          <TouchableOpacity style={styles.loginLink} onPress={handleLogin}>
+            <Text style={styles.loginLinkText}>
+              Already have an account?{' '}
+              <Text style={styles.loginLinkHighlight}>Log in</Text>
+            </Text>
+          </TouchableOpacity>
+        </View>
       </View>
     </SafeAreaView>
   );
@@ -277,14 +279,12 @@ const styles = StyleSheet.create({
   inner: {
     flex: 1,
     paddingHorizontal: 32,
-    paddingTop: 48,
     paddingBottom: 32,
+    justifyContent: 'space-between',
   },
   heroSection: {
-    flex: 1,
-    flexDirection: 'column',
     alignItems: 'center',
-    justifyContent: 'center',
+    paddingTop: 120,
     gap: 24,
   },
   brand: {

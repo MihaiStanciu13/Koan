@@ -199,7 +199,7 @@ export default function Onboarding() {
 
   const handleEnableNotifications = async () => {
     await Notifications.requestPermissionsAsync();
-    slideToStep(4);
+    slideToStep(3);
   };
 
   const toggleAnchor = (chip: string) => {
@@ -225,18 +225,21 @@ export default function Onboarding() {
         // Don't block navigation on failure
       }
     }
-    slideToStep(5);
+    slideToStep(4);
   };
 
-  const handleBegin = async () => {
-    await storage.setOnboardingComplete();
+  const handleBegin = () => {
+    // Fire-and-forget the storage write so navigation is immediate and
+    // no async gap exists between the write completing and router.replace
+    // being called. (An awaited write caused a brief re-render flash.)
+    storage.setOnboardingComplete();
     router.replace('/(tabs)');
   };
 
   // ── Header ──────────────────────────────────────────────────────────────
 
   const renderHeader = () => {
-    if (currentStep === 5) {
+    if (currentStep === 4) {
       return (
         <View style={styles.headerCentered}>
           <Text style={styles.wordmarkCentered}>Koan</Text>
@@ -257,7 +260,7 @@ export default function Onboarding() {
         </View>
         <Text style={styles.wordmark}>Koan</Text>
         <View style={styles.dotsRow}>
-          {[0, 1, 2, 3, 4, 5].map(i => (
+          {[0, 1, 2, 3, 4].map(i => (
             <View
               key={i}
               style={[
@@ -272,13 +275,13 @@ export default function Onboarding() {
     );
   };
 
-  // ── Screen 0: Phone signals ──────────────────────────────────────────────
+  // ── Screen 0: What Koan pays attention to (Phone signals + Apple Health + Screen Time) ──
 
   const renderPhoneSignals = () => (
     <>
       <Text style={styles.sectionLabel}>WHAT KOAN PAYS ATTENTION TO</Text>
       <Text style={styles.screenSubtitle}>
-        From your phone, always — no setup needed. From Apple Health, optionally.
+        From your phone, always. From Apple Health and Screen Time, optionally.
       </Text>
       <View style={styles.alwaysOnCard}>
         <Text style={styles.alwaysOnHeader}>Always on · Phone signals</Text>
@@ -329,19 +332,6 @@ export default function Onboarding() {
           </Text>
         </TouchableOpacity>
       </View>
-      <Spacer minHeight={16} />
-    </>
-  );
-
-  // ── Screen 1: Screen Time ─────────────────────────────────────────────────
-
-  const renderScreenTime = () => (
-    <>
-      <Text style={styles.sectionLabel}>PHONE SIGNALS</Text>
-      <Text style={styles.screenTitle}>See how your attention moves</Text>
-      <Text style={styles.screenSubtitle}>
-        Koan uses Screen Time data to understand your app usage patterns — which categories pull your attention and when. Read-only. Never shared.
-      </Text>
       <View style={styles.integrationCard}>
         <View style={styles.integrationHeader}>
           <View style={[styles.emojiIconContainer, { backgroundColor: '#F0F4FF' }]}>
@@ -370,7 +360,7 @@ export default function Onboarding() {
     </>
   );
 
-  // ── Screen 2: Work tools ─────────────────────────────────────────────────
+  // ── Screen 1: Work tools ─────────────────────────────────────────────────
 
   const renderWorkTools = () => (
     <>
@@ -564,6 +554,9 @@ export default function Onboarding() {
             <TouchableOpacity style={styles.ghostButton} onPress={() => slideToStep(1)} activeOpacity={0.6}>
               <Text style={styles.ghostButtonText}>Skip Apple Health</Text>
             </TouchableOpacity>
+            <TouchableOpacity style={styles.ghostButton} onPress={() => slideToStep(1)} activeOpacity={0.6}>
+              <Text style={styles.ghostButtonText}>Skip Screen Time</Text>
+            </TouchableOpacity>
           </>
         );
       case 1:
@@ -580,26 +573,15 @@ export default function Onboarding() {
       case 2:
         return (
           <>
-            <TouchableOpacity style={styles.primaryButton} onPress={() => slideToStep(3)} activeOpacity={0.8}>
-              <Text style={styles.primaryButtonText}>Continue</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.ghostButton} onPress={() => slideToStep(3)} activeOpacity={0.6}>
-              <Text style={styles.ghostButtonText}>Skip for now</Text>
-            </TouchableOpacity>
-          </>
-        );
-      case 3:
-        return (
-          <>
             <TouchableOpacity style={styles.primaryButton} onPress={handleEnableNotifications} activeOpacity={0.8}>
               <Text style={styles.primaryButtonText}>Enable notifications</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.ghostButton} onPress={() => slideToStep(4)} activeOpacity={0.6}>
+            <TouchableOpacity style={styles.ghostButton} onPress={() => slideToStep(3)} activeOpacity={0.6}>
               <Text style={styles.ghostButtonText}>Not now</Text>
             </TouchableOpacity>
           </>
         );
-      case 4:
+      case 3:
         return (
           <>
             <TouchableOpacity
@@ -610,12 +592,12 @@ export default function Onboarding() {
             >
               <Text style={styles.primaryButtonText}>Continue</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.ghostButton} onPress={() => slideToStep(5)} activeOpacity={0.6}>
+            <TouchableOpacity style={styles.ghostButton} onPress={() => slideToStep(4)} activeOpacity={0.6}>
               <Text style={styles.ghostButtonText}>Set this later</Text>
             </TouchableOpacity>
           </>
         );
-      case 5:
+      case 4:
         return (
           <>
             <TouchableOpacity style={styles.beginButton} onPress={handleBegin} activeOpacity={0.8}>
@@ -641,11 +623,10 @@ export default function Onboarding() {
         >
           <Animated.View style={{ transform: [{ translateX: slideAnim }] }}>
             {currentStep === 0 && renderPhoneSignals()}
-            {currentStep === 1 && renderScreenTime()}
-            {currentStep === 2 && renderWorkTools()}
-            {currentStep === 3 && renderNotifications()}
-            {currentStep === 4 && renderAnchor()}
-            {currentStep === 5 && renderReady()}
+            {currentStep === 1 && renderWorkTools()}
+            {currentStep === 2 && renderNotifications()}
+            {currentStep === 3 && renderAnchor()}
+            {currentStep === 4 && renderReady()}
           </Animated.View>
         </ScrollView>
         <View style={{ paddingHorizontal: 20, paddingBottom: 28, paddingTop: 8, gap: 6 }}>
@@ -1060,16 +1041,15 @@ const styles = StyleSheet.create({
   readyBody: {
     flex: 1,
     alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 16,
-    gap: 24,
+    paddingTop: 48,
+    paddingBottom: 16,
   },
   dotContainer: {
     width: 72,
     height: 72,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 14,
+    marginBottom: 24,
   },
   dotHalo: {
     position: 'absolute',
@@ -1090,7 +1070,7 @@ const styles = StyleSheet.create({
     fontWeight: '400',
     color: '#3A3A3A',
     textAlign: 'center',
-    marginBottom: 8,
+    marginBottom: 16,
   },
   readySubtitle: {
     fontSize: 12,
@@ -1099,7 +1079,7 @@ const styles = StyleSheet.create({
     opacity: 0.6,
     lineHeight: 20,
     textAlign: 'center',
-    marginBottom: 16,
+    marginBottom: 32,
     paddingHorizontal: 16,
   },
   trialPill: {
@@ -1109,6 +1089,7 @@ const styles = StyleSheet.create({
     paddingVertical: 9,
     paddingHorizontal: 14,
     alignItems: 'center',
+    marginBottom: 12,
   },
   trialPillLabel: {
     fontSize: 9.5,
@@ -1170,6 +1151,7 @@ const styles = StyleSheet.create({
     color: '#3A3A3A',
     opacity: 0.5,
     textAlign: 'center',
+    marginBottom: 8,
   },
   seePlansLink: {
     fontSize: 11,
