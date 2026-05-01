@@ -138,8 +138,15 @@ export default function Onboarding() {
       } catch {
         // non-fatal
       }
-    } catch {
-      Alert.alert('Apple Health is only available on iOS.');
+    } catch (err: any) {
+      const msg = String(err?.message || err);
+      if (msg.includes('NOT_IOS')) {
+        Alert.alert('Apple Health', 'Apple Health is only available on iOS.');
+      } else if (msg.includes('MODULE_UNAVAILABLE')) {
+        Alert.alert('Apple Health', 'Apple Health setup is unavailable in this build. Please reinstall from TestFlight.');
+      } else {
+        Alert.alert('Apple Health', "Apple Health setup didn't complete. You can connect it later in Settings.");
+      }
     }
   };
 
@@ -357,17 +364,6 @@ export default function Onboarding() {
             {screenTimeConnected ? '✓ Authorized' : 'Authorize Screen Time'}
           </Text>
         </TouchableOpacity>
-      </View>
-      <View style={styles.infoCard}>
-        <View style={styles.infoCardRow}>
-          <View style={styles.infoDot} />
-          <View style={styles.infoCardContent}>
-            <Text style={styles.infoCardTitle}>Requires App Store approval</Text>
-            <Text style={styles.infoCardBody}>
-              Apple's Family Controls entitlement is reviewed manually. This feature activates once approved.
-            </Text>
-          </View>
-        </View>
       </View>
       <Spacer minHeight={16} />
     </>

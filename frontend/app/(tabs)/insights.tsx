@@ -9,7 +9,8 @@ import {
   Modal,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { patternsAPI, behaviorAPI } from '../../services/api';
+import { patternsAPI, behaviorAPI, preferencesAPI } from '../../services/api';
+import { firstReflectionDate, formatReflectionDate } from '../../utils/dates';
 import Spacer from '../../components/Spacer';
 import { format } from 'date-fns';
 import { useAuth } from '../../contexts/AuthContext';
@@ -75,6 +76,7 @@ export default function InsightsScreen() {
   const [patternsDetected, setPatternsDetected] = useState<string[]>([]);
   const [weekStart, setWeekStart] = useState<Date | null>(null);
   const [isSunday, setIsSunday] = useState(false);
+  const [storyViewed, setStoryViewed] = useState<boolean>(false);
 
   useEffect(() => {
     loadInsights();
@@ -87,10 +89,16 @@ export default function InsightsScreen() {
     setIsSunday(today.getDay() === 0);
 
     try {
-      const patterns = await patternsAPI.getWeekly();
+      const [patterns, prefs] = await Promise.all([
+        patternsAPI.getWeekly(),
+        preferencesAPI.get().catch(() => null),
+      ]);
       setNarrative(patterns.narrative || '');
       setPatternsDetected(patterns.patterns_detected || []);
       setWeekStart(patterns.week_start ? new Date(patterns.week_start) : null);
+      if (prefs) {
+        setStoryViewed(!!prefs.story_viewed);
+      }
     } catch (error) {
       console.error('Failed to load insights:', error);
     }
@@ -125,26 +133,46 @@ export default function InsightsScreen() {
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
         style={{ flex: 1 }}
       >
-        {/* Story card — tappable, appears first */}
-        <TouchableOpacity style={styles.narrativeCard} onPress={() => setShowStory(true)} activeOpacity={0.8}>
-          <Text style={styles.narrativeCategoryLabel}>WHY KOAN EXISTS</Text>
-          <Text style={styles.narrativeText}>The people who lived longest never tracked anything.</Text>
-          <Text style={[styles.narrativeSubtext, { fontStyle: 'italic', marginTop: 8 }]}>
-            The story behind Koan.
-          </Text>
-          <Text style={{ alignSelf: 'flex-end', color: '#8aab98', fontSize: 20, marginTop: 12 }}>›</Text>
-        </TouchableOpacity>
+        {/* Story card — tappable, hidden after first read */}
+        {!storyViewed && (
+          <TouchableOpacity
+            style={styles.narrativeCard}
+            onPress={async () => {
+              setShowStory(true);
+              setStoryViewed(true);
+              try { await preferencesAPI.update({ story_viewed: true }); } catch {}
+            }}
+            activeOpacity={0.8}
+          >
+            <Text style={styles.narrativeCategoryLabel}>WHY KOAN EXISTS</Text>
+            <Text style={styles.narrativeText}>The people who lived longest never tracked anything.</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 8, width: '100%', justifyContent: 'space-between' }}>
+              <Text style={[styles.narrativeSubtext, { fontStyle: 'italic' }]}>
+                The story behind Koan.
+              </Text>
+              <Text style={{ color: '#8aab98', fontSize: 20 }}>›</Text>
+            </View>
+          </TouchableOpacity>
+        )}
 
         {/* Week Period */}
         {insightState === 'observing' ? (
           <View style={styles.periodCard}>
             <Text style={styles.periodLabel}>First reflection</Text>
-            <Text style={styles.periodText}>Arrives this Sunday</Text>
+            <Text style={styles.periodText}>
+              {user?.created_at
+                ? `Arrives ${formatReflectionDate(firstReflectionDate(new Date(user.created_at)))}`
+                : 'Coming soon'}
+            </Text>
           </View>
         ) : insightState === 'forming' ? (
           <View style={styles.periodCard}>
             <Text style={styles.periodLabel}>Your baseline is building</Text>
-            <Text style={styles.periodText}>Arrives this Sunday</Text>
+            <Text style={styles.periodText}>
+              {user?.created_at
+                ? `Arrives ${formatReflectionDate(firstReflectionDate(new Date(user.created_at)))}`
+                : 'Coming soon'}
+            </Text>
           </View>
         ) : weekStart ? (
           <View style={styles.periodCard}>
@@ -178,7 +206,9 @@ export default function InsightsScreen() {
               <Text style={styles.narrativeCategoryLabel}>PATTERNS FORMING</Text>
               <Text style={styles.narrativeText}>Koan has been observing your patterns.</Text>
               <Text style={styles.narrativeSubtext}>
-                Your first weekly reflection arrives this Sunday.
+                {user?.created_at
+                  ? `Your first weekly reflection arrives ${formatReflectionDate(firstReflectionDate(new Date(user.created_at)))}.`
+                  : 'Your first weekly reflection is coming soon.'}
               </Text>
             </>
           )}

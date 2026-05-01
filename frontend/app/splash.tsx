@@ -100,7 +100,7 @@ export default function SplashScreen({ onDone, onBegin }: SplashScreenProps) {
           </Animated.View>
 
           <Animated.Text style={[styles.trialNote, { opacity: trialOpacity }]}>
-            14 days free · No credit card required
+            30 days free · No credit card required
           </Animated.Text>
 
           <Animated.View style={{ opacity: learnMoreOpacity }}>

@@ -211,12 +211,12 @@ function SignupScreen({ onSwitchToLogin, onBack }: any) {
           </View>
 
           <Text style={styles.title}>Begin your practice</Text>
-          <Text style={styles.tagline}>14 days free, then $9.99/month</Text>
+          <Text style={styles.tagline}>30 days free, then $9.99/month</Text>
 
           {/* Trial note banner */}
           <View style={styles.trialBanner}>
             <View style={styles.trialDot} />
-            <Text style={styles.trialBannerText}>14-day free trial · No credit card required</Text>
+            <Text style={styles.trialBannerText}>30-day free trial · No credit card required</Text>
           </View>
 
           <View style={styles.inputContainer}>

@@ -1,31 +1,52 @@
 import { Platform } from 'react-native';
-import AppleHealthKit, { HealthKitPermissions, HealthValue } from 'react-native-health';
 import { healthAPI } from './api';
 
-const PERMISSIONS: HealthKitPermissions = {
-  permissions: {
-    read: [
-      AppleHealthKit.Constants.Permissions.Steps,
-      AppleHealthKit.Constants.Permissions.SleepAnalysis,
-      AppleHealthKit.Constants.Permissions.HeartRateVariability,
-      AppleHealthKit.Constants.Permissions.RestingHeartRate,
-      AppleHealthKit.Constants.Permissions.ActiveEnergyBurned,
-      AppleHealthKit.Constants.Permissions.OxygenSaturation,
-      AppleHealthKit.Constants.Permissions.RespiratoryRate,
-      AppleHealthKit.Constants.Permissions.MindfulSession,
-      AppleHealthKit.Constants.Permissions.Workout,
-    ],
-    write: [],
-  },
+// Lazy-load so module init doesn't crash if native module isn't registered
+let AppleHealthKit: any = null;
+let HealthKitAvailable = false;
+
+if (Platform.OS === 'ios') {
+  try {
+    AppleHealthKit = require('react-native-health').default;
+    HealthKitAvailable = !!AppleHealthKit?.Constants?.Permissions;
+  } catch (e) {
+    console.warn('react-native-health module failed to load:', e);
+    HealthKitAvailable = false;
+  }
+}
+
+const buildPermissions = () => {
+  if (!HealthKitAvailable) return null;
+  return {
+    permissions: {
+      read: [
+        AppleHealthKit.Constants.Permissions.Steps,
+        AppleHealthKit.Constants.Permissions.SleepAnalysis,
+        AppleHealthKit.Constants.Permissions.HeartRateVariability,
+        AppleHealthKit.Constants.Permissions.RestingHeartRate,
+        AppleHealthKit.Constants.Permissions.ActiveEnergyBurned,
+        AppleHealthKit.Constants.Permissions.OxygenSaturation,
+        AppleHealthKit.Constants.Permissions.RespiratoryRate,
+        AppleHealthKit.Constants.Permissions.MindfulSession,
+        AppleHealthKit.Constants.Permissions.Workout,
+      ],
+      write: [],
+    },
+  };
 };
 
 export async function requestHealthKitPermissions(): Promise<boolean> {
-  if (Platform.OS !== 'ios') return false;
-  return new Promise((resolve) => {
-    AppleHealthKit.initHealthKit(PERMISSIONS, (error: string) => {
+  if (Platform.OS !== 'ios') {
+    throw new Error('NOT_IOS');
+  }
+  if (!HealthKitAvailable) {
+    throw new Error('MODULE_UNAVAILABLE');
+  }
+  const permissions = buildPermissions();
+  return new Promise((resolve, reject) => {
+    AppleHealthKit.initHealthKit(permissions, (error: string) => {
       if (error) {
-        console.warn('HealthKit init error:', error);
-        resolve(false);
+        reject(new Error(`INIT_FAILED: ${error}`));
       } else {
         resolve(true);
       }
@@ -35,6 +56,7 @@ export async function requestHealthKitPermissions(): Promise<boolean> {
 
 export async function collectAndSendHealthData(): Promise<void> {
   if (Platform.OS !== 'ios') return;
+  if (!HealthKitAvailable) return;
 
   const now = new Date();
   const startOfYesterday = new Date(now);

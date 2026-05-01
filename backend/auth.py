@@ -82,7 +82,7 @@ async def require_active_subscription(current_user: User = Depends(get_current_u
             if trial_start.tzinfo is None:
                 trial_start = trial_start.replace(tzinfo=timezone.utc)
             days_elapsed = (datetime.now(timezone.utc) - trial_start).days
-            if days_elapsed <= 14:
+            if days_elapsed <= 30:
                 return current_user
         else:
             # No trial start date — assume trial is still valid
@@ -119,8 +119,8 @@ async def signup(user_data: UserCreate):
     # Create new user
     user_id = str(uuid.uuid4())
     trial_start = datetime.utcnow()
-    trial_ends = trial_start + timedelta(days=14)
-    
+    trial_ends = trial_start + timedelta(days=30)
+
     user = User(
         id=user_id,
         email=user_data.email,
@@ -239,7 +239,7 @@ async def google_auth(data: GoogleAuthRequest):
         # Create new user
         user_id = str(uuid.uuid4())
         trial_start = datetime.utcnow()
-        trial_ends = trial_start + timedelta(days=14)
+        trial_ends = trial_start + timedelta(days=30)
         new_user = User(
             id=user_id,
             email=email,
@@ -276,6 +276,20 @@ async def google_auth(data: GoogleAuthRequest):
 
 class AppleAuthRequest(BaseModel):
     identity_token: str
+    given_name: Optional[str] = None
+    family_name: Optional[str] = None
+
+
+def resolve_apple_name(given_name: Optional[str], family_name: Optional[str], email: Optional[str]) -> str:
+    if given_name or family_name:
+        full = f"{(given_name or '').strip()} {(family_name or '').strip()}".strip()
+        if full:
+            return full
+    local = email.split('@')[0] if email else 'there'
+    if local.endswith('.privaterelay'):
+        local = local.replace('.privaterelay', '')
+    return local.capitalize() or 'there'
+
 
 @router.post("/apple")
 async def apple_auth(data: AppleAuthRequest):
@@ -335,13 +349,14 @@ async def apple_auth(data: AppleAuthRequest):
     else:
         user_id = str(uuid.uuid4())
         trial_start = datetime.utcnow()
-        trial_ends = trial_start + timedelta(days=14)
+        trial_ends = trial_start + timedelta(days=30)
         # Apple may withhold email on repeat sign-ins; use a private relay placeholder
         user_email = email or f"apple.{apple_id}@privaterelay.appleid.com"
+        resolved_name = resolve_apple_name(data.given_name, data.family_name, user_email)
         new_user = User(
             id=user_id,
             email=user_email,
-            name="Koan User",
+            name=resolved_name,
             hashed_password="",
             apple_id=apple_id,
             subscription_status=SubscriptionStatus.TRIAL,

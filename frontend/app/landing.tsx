@@ -154,7 +154,11 @@ export default function LandingPage() {
       const res = await fetch(`${API_URL}/api/auth/apple`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ identity_token: identityToken }),
+        body: JSON.stringify({
+          identity_token: identityToken,
+          given_name: credential.fullName?.givenName ?? null,
+          family_name: credential.fullName?.familyName ?? null,
+        }),
       });
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));

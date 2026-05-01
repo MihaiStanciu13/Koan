@@ -56,11 +56,32 @@ async def send_weekly_summary_notifications():
         {"subscription_status": {"$in": ["trial", "active"]}}
     ).to_list(None)
 
+    def _first_reflection_date(created_at):
+        """First Sunday >= 7 days after signup."""
+        from datetime import timezone as _tz
+        if created_at is None:
+            return None
+        if created_at.tzinfo is None:
+            created_at = created_at.replace(tzinfo=_tz.utc)
+        earliest = created_at + timedelta(days=7)
+        days_to_sunday = (6 - earliest.weekday()) % 7  # Monday=0, Sunday=6
+        return earliest + timedelta(days=days_to_sunday)
+
+    now = datetime.utcnow().replace(tzinfo=None)
+
     sent = 0
     for user in users:
         user_id = user.get("id")
         if not user_id:
             continue
+        # Skip if user's first eligible reflection Sunday hasn't arrived yet
+        created_at = user.get("created_at")
+        if created_at:
+            if hasattr(created_at, 'tzinfo') and created_at.tzinfo is not None:
+                created_at = created_at.replace(tzinfo=None)
+            first_reflection = _first_reflection_date(created_at.replace(tzinfo=None) if created_at else None)
+            if first_reflection and now < first_reflection.replace(tzinfo=None):
+                continue
         try:
             result = await PatternDetector(db).detect_weekly_patterns(user_id)
             narrative = result.get("narrative", "")
@@ -234,8 +255,9 @@ async def get_calendar_auth_url(
 
 @api_router.get("/integrations/calendar/callback")
 async def calendar_oauth_callback(
-    code: str,
+    code: Optional[str] = None,
     state: Optional[str] = None,
+    error: Optional[str] = None,
 ):
     """
     Google redirects here after user grants permission.
@@ -243,12 +265,14 @@ async def calendar_oauth_callback(
     Returns a redirect to a deep link the app can intercept.
     """
     from fastapi.responses import RedirectResponse
+    if error or not code:
+        return RedirectResponse(url="koan://calendar-cancelled")
     try:
         tokens = await exchange_code_for_tokens(code)
         # State contains the user_id we passed in the auth URL
         if state:
             await db.users.update_one(
-                {"_id": state},
+                {"id": state},
                 {"$set": {
                     "google_calendar_token": tokens["access_token"],
                     "google_calendar_refresh_token": tokens["refresh_token"],
@@ -313,20 +337,27 @@ async def get_microsoft_auth_url(current_user: User = Depends(get_current_user))
 
 @api_router.get("/integrations/microsoft/callback")
 async def microsoft_oauth_callback(
-    code: str,
+    code: Optional[str] = None,
     state: Optional[str] = None,
+    error: Optional[str] = None,
 ):
     from fastapi.responses import RedirectResponse
+    if error or not code:
+        return RedirectResponse(url="koan://microsoft-cancelled")
     try:
         tokens = await ms_exchange_code(code)
         if state:
             await db.users.update_one(
-                {"_id": state},
+                {"id": state},
                 {"$set": {
                     "microsoft_access_token": tokens["access_token"],
                     "microsoft_refresh_token": tokens["refresh_token"],
                     "microsoft_connected": True,
                 }}
+            )
+            await db.preferences.update_one(
+                {"user_id": state},
+                {"$addToSet": {"connected_tools": "microsoft365"}},
             )
         return RedirectResponse(url="koan://microsoft-connected")
     except Exception as e:

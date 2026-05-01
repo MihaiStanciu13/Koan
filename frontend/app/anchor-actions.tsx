@@ -19,21 +19,62 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 
 const MAX_ANCHORS = 5;
 
-const SUGGESTED_ANCHORS = [
-  'Close one loop',
-  'Take three deep breaths',
-  'Write down one thought',
-  'Stand and stretch for 30 seconds',
-  'Look away from screens for 1 minute',
-  'Clear one notification',
-  'Finish one small task',
-  'Drink a glass of water',
+const SUGGESTED_ANCHORS: Array<{ label: string; notificationBody: string }> = [
+  {
+    label: 'Close one loop',
+    notificationBody: 'One thing finished is better than three things started.',
+  },
+  {
+    label: 'Deep breath',
+    notificationBody: 'Three slow breaths. Nothing else needs to happen for the next thirty seconds.',
+  },
+  {
+    label: 'Journal',
+    notificationBody: 'A few lines on paper. Some thoughts only become real once they\'re written.',
+  },
+  {
+    label: 'Stand and stretch',
+    notificationBody: 'A minute of stretching. The body has been still longer than it wants.',
+  },
+  {
+    label: 'Look away from screens',
+    notificationBody: 'A minute away from the screen. The eyes need it more than you notice.',
+  },
+  {
+    label: 'Clear one notification',
+    notificationBody: 'One notification cleared. The queue is always shorter than it looks.',
+  },
+  {
+    label: 'Finish one small task',
+    notificationBody: 'One small thing done. The list gets lighter one item at a time.',
+  },
+  {
+    label: 'Drink water',
+    notificationBody: 'A glass of water. Your body has been quiet about it — and it shouldn\'t have to ask.',
+  },
+  {
+    label: '5 minute meditation',
+    notificationBody: 'Five minutes of stillness. The world won\'t drift while you breathe.',
+  },
+  {
+    label: 'Morning walk',
+    notificationBody: 'A few steps before the day starts. The light is different at this hour.',
+  },
+  {
+    label: 'Read for 10 minutes',
+    notificationBody: 'Ten minutes with a book, before the noise. The pages will wait, but the morning won\'t.',
+  },
+  {
+    label: 'Phone-free meal',
+    notificationBody: 'One meal, just the meal. The phone will still be there after.',
+  },
 ];
 
 interface AnchorAction {
   text: string;
   time: string;
   enabled: boolean;
+  notificationBody?: string;
 }
 
 export default function AnchorActionsScreen() {
@@ -69,7 +110,7 @@ export default function AnchorActionsScreen() {
     const id = await Notifications.scheduleNotificationAsync({
       content: {
         title: 'Koan',
-        body: action.text,
+        body: action.notificationBody || action.text,
       },
       trigger: {
         type: Notifications.SchedulableTriggerInputTypes.DATE,
@@ -97,7 +138,7 @@ export default function AnchorActionsScreen() {
       }
       await cancelAnchorNotification(i);
       const id = await Notifications.scheduleNotificationAsync({
-        content: { title: 'Koan', body: action.text },
+        content: { title: 'Koan', body: action.notificationBody || action.text },
         trigger: {
           type: Notifications.SchedulableTriggerInputTypes.DATE,
           date: next,
@@ -137,9 +178,9 @@ export default function AnchorActionsScreen() {
     setAnchorActions(updated);
   };
 
-  const selectSuggestion = (index: number, suggestion: string) => {
+  const selectSuggestion = (index: number, suggestion: { label: string; notificationBody: string }) => {
     const updated = [...anchorActions];
-    updated[index] = { ...updated[index], text: suggestion, enabled: true };
+    updated[index] = { ...updated[index], text: suggestion.label, notificationBody: suggestion.notificationBody, enabled: true };
     setAnchorActions(updated);
     setShowSuggestions(null);
   };
@@ -248,7 +289,7 @@ export default function AnchorActionsScreen() {
                     style={styles.suggestionItem}
                     onPress={() => selectSuggestion(index, suggestion)}
                   >
-                    <Text style={styles.suggestionText}>{suggestion}</Text>
+                    <Text style={styles.suggestionText}>{suggestion.label}</Text>
                   </TouchableOpacity>
                 ))}
               </View>

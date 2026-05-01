@@ -148,7 +148,7 @@ export default function LearnMoreScreen() {
             <Text style={styles.price}>$9.99</Text>
             <Text style={styles.period}>per month</Text>
             <View style={styles.trialBadge}>
-              <Text style={styles.trialBadgeText}>14-DAY FREE TRIAL</Text>
+              <Text style={styles.trialBadgeText}>30-DAY FREE TRIAL</Text>
             </View>
 
             <View style={[styles.featureRow, styles.featureRowFirst]}>

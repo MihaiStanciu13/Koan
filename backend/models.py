@@ -69,6 +69,7 @@ class Preferences(BaseModel):
     quiet_hours_enabled: bool = True
     quiet_hours_start: str = "23:00"
     quiet_hours_end: str = "07:00"
+    story_viewed: bool = False
 
 class PreferencesUpdate(BaseModel):
     micro_mode: Optional[MicroMode] = None
@@ -81,6 +82,7 @@ class PreferencesUpdate(BaseModel):
     quiet_hours_enabled: Optional[bool] = None
     quiet_hours_start: Optional[str] = None
     quiet_hours_end: Optional[str] = None
+    story_viewed: Optional[bool] = None
 
 # Nudge Models
 class Nudge(BaseModel):
