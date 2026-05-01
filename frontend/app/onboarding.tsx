@@ -21,7 +21,7 @@ import Svg, { Rect } from 'react-native-svg';
 import Purchases, { PurchasesOffering } from 'react-native-purchases';
 import { storage } from '../services/storage';
 import { calendarAPI, microsoftAPI, preferencesAPI } from '../services/api';
-import { requestHealthKitPermissions } from '../services/healthKit';
+import { requestHealthKitPermissions, registerHealthKitObservers } from '../services/healthKit';
 import { requestScreenTimeAuthorization } from '../services/screenTime';
 import Spacer from '../components/Spacer';
 
@@ -128,6 +128,7 @@ export default function Onboarding() {
   const handleConnectHealth = async () => {
     try {
       await requestHealthKitPermissions();
+      registerHealthKitObservers();
       setHealthConnected(true);
       try {
         const prefs = await preferencesAPI.get();

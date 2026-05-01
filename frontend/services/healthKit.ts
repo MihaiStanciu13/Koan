@@ -54,6 +54,32 @@ export async function requestHealthKitPermissions(): Promise<boolean> {
   });
 }
 
+/**
+ * Register HKObserverQuery observers for key health types so iOS can wake
+ * the app in the background when new data arrives. Safe to call on every
+ * app launch — duplicate registrations are ignored by HealthKit.
+ */
+export function registerHealthKitObservers(): void {
+  if (Platform.OS !== 'ios' || !HealthKitAvailable) return;
+  const observedTypes = [
+    AppleHealthKit.Constants.Permissions.Steps,
+    AppleHealthKit.Constants.Permissions.SleepAnalysis,
+    AppleHealthKit.Constants.Permissions.HeartRateVariability,
+    AppleHealthKit.Constants.Permissions.RestingHeartRate,
+    AppleHealthKit.Constants.Permissions.ActiveEnergyBurned,
+  ];
+  observedTypes.forEach((type) => {
+    try {
+      AppleHealthKit.setObserver({ type }, () => {
+        // Collect and forward data whenever HealthKit wakes us
+        collectAndSendHealthData().catch(() => {});
+      });
+    } catch (e) {
+      console.warn(`HealthKit observer registration failed for ${type}:`, e);
+    }
+  });
+}
+
 export async function collectAndSendHealthData(): Promise<void> {
   if (Platform.OS !== 'ios') return;
   if (!HealthKitAvailable) return;

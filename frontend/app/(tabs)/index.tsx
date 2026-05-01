@@ -49,6 +49,14 @@ const LEARNING_MESSAGES_BY_PHASE = [
   ],
 ];
 
+function getGreeting(): string {
+  const hour = new Date().getHours();
+  if (hour >= 5 && hour < 12) return 'Good morning.';
+  if (hour >= 12 && hour < 17) return 'Good afternoon.';
+  if (hour >= 17 && hour < 21) return 'Good evening.';
+  return 'Still up.'; // late night — gently observational
+}
+
 const TODAY_HINTS = [
   "You know the next step.",
   "Return to focus.",
@@ -416,7 +424,7 @@ export default function HomeScreen() {
         {/* Header */}
         <View style={styles.header}>
           <View>
-            <Text style={styles.greeting}>Hello, {user?.name}</Text>
+            <Text style={styles.greeting}>{getGreeting()}</Text>
             <Text style={styles.tagline}>Everything you need to know, you already know.</Text>
           </View>
         </View>

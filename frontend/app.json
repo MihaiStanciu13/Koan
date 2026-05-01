@@ -21,7 +21,8 @@
       "infoPlist": {
         "NSHealthShareUsageDescription": "Koan uses health data to understand your movement, sleep, and energy patterns and deliver more relevant nudges.",
         "NSHealthUpdateUsageDescription": "Koan does not write to Health.",
-        "ITSAppUsesNonExemptEncryption": false
+        "ITSAppUsesNonExemptEncryption": false,
+        "UIBackgroundModes": ["fetch", "processing", "remote-notification", "healthkit"]
       },
       "backgroundModes": ["healthkit", "fetch"],
       "entitlements": {

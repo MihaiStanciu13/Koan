@@ -1,9 +1,11 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { Platform } from 'react-native';
 import { Stack, router } from 'expo-router';
 import Purchases from 'react-native-purchases';
 import { AuthProvider, useAuth } from '../contexts/AuthContext';
 import { NotificationProvider } from '../contexts/NotificationContext';
+import { storage } from '../services/storage';
+import { registerHealthKitObservers } from '../services/healthKit';
 
 // Configure RevenueCat once at module load, before any child component can call it.
 if (Platform.OS === 'ios') {
@@ -18,11 +20,36 @@ if (Platform.OS === 'ios') {
 
 function RootLayoutNav() {
   const { isAuthenticated, isExpired, loading } = useAuth();
+  // Track previous auth value so we can detect false → true transitions.
+  // This covers the login-from-/landing case where app/index.tsx isn't mounted.
+  const wasAuthenticated = useRef(false);
 
   useEffect(() => {
-    if (!loading && isAuthenticated && isExpired) {
+    if (loading) return;
+
+    if (isAuthenticated && isExpired) {
       router.replace('/subscription');
+      wasAuthenticated.current = true;
+      return;
     }
+
+    if (isAuthenticated && !isExpired) {
+      // Re-register HealthKit observers on every authenticated launch so
+      // background delivery keeps working after updates.
+      if (Platform.OS === 'ios') {
+        registerHealthKitObservers();
+      }
+
+      // If auth just became true (e.g. login from /landing where index.tsx
+      // isn't mounted), navigate to the correct destination ourselves.
+      if (!wasAuthenticated.current) {
+        storage.isOnboardingComplete().then((done) => {
+          router.replace(done ? '/(tabs)' : '/onboarding');
+        });
+      }
+    }
+
+    wasAuthenticated.current = isAuthenticated;
   }, [isAuthenticated, isExpired, loading]);
 
   return (
