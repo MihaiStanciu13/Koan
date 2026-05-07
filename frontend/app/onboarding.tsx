@@ -75,6 +75,7 @@ export default function Onboarding() {
   const [showPlans, setShowPlans] = useState(false);
   const [planOffering, setPlanOffering] = useState<PurchasesOffering | null>(null);
   const [plansLoading, setPlansLoading] = useState(false);
+  const [plansError, setPlansError] = useState(false);
 
   const haloScale = useRef(new Animated.Value(1)).current;
   const haloOpacity = useRef(new Animated.Value(0.25)).current;
@@ -95,15 +96,17 @@ export default function Onboarding() {
     ).start();
   }, []);
 
-  // Lazy-load RC offerings when the Plans modal opens.
+  // Pre-fetch RC offerings when the ready screen is reached so plan cards
+  // are available the moment the user taps "See all plans".
   useEffect(() => {
-    if (!showPlans || planOffering || plansLoading || Platform.OS !== 'ios') return;
+    if (currentStep !== 4 || planOffering || plansLoading || Platform.OS !== 'ios') return;
     setPlansLoading(true);
+    setPlansError(false);
     Purchases.getOfferings()
       .then(o => setPlanOffering(o.current))
-      .catch(() => {})
+      .catch(() => setPlansError(true))
       .finally(() => setPlansLoading(false));
-  }, [showPlans]);
+  }, [currentStep]);
 
   // Slide new content in from the right
   const slideToStep = (step: number) => {
@@ -279,9 +282,13 @@ export default function Onboarding() {
 
   const renderPhoneSignals = () => (
     <>
-      <Text style={styles.sectionLabel}>WHAT KOAN PAYS ATTENTION TO</Text>
+      <Text style={styles.sectionLabel}>THIS IS WHERE KOAN BEGINS</Text>
+      <Text style={styles.screenTitle}>This is where Koan begins</Text>
       <Text style={styles.screenSubtitle}>
-        From your phone, always. From Apple Health and Screen Time, optionally.
+        Koan's nudges are only as good as the signals behind them. Phone patterns — how often you reach for your device, how your attention moves through the day — are the foundation everything else builds on. Google Calendar and Microsoft 365 add context on top. Without at least one of these, Koan is quiet for the wrong reasons.{'\n\n'}We strongly encourage granting access.
+      </Text>
+      <Text style={styles.permissionsReassurance}>
+        Read-only. Nothing is recorded without permission.
       </Text>
       <View style={styles.alwaysOnCard}>
         <Text style={styles.alwaysOnHeader}>Always on · Phone signals</Text>
@@ -692,10 +699,12 @@ export default function Onboarding() {
                     </View>
                   )}
 
-                  {/* Fallback when offerings unavailable */}
+                  {/* Fallback when offerings failed to load */}
                   {!monthly && !yearly && !lifetime && (
                     <Text style={[styles.planDesc, { textAlign: 'center', marginVertical: 16 }]}>
-                      Subscription options are loading. Try again shortly.
+                      {plansError
+                        ? 'Could not load plans. Restore or subscribe later in Settings.'
+                        : 'Subscription options are loading. Try again shortly.'}
                     </Text>
                   )}
                 </>
@@ -795,7 +804,14 @@ const styles = StyleSheet.create({
     color: '#3A3A3A',
     opacity: 0.65,
     lineHeight: 20,
-    marginBottom: 10,
+    marginBottom: 6,
+  },
+  permissionsReassurance: {
+    fontSize: 10,
+    fontWeight: '400',
+    color: '#5FAD8E',
+    opacity: 0.75,
+    marginBottom: 12,
   },
 
   // ── Integration cards ────────────────────────────────────────────────────
