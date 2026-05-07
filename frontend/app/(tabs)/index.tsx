@@ -226,11 +226,15 @@ export default function HomeScreen() {
 
     if (Platform.OS === 'ios') {
       (async () => {
-        const today = new Date().toISOString().split('T')[0];
-        const lastCollected = await AsyncStorage.getItem('koan_health_collected_date');
-        if (lastCollected !== today) {
-          await collectAndSendHealthData();
-          await AsyncStorage.setItem('koan_health_collected_date', today);
+        try {
+          const today = new Date().toISOString().split('T')[0];
+          const lastCollected = await AsyncStorage.getItem('koan_health_collected_date');
+          if (lastCollected !== today) {
+            await collectAndSendHealthData();
+            await AsyncStorage.setItem('koan_health_collected_date', today);
+          }
+        } catch (e) {
+          console.warn('Health data collection on mount failed:', e);
         }
       })();
     }

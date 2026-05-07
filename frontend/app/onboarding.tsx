@@ -552,10 +552,7 @@ export default function Onboarding() {
               <Text style={styles.primaryButtonText}>Continue</Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.ghostButton} onPress={() => slideToStep(1)} activeOpacity={0.6}>
-              <Text style={styles.ghostButtonText}>Skip Apple Health</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.ghostButton} onPress={() => slideToStep(1)} activeOpacity={0.6}>
-              <Text style={styles.ghostButtonText}>Skip Screen Time</Text>
+              <Text style={styles.ghostButtonText}>Skip</Text>
             </TouchableOpacity>
           </>
         );

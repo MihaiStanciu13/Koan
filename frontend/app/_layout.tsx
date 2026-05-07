@@ -6,6 +6,7 @@ import { AuthProvider, useAuth } from '../contexts/AuthContext';
 import { NotificationProvider } from '../contexts/NotificationContext';
 import { storage } from '../services/storage';
 import { registerHealthKitObservers } from '../services/healthKit';
+import { ErrorBoundary } from '../components/ErrorBoundary';
 
 // Configure RevenueCat once at module load, before any child component can call it.
 if (Platform.OS === 'ios') {
@@ -37,7 +38,11 @@ function RootLayoutNav() {
       // Re-register HealthKit observers on every authenticated launch so
       // background delivery keeps working after updates.
       if (Platform.OS === 'ios') {
-        registerHealthKitObservers();
+        try {
+          registerHealthKitObservers();
+        } catch (e) {
+          console.warn('HealthKit observer registration failed:', e);
+        }
       }
 
       // If auth just became true (e.g. login from /landing where index.tsx
@@ -66,11 +71,13 @@ function RootLayoutNav() {
 
 function RootLayout() {
   return (
-    <AuthProvider>
-      <NotificationProvider>
-        <RootLayoutNav />
-      </NotificationProvider>
-    </AuthProvider>
+    <ErrorBoundary>
+      <AuthProvider>
+        <NotificationProvider>
+          <RootLayoutNav />
+        </NotificationProvider>
+      </AuthProvider>
+    </ErrorBoundary>
   );
 }
 
