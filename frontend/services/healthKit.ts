@@ -7,10 +7,8 @@ let HealthKitAvailable = false;
 
 if (Platform.OS === 'ios') {
   try {
-    AppleHealthKit = require('react-native-health').default;
-    // Only check that the module itself is non-null — do not gate on
-    // .Constants.Permissions, which may be undefined during module init
-    // even when the native module is fully present.
+    // react-native-health uses module.exports (CommonJS) — no .default property.
+    AppleHealthKit = require('react-native-health');
     HealthKitAvailable = AppleHealthKit != null;
     console.log('[HealthKit] module load result — AppleHealthKit:', typeof AppleHealthKit, '| HealthKitAvailable:', HealthKitAvailable, '| hasConstants:', AppleHealthKit?.Constants != null);
   } catch (e) {
