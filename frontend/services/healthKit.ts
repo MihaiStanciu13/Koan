@@ -5,6 +5,12 @@ import { healthAPI } from './api';
 let AppleHealthKit: any = null;
 let HealthKitAvailable = false;
 
+// Tracks whether initHealthKit has SUCCEEDED in the current app session.
+// Native observer registration (setObserver) must never run before this is
+// true — calling setObserver on uninitialized types crashes the native
+// module with NSRangeException on com.facebook.react.AppleHealthKitQueue.
+let healthKitInitialized = false;
+
 if (Platform.OS === 'ios') {
   try {
     // react-native-health uses module.exports (CommonJS) — no .default property.
@@ -19,59 +25,135 @@ if (Platform.OS === 'ios') {
   console.log('[HealthKit] skipping module load — Platform.OS is:', Platform.OS);
 }
 
+/**
+ * Resolve true only if the native module is loaded AND HealthKit data is
+ * actually available on this device (e.g. false on iPad). Bails safely on
+ * any error so callers never crash.
+ */
+async function isHealthKitAvailable(): Promise<boolean> {
+  if (Platform.OS !== 'ios' || !HealthKitAvailable || typeof AppleHealthKit?.isAvailable !== 'function') {
+    return false;
+  }
+  return new Promise((resolve) => {
+    try {
+      AppleHealthKit.isAvailable((err: any, available: boolean) => {
+        if (err) {
+          console.error('[HealthKit] isAvailable() returned error:', err);
+          resolve(false);
+        } else {
+          resolve(!!available);
+        }
+      });
+    } catch (e) {
+      console.error('[HealthKit] isAvailable() threw synchronously:', e);
+      resolve(false);
+    }
+  });
+}
+
+// Read-only permission set. Each constant is looked up by key and filtered so
+// any value that is undefined on the current iOS version / library build is
+// dropped before reaching the native module (an undefined entry is a known
+// trigger for the initHealthKit NSRangeException crash).
+const DESIRED_READ_KEYS = [
+  'Steps',
+  'SleepAnalysis',
+  'HeartRateVariability',
+  'RestingHeartRate',
+  'ActiveEnergyBurned',
+  'OxygenSaturation',
+  'RespiratoryRate',
+  'MindfulSession',
+  'Workout',
+];
+
 const buildPermissions = () => {
   if (!HealthKitAvailable) return null;
+  const P = AppleHealthKit?.Constants?.Permissions;
+  if (!P) {
+    console.error('[HealthKit] Constants.Permissions is unavailable — cannot build permissions object');
+    return null;
+  }
+  const read = DESIRED_READ_KEYS
+    .map((key) => P[key])
+    .filter((v: unknown): v is string => typeof v === 'string' && v.length > 0);
+  console.log('[HealthKit] buildPermissions — requested:', DESIRED_READ_KEYS.length, '| valid:', read.length, '|', read);
+  if (read.length === 0) return null;
   return {
     permissions: {
-      read: [
-        AppleHealthKit.Constants.Permissions.Steps,
-        AppleHealthKit.Constants.Permissions.SleepAnalysis,
-        AppleHealthKit.Constants.Permissions.HeartRateVariability,
-        AppleHealthKit.Constants.Permissions.RestingHeartRate,
-        AppleHealthKit.Constants.Permissions.ActiveEnergyBurned,
-        AppleHealthKit.Constants.Permissions.OxygenSaturation,
-        AppleHealthKit.Constants.Permissions.RespiratoryRate,
-        AppleHealthKit.Constants.Permissions.MindfulSession,
-        AppleHealthKit.Constants.Permissions.Workout,
-      ],
-      write: [],
+      read,
+      write: [] as string[],
     },
   };
 };
 
+/**
+ * Request HealthKit read permissions. MUST only be called on explicit user
+ * action (e.g. tapping "Connect Apple Health") — never automatically on app
+ * launch. Verifies availability and a non-empty, valid permission set before
+ * touching the native module.
+ */
 export async function requestHealthKitPermissions(): Promise<boolean> {
   if (Platform.OS !== 'ios') {
     throw new Error('NOT_IOS');
   }
-  if (!HealthKitAvailable) {
+  if (!HealthKitAvailable || typeof AppleHealthKit?.initHealthKit !== 'function') {
     throw new Error('MODULE_UNAVAILABLE');
   }
+
+  // Guard: bail early if HealthKit is not available on this device.
+  const available = await isHealthKitAvailable();
+  if (!available) {
+    console.error('[HealthKit] isAvailable() returned false — HealthKit is not supported on this device');
+    throw new Error('MODULE_UNAVAILABLE');
+  }
+
   const permissions = buildPermissions();
+  if (!permissions || permissions.permissions.read.length === 0) {
+    console.error('[HealthKit] no valid permission constants — aborting initHealthKit to avoid native crash');
+    throw new Error('NO_VALID_PERMISSIONS');
+  }
+
   return new Promise((resolve, reject) => {
-    AppleHealthKit.initHealthKit(permissions, (error: string) => {
-      if (error) {
-        reject(new Error(`INIT_FAILED: ${error}`));
-      } else {
-        resolve(true);
-      }
-    });
+    try {
+      AppleHealthKit.initHealthKit(permissions, (error: string) => {
+        if (error) {
+          reject(new Error(`INIT_FAILED: ${error}`));
+        } else {
+          healthKitInitialized = true;
+          resolve(true);
+        }
+      });
+    } catch (e) {
+      // Native exceptions usually aren't catchable in JS, but guard anyway.
+      console.error('[HealthKit] initHealthKit threw synchronously:', e);
+      reject(new Error('INIT_THREW'));
+    }
   });
 }
 
 /**
  * Register HKObserverQuery observers for key health types so iOS can wake
- * the app in the background when new data arrives. Safe to call on every
- * app launch — duplicate registrations are ignored by HealthKit.
+ * the app in the background when new data arrives.
+ *
+ * IMPORTANT: This is a no-op unless initHealthKit has already SUCCEEDED in the
+ * current session. Calling setObserver on types that were never initialized
+ * crashes the native module with NSRangeException (index beyond bounds) on
+ * com.facebook.react.AppleHealthKitQueue. Native background delivery for
+ * already-authorized users is handled separately in AppDelegate.swift, so it
+ * is safe for this to do nothing on a cold launch.
  */
 export function registerHealthKitObservers(): void {
   if (Platform.OS !== 'ios' || !HealthKitAvailable) return;
-  const observedTypes = [
-    AppleHealthKit.Constants.Permissions.Steps,
-    AppleHealthKit.Constants.Permissions.SleepAnalysis,
-    AppleHealthKit.Constants.Permissions.HeartRateVariability,
-    AppleHealthKit.Constants.Permissions.RestingHeartRate,
-    AppleHealthKit.Constants.Permissions.ActiveEnergyBurned,
-  ];
+  if (!healthKitInitialized) {
+    console.log('[HealthKit] skipping observer registration — initHealthKit has not succeeded this session');
+    return;
+  }
+  const P = AppleHealthKit?.Constants?.Permissions;
+  if (!P) return;
+  const observedTypes = ['Steps', 'SleepAnalysis', 'HeartRateVariability', 'RestingHeartRate', 'ActiveEnergyBurned']
+    .map((key) => P[key])
+    .filter((v: unknown): v is string => typeof v === 'string' && v.length > 0);
   observedTypes.forEach((type) => {
     try {
       AppleHealthKit.setObserver({ type }, () => {

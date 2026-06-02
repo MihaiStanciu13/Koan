@@ -5,7 +5,6 @@ import Purchases from 'react-native-purchases';
 import { AuthProvider, useAuth } from '../contexts/AuthContext';
 import { NotificationProvider } from '../contexts/NotificationContext';
 import { storage } from '../services/storage';
-import { registerHealthKitObservers } from '../services/healthKit';
 import { ErrorBoundary } from '../components/ErrorBoundary';
 
 // Configure RevenueCat once at module load, before any child component can call it.
@@ -36,15 +35,13 @@ function RootLayoutNav() {
     }
 
     if (isAuthenticated && !isExpired) {
-      // Re-register HealthKit observers on every authenticated launch so
-      // background delivery keeps working after updates.
-      if (Platform.OS === 'ios') {
-        try {
-          registerHealthKitObservers();
-        } catch (e) {
-          console.warn('HealthKit observer registration failed:', e);
-        }
-      }
+      // NOTE: HealthKit observers are intentionally NOT registered here.
+      // Touching the react-native-health native module before the user has
+      // explicitly authorized HealthKit (via "Connect Apple Health") crashes
+      // the app on launch with NSRangeException on the AppleHealthKitQueue.
+      // Background delivery for already-authorized users is handled natively
+      // in AppDelegate.swift; JS observers are only registered immediately
+      // after a successful initHealthKit during the connect flow.
 
       // If auth just became true (e.g. login from /landing where index.tsx
       // isn't mounted), navigate to the correct destination ourselves.
