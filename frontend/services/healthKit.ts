@@ -1,5 +1,28 @@
 import { Platform } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { healthAPI } from './api';
+
+// Persisted across launches: set once the user successfully authorizes
+// HealthKit. Lets us safely collect data on later cold launches (when the
+// session flag is false) without touching the native module for users who
+// never authorized.
+const HEALTHKIT_AUTHORIZED_KEY = 'koan_healthkit_authorized';
+
+async function persistHealthKitAuthorized(): Promise<void> {
+  try {
+    await AsyncStorage.setItem(HEALTHKIT_AUTHORIZED_KEY, 'true');
+  } catch (e) {
+    console.warn('[HealthKit] failed to persist authorization flag:', e);
+  }
+}
+
+async function wasHealthKitPreviouslyAuthorized(): Promise<boolean> {
+  try {
+    return (await AsyncStorage.getItem(HEALTHKIT_AUTHORIZED_KEY)) === 'true';
+  } catch {
+    return false;
+  }
+}
 
 // Lazy-load so module init doesn't crash if native module isn't registered
 let AppleHealthKit: any = null;
@@ -121,6 +144,8 @@ export async function requestHealthKitPermissions(): Promise<boolean> {
           reject(new Error(`INIT_FAILED: ${error}`));
         } else {
           healthKitInitialized = true;
+          // Persist so later cold launches know the user authorized HealthKit.
+          void persistHealthKitAuthorized();
           resolve(true);
         }
       });
@@ -169,6 +194,29 @@ export function registerHealthKitObservers(): void {
 export async function collectAndSendHealthData(): Promise<void> {
   if (Platform.OS !== 'ios') return;
   if (!HealthKitAvailable) return;
+
+  // Never call native HealthKit getters unless the user has authorized
+  // HealthKit. This runs automatically on the home tab at launch, so for a
+  // user who never connected (session flag false, no persisted flag) we must
+  // skip silently — touching the native module before initHealthKit risks the
+  // same NSRangeException crash we fixed in the observer path.
+  if (!healthKitInitialized) {
+    const previouslyAuthorized = await wasHealthKitPreviouslyAuthorized();
+    if (!previouslyAuthorized) {
+      console.log('[HealthKit] collectAndSendHealthData skipped — not authorized this session and no persisted authorization');
+      return;
+    }
+    // Authorized in a prior session, but HKHealthStore isn't set up this
+    // session yet. Re-run the safe init path (no re-prompt for already-
+    // authorized users; this is NOT the setObserver path that crashed) so the
+    // getters below have a valid health store. Skip collection if it fails.
+    try {
+      await requestHealthKitPermissions();
+    } catch (e) {
+      console.warn('[HealthKit] re-init for previously-authorized user failed; skipping collection:', e);
+      return;
+    }
+  }
 
   const now = new Date();
   const startOfYesterday = new Date(now);
