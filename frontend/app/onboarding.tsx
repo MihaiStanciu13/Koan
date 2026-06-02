@@ -77,9 +77,13 @@ export default function Onboarding() {
   const [plansLoading, setPlansLoading] = useState(false);
   const [plansError, setPlansError] = useState(false);
 
+  const [ready, setReady] = useState(false);
+
   const haloScale = useRef(new Animated.Value(1)).current;
   const haloOpacity = useRef(new Animated.Value(0.25)).current;
   const slideAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => { setReady(true); }, []);
 
   useEffect(() => {
     Animated.loop(
@@ -99,12 +103,15 @@ export default function Onboarding() {
   // Pre-fetch RC offerings when the ready screen is reached so plan cards
   // are available the moment the user taps "See all plans".
   useEffect(() => {
-    if (currentStep !== 4 || planOffering || plansLoading || Platform.OS !== 'ios') return;
+    if (currentStep !== 5 || planOffering || plansLoading || Platform.OS !== 'ios') return;
     setPlansLoading(true);
     setPlansError(false);
     Purchases.getOfferings()
       .then(o => setPlanOffering(o.current))
-      .catch(() => setPlansError(true))
+      .catch((err) => {
+        console.error('[RevenueCat] getOfferings failed:', JSON.stringify(err));
+        setPlansError(true);
+      })
       .finally(() => setPlansLoading(false));
   }, [currentStep]);
 
@@ -202,7 +209,7 @@ export default function Onboarding() {
 
   const handleEnableNotifications = async () => {
     await Notifications.requestPermissionsAsync();
-    slideToStep(3);
+    slideToStep(4);
   };
 
   const toggleAnchor = (chip: string) => {
@@ -228,7 +235,7 @@ export default function Onboarding() {
         // Don't block navigation on failure
       }
     }
-    slideToStep(4);
+    slideToStep(5);
   };
 
   const handleBegin = () => {
@@ -242,7 +249,7 @@ export default function Onboarding() {
   // ── Header ──────────────────────────────────────────────────────────────
 
   const renderHeader = () => {
-    if (currentStep === 4) {
+    if (currentStep === 5) {
       return (
         <View style={styles.headerCentered}>
           <Text style={styles.wordmarkCentered}>Koan</Text>
@@ -263,7 +270,7 @@ export default function Onboarding() {
         </View>
         <Text style={styles.wordmark}>Koan</Text>
         <View style={styles.dotsRow}>
-          {[0, 1, 2, 3, 4].map(i => (
+          {[0, 1, 2, 3, 4, 5].map(i => (
             <View
               key={i}
               style={[
@@ -285,7 +292,7 @@ export default function Onboarding() {
       <Text style={styles.sectionLabel}>THIS IS WHERE KOAN BEGINS</Text>
       <Text style={styles.screenTitle}>This is where Koan begins</Text>
       <Text style={styles.screenSubtitle}>
-        Koan's nudges are only as good as the signals behind them. Phone patterns — how often you reach for your device, how your attention moves through the day — are the foundation everything else builds on. Google Calendar and Microsoft 365 add context on top. Without at least one of these, Koan is quiet for the wrong reasons.{'\n\n'}We strongly encourage granting access.
+        Koan's nudges are only as good as the signals behind them. Phone patterns — how often you reach for your device, how your attention moves through the day — are the foundation everything else builds on. Apple Health adds energy and recovery context on top.
       </Text>
       <Text style={styles.permissionsReassurance}>
         Read-only. Nothing is recorded without permission.
@@ -339,6 +346,22 @@ export default function Onboarding() {
           </Text>
         </TouchableOpacity>
       </View>
+      <Spacer minHeight={16} />
+    </>
+  );
+
+  // ── Screen 1: Screen Time ────────────────────────────────────────────────
+
+  const renderScreenTime = () => (
+    <>
+      <Text style={styles.sectionLabel}>WHERE YOUR ATTENTION GOES</Text>
+      <Text style={styles.screenTitle}>Where your attention actually goes</Text>
+      <Text style={styles.screenSubtitle}>
+        Screen Time lets Koan read app category totals — not which sites you visited. This is the most revealing signal we have for understanding focus drift.
+      </Text>
+      <Text style={styles.permissionsReassurance}>
+        Read-only. Nothing is recorded without permission.
+      </Text>
       <View style={styles.integrationCard}>
         <View style={styles.integrationHeader}>
           <View style={[styles.emojiIconContainer, { backgroundColor: '#F0F4FF' }]}>
@@ -367,7 +390,7 @@ export default function Onboarding() {
     </>
   );
 
-  // ── Screen 1: Work tools ─────────────────────────────────────────────────
+  // ── Screen 2: Work tools ─────────────────────────────────────────────────
 
   const renderWorkTools = () => (
     <>
@@ -570,22 +593,33 @@ export default function Onboarding() {
               <Text style={styles.primaryButtonText}>Continue</Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.ghostButton} onPress={() => slideToStep(2)} activeOpacity={0.6}>
-              <Text style={styles.ghostButtonText}>Skip for now</Text>
+              <Text style={styles.ghostButtonText}>Skip</Text>
             </TouchableOpacity>
           </>
         );
       case 2:
         return (
           <>
-            <TouchableOpacity style={styles.primaryButton} onPress={handleEnableNotifications} activeOpacity={0.8}>
-              <Text style={styles.primaryButtonText}>Enable notifications</Text>
+            <TouchableOpacity style={styles.primaryButton} onPress={() => slideToStep(3)} activeOpacity={0.8}>
+              <Text style={styles.primaryButtonText}>Continue</Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.ghostButton} onPress={() => slideToStep(3)} activeOpacity={0.6}>
-              <Text style={styles.ghostButtonText}>Not now</Text>
+              <Text style={styles.ghostButtonText}>Skip for now</Text>
             </TouchableOpacity>
           </>
         );
       case 3:
+        return (
+          <>
+            <TouchableOpacity style={styles.primaryButton} onPress={handleEnableNotifications} activeOpacity={0.8}>
+              <Text style={styles.primaryButtonText}>Enable notifications</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.ghostButton} onPress={() => slideToStep(4)} activeOpacity={0.6}>
+              <Text style={styles.ghostButtonText}>Not now</Text>
+            </TouchableOpacity>
+          </>
+        );
+      case 4:
         return (
           <>
             <TouchableOpacity
@@ -596,12 +630,12 @@ export default function Onboarding() {
             >
               <Text style={styles.primaryButtonText}>Continue</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.ghostButton} onPress={() => slideToStep(4)} activeOpacity={0.6}>
+            <TouchableOpacity style={styles.ghostButton} onPress={() => slideToStep(5)} activeOpacity={0.6}>
               <Text style={styles.ghostButtonText}>Set this later</Text>
             </TouchableOpacity>
           </>
         );
-      case 4:
+      case 5:
         return (
           <>
             <TouchableOpacity style={styles.beginButton} onPress={handleBegin} activeOpacity={0.8}>
@@ -617,6 +651,8 @@ export default function Onboarding() {
 
   // ── Render ───────────────────────────────────────────────────────────────
 
+  if (!ready) return <View style={{ flex: 1, backgroundColor: '#FAFDFA' }} />;
+
   return (
     <SafeAreaView style={styles.container}>
       <View style={{ flex: 1 }}>
@@ -627,10 +663,11 @@ export default function Onboarding() {
         >
           <Animated.View style={{ transform: [{ translateX: slideAnim }] }}>
             {currentStep === 0 && renderPhoneSignals()}
-            {currentStep === 1 && renderWorkTools()}
-            {currentStep === 2 && renderNotifications()}
-            {currentStep === 3 && renderAnchor()}
-            {currentStep === 4 && renderReady()}
+            {currentStep === 1 && renderScreenTime()}
+            {currentStep === 2 && renderWorkTools()}
+            {currentStep === 3 && renderNotifications()}
+            {currentStep === 4 && renderAnchor()}
+            {currentStep === 5 && renderReady()}
           </Animated.View>
         </ScrollView>
         <View style={{ paddingHorizontal: 20, paddingBottom: 28, paddingTop: 8, gap: 6 }}>
@@ -701,11 +738,32 @@ export default function Onboarding() {
 
                   {/* Fallback when offerings failed to load */}
                   {!monthly && !yearly && !lifetime && (
-                    <Text style={[styles.planDesc, { textAlign: 'center', marginVertical: 16 }]}>
-                      {plansError
-                        ? 'Could not load plans. Restore or subscribe later in Settings.'
-                        : 'Subscription options are loading. Try again shortly.'}
-                    </Text>
+                    <>
+                      <Text style={[styles.planDesc, { textAlign: 'center', marginVertical: 16 }]}>
+                        {plansError
+                          ? 'Could not load plans. Check your connection and try again.'
+                          : 'Subscription options are loading. Try again shortly.'}
+                      </Text>
+                      {plansError && (
+                        <TouchableOpacity
+                          style={[styles.connectButton, { marginBottom: 8 }]}
+                          onPress={() => {
+                            setPlansError(false);
+                            setPlansLoading(true);
+                            Purchases.getOfferings()
+                              .then(o => setPlanOffering(o.current))
+                              .catch((err) => {
+                                console.error('[RevenueCat] getOfferings retry failed:', JSON.stringify(err));
+                                setPlansError(true);
+                              })
+                              .finally(() => setPlansLoading(false));
+                          }}
+                          activeOpacity={0.8}
+                        >
+                          <Text style={styles.connectButtonText}>Retry</Text>
+                        </TouchableOpacity>
+                      )}
+                    </>
                   )}
                 </>
               );

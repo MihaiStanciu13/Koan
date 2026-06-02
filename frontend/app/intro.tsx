@@ -91,9 +91,9 @@ export default function IntroScreen() {
   const screen = SCREENS[step];
 
   const handleButton = () => {
-    // New content starts off-screen to the right, then slides in
-    slideAnim.setValue(screenWidth);
     if (step < SCREENS.length - 1) {
+      // Slide new content in from the right
+      slideAnim.setValue(screenWidth);
       setStep(step + 1);
       Animated.timing(slideAnim, {
         toValue: 0,
@@ -101,11 +101,8 @@ export default function IntroScreen() {
         useNativeDriver: true,
       }).start();
     } else {
-      Animated.timing(slideAnim, {
-        toValue: 0,
-        duration: 280,
-        useNativeDriver: true,
-      }).start(() => router.replace('/landing'));
+      // Last step — navigate immediately without re-animating current content
+      router.replace('/landing');
     }
   };
 
