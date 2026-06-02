@@ -45,7 +45,7 @@ class PatternDetector:
             "avg_sleep_duration": avg("sleep_duration_minutes"),
             "avg_resting_hr": avg("resting_heart_rate"),
             "avg_hrv": avg("hrv_ms"),
-            "avg_outdoor_minutes": avg("outdoor_minutes"),
+            "avg_outdoor_minutes": avg("time_outdoors_minutes"),
             "avg_active_energy": avg("active_energy_kcal"),
         }
 
@@ -263,8 +263,8 @@ class PatternDetector:
 
         # ── Outdoor time ──
         outdoor_values = [
-            s.get("outdoor_minutes") for s in signals[:7]
-            if s.get("outdoor_minutes") is not None
+            s.get("time_outdoors_minutes") for s in signals[:7]
+            if s.get("time_outdoors_minutes") is not None
         ]
         baseline_outdoor = baseline.get("avg_outdoor_minutes")
         if baseline_outdoor and len(outdoor_values) >= 5:
@@ -462,8 +462,19 @@ class PatternDetector:
             triggered.append("rhythm_balanced_day")
 
         # ── movement_work_hours_gap ──
-        # Requires optional hourly_steps field (dict: {"9": steps, "10": steps, ...}).
-        # If field is absent (not yet provided by health kit integration), detection is skipped.
+        # Requires optional hourly_steps field. The mobile app sends a 24-element
+        # list (index = hour of day); older/manual data may use a dict keyed by
+        # hour-string. Both shapes are handled. Skipped if the field is absent.
+        def _hour_steps(hourly, hour: int) -> int:
+            try:
+                if isinstance(hourly, list):
+                    return int(hourly[hour]) if 0 <= hour < len(hourly) and hourly[hour] is not None else 0
+                if isinstance(hourly, dict):
+                    return int(hourly.get(str(hour), 0) or 0)
+            except (ValueError, TypeError):
+                return 0
+            return 0
+
         work_windows = [(9, 12), (10, 13), (11, 14), (12, 15), (13, 16), (14, 17)]
         qualifying_days = 0
         calendar_overlap = False
@@ -473,7 +484,7 @@ class PatternDetector:
                 continue
             for win_start, win_end in work_windows:
                 window_steps = sum(
-                    hourly_steps.get(str(h), 0) for h in range(win_start, win_end)
+                    _hour_steps(hourly_steps, h) for h in range(win_start, win_end)
                 )
                 if window_steps < 300:
                     qualifying_days += 1

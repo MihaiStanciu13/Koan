@@ -1,5 +1,6 @@
 import { Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import type { HealthValue } from 'react-native-health';
 import { healthAPI } from './api';
 
 // Persisted across launches: set once the user successfully authorizes
@@ -102,6 +103,15 @@ const DESIRED_READ_KEYS = [
   'RespiratoryRate',
   'MindfulSession',
   'Workout',
+  // Expanded signals (no new permission asks beyond what HealthKit groups).
+  // TimeInDaylight and AppleStandHour are intentionally omitted — they do not
+  // exist in this react-native-health version (outdoor time is derived from
+  // workouts; stand hours from AppleStandTime).
+  'BasalEnergyBurned',
+  'WalkingHeartRateAverage',
+  'Vo2Max',
+  'EnvironmentalAudioExposure',
+  'AppleStandTime',
 ];
 
 const buildPermissions = () => {
@@ -111,9 +121,15 @@ const buildPermissions = () => {
     console.error('[HealthKit] Constants.Permissions is unavailable — cannot build permissions object');
     return null;
   }
-  const read = DESIRED_READ_KEYS
-    .map((key) => P[key])
-    .filter((v: unknown): v is string => typeof v === 'string' && v.length > 0);
+  const read: string[] = [];
+  for (const key of DESIRED_READ_KEYS) {
+    const v = P[key];
+    if (typeof v === 'string' && v.length > 0) {
+      read.push(v);
+    } else {
+      console.warn(`[HealthKit] permission constant "${key}" not found in this library version — skipping`);
+    }
+  }
   console.log('[HealthKit] buildPermissions — requested:', DESIRED_READ_KEYS.length, '| valid:', read.length, '|', read);
   if (read.length === 0) return null;
   return {
@@ -205,23 +221,26 @@ async function getAuthStatusForType(type: string): Promise<number | null> {
 }
 
 /**
- * Run a single lightweight test getter (getStepCount, empty options) to prove
- * the native store is fully settled and queryable. On success flips
- * isHealthKitFullyReady. Fully wrapped — never throws.
+ * Verification chain to prove the native store is fully settled and queryable.
+ * Primary probe: getStepCount must succeed. Secondary probe: one expanded
+ * getter (getActiveEnergyBurned) is exercised to confirm the store handles a
+ * newly-added type — a "no data" error there is tolerated (many users lack
+ * active-energy samples); only a thrown exception or a failing primary probe
+ * blocks readiness. On success flips isHealthKitFullyReady. Never throws.
  */
 async function runHealthKitTestGetter(): Promise<boolean> {
   if (!HealthKitAvailable || typeof AppleHealthKit?.getStepCount !== 'function') {
     return false;
   }
-  return new Promise((resolve) => {
+
+  // Primary probe — getStepCount.
+  const primaryOk = await new Promise<boolean>((resolve) => {
     try {
       AppleHealthKit.getStepCount({}, (err: any) => {
         if (err) {
           console.error('[HealthKit] post-init failure — test getter (getStepCount) returned error:', err);
           resolve(false);
         } else {
-          isHealthKitFullyReady = true;
-          console.log('[HealthKit] test getter succeeded — isHealthKitFullyReady = true');
           resolve(true);
         }
       });
@@ -230,6 +249,31 @@ async function runHealthKitTestGetter(): Promise<boolean> {
       resolve(false);
     }
   });
+  if (!primaryOk) return false;
+
+  // Secondary probe — one expanded getter (active energy). Tolerates "no data".
+  if (typeof AppleHealthKit?.getActiveEnergyBurned === 'function') {
+    const now = new Date();
+    const startOfToday = new Date(now); startOfToday.setHours(0, 0, 0, 0);
+    await new Promise<void>((resolve) => {
+      try {
+        AppleHealthKit.getActiveEnergyBurned(
+          { startDate: startOfToday.toISOString(), endDate: now.toISOString() },
+          (err: any) => {
+            if (err) console.log('[HealthKit] secondary probe (getActiveEnergyBurned) returned no data/err (tolerated):', err);
+            resolve();
+          }
+        );
+      } catch (e) {
+        console.error('[HealthKit] post-init failure — secondary probe (getActiveEnergyBurned) threw:', e);
+        resolve();
+      }
+    });
+  }
+
+  isHealthKitFullyReady = true;
+  console.log('[HealthKit] test getters passed — isHealthKitFullyReady = true');
+  return true;
 }
 
 /**
@@ -449,6 +493,135 @@ export async function collectAndSendHealthData(): Promise<void> {
     }
   } catch {}
 
+  // ── Expanded signals (no new permission asks) ──────────────────────────────
+  // Each block is independently try/caught and skips silently on failure.
+
+  // Outdoor time (minutes). TimeInDaylight is not exposed by this library
+  // version, so derive from outdoor-type workouts (running/walking/cycling/
+  // hiking, excluding explicitly-indoor workouts).
+  let time_outdoors_minutes: number | undefined;
+  try {
+    const res = await getAsync<any[]>(AppleHealthKit.getSamples.bind(AppleHealthKit), { ...options, type: 'Workout' });
+    if (res && res.length > 0) {
+      const OUTDOOR = ['running', 'walking', 'cycling', 'hiking'];
+      const isIndoor = (w: any) =>
+        w?.metadata?.HKIndoorWorkout === true || w?.metadata?.indoor === true || w?.isIndoor === true;
+      const outdoor = res.filter((w) => {
+        if (isIndoor(w)) return false;
+        const name = String(w?.activityName ?? w?.activityType ?? w?.type ?? '').toLowerCase();
+        return OUTDOOR.some((t) => name.includes(t));
+      });
+      if (outdoor.length > 0) {
+        const totalMs = outdoor.reduce((acc, w) =>
+          acc + (new Date(w.endDate).getTime() - new Date(w.startDate).getTime()), 0);
+        time_outdoors_minutes = Math.round(totalMs / 60000);
+      }
+    }
+  } catch {}
+
+  // Active energy (kcal) — sum of active energy samples for the day.
+  let active_energy_kcal: number | undefined;
+  try {
+    const res = await getAsync<HealthValue[]>(AppleHealthKit.getActiveEnergyBurned.bind(AppleHealthKit), options);
+    if (res && res.length > 0) {
+      const total = res.reduce((acc, s) => acc + (s.value || 0), 0);
+      if (total > 0) active_energy_kcal = Math.round(total);
+    }
+  } catch {}
+
+  // Resting/basal energy (kcal) — pairs with active energy for recovery.
+  let resting_energy_kcal: number | undefined;
+  try {
+    const res = await getAsync<HealthValue[]>(AppleHealthKit.getBasalEnergyBurned.bind(AppleHealthKit), options);
+    if (res && res.length > 0) {
+      const total = res.reduce((acc, s) => acc + (s.value || 0), 0);
+      if (total > 0) resting_energy_kcal = Math.round(total);
+    }
+  } catch {}
+
+  // Hourly steps — 24-element array, one bucket per hour of the day.
+  let hourly_steps: number[] | undefined;
+  try {
+    const res = await getAsync<HealthValue[]>(AppleHealthKit.getDailyStepCountSamples.bind(AppleHealthKit), { ...options, period: 60 });
+    if (res && res.length > 0) {
+      const buckets: number[] = new Array(24).fill(0);
+      for (const s of res) {
+        if (s.value == null || !s.startDate) continue;
+        const h = new Date(s.startDate).getHours();
+        if (h >= 0 && h < 24) buckets[h] += Math.round(s.value);
+      }
+      hourly_steps = buckets;
+    }
+  } catch {}
+
+  // Wake time (HH:MM) — end of the last asleep/inBed interval for the night.
+  let wake_time: string | undefined;
+  try {
+    const res = await getAsync<any[]>(AppleHealthKit.getSleepSamples.bind(AppleHealthKit), options);
+    if (res && res.length > 0) {
+      const asleep = res.filter((s) => s.value !== 'AWAKE');
+      const latestEnd = asleep.reduce<Date | null>((latest, s) => {
+        const end = s.endDate ? new Date(s.endDate) : null;
+        if (end && (!latest || end.getTime() > latest.getTime())) return end;
+        return latest;
+      }, null);
+      if (latestEnd) wake_time = latestEnd.toTimeString().slice(0, 5);
+    }
+  } catch {}
+
+  // Stand hours — distinct hours with >= 1 min stand time (Apple Watch only).
+  // AppleStandHour is not exposed in this library version; derive from
+  // AppleStandTime by bucketing into hours.
+  let stand_hours: number | undefined;
+  try {
+    const res = await getAsync<HealthValue[]>(AppleHealthKit.getAppleStandTime.bind(AppleHealthKit), options);
+    if (res && res.length > 0) {
+      const hoursWithStand = new Set<number>();
+      for (const s of res) {
+        if (s.value != null && s.value >= 1 && s.startDate) {
+          hoursWithStand.add(new Date(s.startDate).getHours());
+        }
+      }
+      stand_hours = hoursWithStand.size;
+    }
+  } catch {}
+
+  // Walking heart rate average (bpm).
+  let walking_hr_avg: number | undefined;
+  try {
+    const res = await getAsync<HealthValue[]>(AppleHealthKit.getWalkingHeartRateAverage.bind(AppleHealthKit), options);
+    if (res && res.length > 0) {
+      const vals = res.map((s) => s.value).filter((v): v is number => typeof v === 'number' && v > 0);
+      if (vals.length > 0) walking_hr_avg = Math.round(vals.reduce((a, b) => a + b, 0) / vals.length);
+    }
+  } catch {}
+
+  // VO2 max (mL/kg/min) — sparse for non-runners; take the most recent sample.
+  let vo2_max: number | undefined;
+  try {
+    const res = await getAsync<HealthValue[]>(AppleHealthKit.getVo2MaxSamples.bind(AppleHealthKit), options);
+    if (res && res.length > 0) {
+      const latest = res.reduce((a, b) => {
+        const ad = new Date(a.endDate || a.startDate).getTime();
+        const bd = new Date(b.endDate || b.startDate).getTime();
+        return bd >= ad ? b : a;
+      });
+      if (latest?.value != null) vo2_max = Math.round(latest.value * 10) / 10;
+    }
+  } catch {}
+
+  // Environmental audio exposure — daily average dB (noise/stress signal).
+  let audio_exposure_db_avg: number | undefined;
+  try {
+    const res = await getAsync<HealthValue[]>(AppleHealthKit.getEnvironmentalAudioExposure.bind(AppleHealthKit), options);
+    if (res && res.length > 0) {
+      const vals = res.map((s) => s.value).filter((v): v is number => typeof v === 'number' && v > 0);
+      if (vals.length > 0) {
+        audio_exposure_db_avg = Math.round((vals.reduce((a, b) => a + b, 0) / vals.length) * 10) / 10;
+      }
+    }
+  } catch {}
+
   const date = startOfYesterday.toISOString().split('T')[0];
 
   try {
@@ -467,6 +640,16 @@ export async function collectAndSendHealthData(): Promise<void> {
       respiratory_rate_avg,
       workout_minutes,
       mindful_minutes,
+      // Expanded signals
+      time_outdoors_minutes,
+      active_energy_kcal,
+      resting_energy_kcal,
+      hourly_steps,
+      wake_time,
+      stand_hours,
+      walking_hr_avg,
+      vo2_max,
+      audio_exposure_db_avg,
     });
   } catch (e) {
     console.warn('Failed to send health data to backend:', e);

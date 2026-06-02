@@ -148,6 +148,14 @@ class HealthSignal(BaseModel):
     # Activity
     workout_minutes: Optional[float] = None           # total workout duration for the day
     mindful_minutes: Optional[float] = None           # mindfulness/meditation minutes
+    # Expanded HealthKit signals
+    resting_energy_kcal: Optional[float] = None        # basal/resting energy burned
+    hourly_steps: Optional[List[int]] = None           # 24-element array, steps per hour
+    wake_time: Optional[str] = None                    # HH:MM, end of last sleep interval
+    stand_hours: Optional[int] = None                  # Apple Watch stand hours
+    walking_hr_avg: Optional[float] = None             # average walking heart rate (bpm)
+    vo2_max: Optional[float] = None                    # cardiovascular fitness (mL/kg/min)
+    audio_exposure_db_avg: Optional[float] = None      # avg environmental sound level (dB)
     # Screen Time (refined)
     real_pickups: Optional[int] = None                # actual pickup count from DeviceActivity
 
@@ -179,4 +187,12 @@ class HealthSignalCreate(BaseModel):
     respiratory_rate_avg: Optional[float] = Field(None, ge=0, le=60)
     workout_minutes: Optional[float] = None
     mindful_minutes: Optional[float] = None
+    # Expanded HealthKit signals
+    resting_energy_kcal: Optional[float] = Field(None, ge=0, le=10000)
+    hourly_steps: Optional[List[int]] = None
+    wake_time: Optional[str] = None
+    stand_hours: Optional[int] = Field(None, ge=0, le=24)
+    walking_hr_avg: Optional[float] = Field(None, ge=20, le=250)
+    vo2_max: Optional[float] = Field(None, ge=0, le=100)
+    audio_exposure_db_avg: Optional[float] = Field(None, ge=0, le=200)
     real_pickups: Optional[int] = Field(None, ge=0, le=1000)
