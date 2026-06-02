@@ -21,7 +21,6 @@ import * as WebBrowser from 'expo-web-browser';
 
 const WORKPLACE_TOOLS = [
   { id: 'apple_health', name: 'Apple Health', icon: 'heart-outline', color: '#EA4335' },
-  { id: 'screen_time', name: 'Screen Time', icon: 'phone-portrait-outline', color: '#5FAD8E' },
   { id: 'gcalendar', name: 'Google Calendar', icon: 'calendar-outline', color: '#4285F4' },
   { id: 'microsoft365', name: 'Microsoft 365', icon: 'people-outline', color: '#0078D4' },
 ];
@@ -98,18 +97,6 @@ export default function SettingsScreen() {
           prev.includes('microsoft365') ? prev : [...prev, 'microsoft365']
         );
       }
-
-      try {
-        const { getScreenTimeAuthorizationStatus } = await import('../../services/screenTime');
-        const stStatus = await getScreenTimeAuthorizationStatus();
-        if (stStatus === 'approved') {
-          setConnectedTools(prev =>
-            prev.includes('screen_time') ? prev : [...prev, 'screen_time']
-          );
-        }
-      } catch {
-        // Family Controls entitlement not available — skip
-      }
     } catch (error) {
       console.error('Failed to load settings:', error);
     }
@@ -148,30 +135,6 @@ export default function SettingsScreen() {
           await updatePreference('connected_tools', newTools);
         } catch {
           Alert.alert('Apple Health is only available on iOS.');
-        }
-      }
-      return;
-    }
-    // Special handling for Screen Time (Family Controls)
-    if (toolId === 'screen_time') {
-      if (connectedTools.includes('screen_time')) {
-        // Removing from connected_tools stops Koan from treating it as active,
-        // but does not revoke the OS-level Family Controls authorization.
-        const newTools = connectedTools.filter(t => t !== 'screen_time');
-        setConnectedTools(newTools);
-        await updatePreference('connected_tools', newTools);
-      } else {
-        try {
-          const { requestScreenTimeAuthorization, startDailyMonitoring } = await import('../../services/screenTime');
-          const granted = await requestScreenTimeAuthorization();
-          if (granted) {
-            await startDailyMonitoring();
-            const newTools = [...connectedTools, 'screen_time'];
-            setConnectedTools(newTools);
-            await updatePreference('connected_tools', newTools);
-          }
-        } catch {
-          Alert.alert('Screen Time is only available on iOS.');
         }
       }
       return;

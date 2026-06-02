@@ -22,7 +22,6 @@ import Purchases, { PurchasesOffering } from 'react-native-purchases';
 import { storage } from '../services/storage';
 import { calendarAPI, microsoftAPI, preferencesAPI } from '../services/api';
 import { requestHealthKitPermissions, finalizeHealthKitSetup } from '../services/healthKit';
-import { requestScreenTimeAuthorization } from '../services/screenTime';
 import Spacer from '../components/Spacer';
 
 const { width: screenWidth } = Dimensions.get('window');
@@ -68,7 +67,6 @@ export default function Onboarding() {
   const router = useRouter();
   const [currentStep, setCurrentStep] = useState(0);
   const [healthConnected, setHealthConnected] = useState(false);
-  const [screenTimeConnected, setScreenTimeConnected] = useState(false);
   const [gCalConnected, setGCalConnected] = useState(false);
   const [msConnected, setMsConnected] = useState(false);
   const [selectedAnchors, setSelectedAnchors] = useState<string[]>([]);
@@ -103,7 +101,7 @@ export default function Onboarding() {
   // Pre-fetch RC offerings when the ready screen is reached so plan cards
   // are available the moment the user taps "See all plans".
   useEffect(() => {
-    if (currentStep !== 5 || planOffering || plansLoading || Platform.OS !== 'ios') return;
+    if (currentStep !== 4 || planOffering || plansLoading || Platform.OS !== 'ios') return;
     setPlansLoading(true);
     setPlansError(false);
     console.log('[RevenueCat] fetching offerings');
@@ -128,15 +126,6 @@ export default function Onboarding() {
       duration: 250,
       useNativeDriver: true,
     }).start();
-  };
-
-  const handleConnectScreenTime = async () => {
-    try {
-      const granted = await requestScreenTimeAuthorization();
-      if (granted) setScreenTimeConnected(true);
-    } catch {
-      Alert.alert('Screen Time authorization is only available on iOS.');
-    }
   };
 
   const handleConnectHealth = async () => {
@@ -218,7 +207,7 @@ export default function Onboarding() {
 
   const handleEnableNotifications = async () => {
     await Notifications.requestPermissionsAsync();
-    slideToStep(4);
+    slideToStep(3);
   };
 
   const toggleAnchor = (chip: string) => {
@@ -244,7 +233,7 @@ export default function Onboarding() {
         // Don't block navigation on failure
       }
     }
-    slideToStep(5);
+    slideToStep(4);
   };
 
   const handleBegin = () => {
@@ -258,7 +247,7 @@ export default function Onboarding() {
   // ── Header ──────────────────────────────────────────────────────────────
 
   const renderHeader = () => {
-    if (currentStep === 5) {
+    if (currentStep === 4) {
       return (
         <View style={styles.headerCentered}>
           <Text style={styles.wordmarkCentered}>Koan</Text>
@@ -279,7 +268,7 @@ export default function Onboarding() {
         </View>
         <Text style={styles.wordmark}>Koan</Text>
         <View style={styles.dotsRow}>
-          {[0, 1, 2, 3, 4, 5].map(i => (
+          {[0, 1, 2, 3, 4].map(i => (
             <View
               key={i}
               style={[
@@ -294,43 +283,18 @@ export default function Onboarding() {
     );
   };
 
-  // ── Screen 0: What Koan pays attention to (Phone signals + Apple Health + Screen Time) ──
+  // ── Screen 0: Apple Health ───────────────────────────────────────────────
 
-  const renderPhoneSignals = () => (
+  const renderAppleHealth = () => (
     <>
-      <Text style={styles.sectionLabel}>PHONE & HEALTH SIGNALS</Text>
-      <Text style={styles.screenTitle}>This is where Koan begins</Text>
+      <Text style={styles.sectionLabel}>APPLE HEALTH</Text>
+      <Text style={styles.screenTitle}>Your body knows things your calendar doesn't</Text>
       <Text style={styles.screenSubtitle}>
-        Koan's nudges are only as good as the signals behind them. Phone patterns — how often you reach for your device, how your attention moves through the day — are the foundation everything else builds on. Apple Health adds energy and recovery context on top.
+        Koan reads sleep, activity, HRV, recovery, outdoor time, and environmental signals from Apple Health. Not to count steps — to understand energy and recovery in context. Raw data never leaves your device.
       </Text>
       <Text style={styles.permissionsReassurance}>
         Read-only. Nothing is recorded without permission.
       </Text>
-      <View style={styles.alwaysOnCard}>
-        <Text style={styles.alwaysOnHeader}>Always on · Phone signals</Text>
-        {[
-          {
-            name: 'Phone pickups',
-            desc: 'How often you reach for your phone, and your first pickup each morning.',
-          },
-          {
-            name: 'Screen time patterns',
-            desc: 'Total usage, app categories, and how your attention is distributed.',
-          },
-          {
-            name: 'App switching',
-            desc: 'Context-switching frequency — a key signal for focus drift.',
-          },
-        ].map((signal, i) => (
-          <View key={i} style={[styles.signalRow, i > 0 && styles.signalRowBorder]}>
-            <View style={styles.signalDot} />
-            <View style={styles.signalTextBlock}>
-              <Text style={styles.signalName}>{signal.name}</Text>
-              <Text style={styles.signalDesc}>{signal.desc}</Text>
-            </View>
-          </View>
-        ))}
-      </View>
       <View style={styles.integrationCard}>
         <View style={styles.integrationHeader}>
           <View style={[styles.emojiIconContainer, { backgroundColor: '#FFF0F0' }]}>
@@ -338,7 +302,7 @@ export default function Onboarding() {
           </View>
           <View style={styles.integrationInfo}>
             <Text style={styles.integrationName}>Apple Health</Text>
-            <Text style={styles.integrationSubtext}>Sleep · Activity · HRV · Read-only</Text>
+            <Text style={styles.integrationSubtext}>Sleep · Activity · HRV · Recovery · Read-only</Text>
           </View>
         </View>
         <Text style={styles.integrationDesc}>
@@ -359,63 +323,7 @@ export default function Onboarding() {
     </>
   );
 
-  // ── Screen 1: Screen Time ────────────────────────────────────────────────
-
-  const renderScreenTime = () => (
-    <>
-      <Text style={styles.sectionLabel}>WHERE YOUR ATTENTION GOES</Text>
-      <Text style={styles.screenTitle}>Where your attention actually goes</Text>
-      <Text style={styles.screenSubtitle}>
-        Screen Time lets Koan read app category totals — not which sites you visited. This is the most revealing signal we have for understanding focus drift.
-      </Text>
-      <Text style={styles.permissionsReassurance}>
-        Read-only. Nothing is recorded without permission.
-      </Text>
-      <View style={styles.alwaysOnCard}>
-        <Text style={styles.alwaysOnHeader}>Read-only · App usage</Text>
-        {[
-          { name: 'App categories', desc: 'How your time splits across work, social, and entertainment.' },
-          { name: 'Focus drift', desc: 'When attention scatters across too many apps.' },
-          { name: 'Daily totals', desc: 'Total time on screen, without tracking specific sites.' },
-        ].map((signal, i) => (
-          <View key={i} style={[styles.signalRow, i > 0 && styles.signalRowBorder]}>
-            <View style={styles.signalDot} />
-            <View style={styles.signalTextBlock}>
-              <Text style={styles.signalName}>{signal.name}</Text>
-              <Text style={styles.signalDesc}>{signal.desc}</Text>
-            </View>
-          </View>
-        ))}
-      </View>
-      <View style={styles.integrationCard}>
-        <View style={styles.integrationHeader}>
-          <View style={[styles.emojiIconContainer, { backgroundColor: '#F0F4FF' }]}>
-            <Text style={styles.emojiIcon}>📱</Text>
-          </View>
-          <View style={styles.integrationInfo}>
-            <Text style={styles.integrationName}>Screen Time</Text>
-            <Text style={styles.integrationSubtext}>App usage · Categories · Read-only</Text>
-          </View>
-        </View>
-        <Text style={styles.integrationDesc}>
-          Koan reads app category totals — not which sites you visited. Requires Apple's Family Controls framework.
-        </Text>
-        <TouchableOpacity
-          style={[styles.connectButton, screenTimeConnected && styles.connectedButton]}
-          onPress={handleConnectScreenTime}
-          disabled={screenTimeConnected}
-          activeOpacity={0.8}
-        >
-          <Text style={[styles.connectButtonText, screenTimeConnected && styles.connectedButtonText]}>
-            {screenTimeConnected ? '✓ Authorized' : 'Authorize Screen Time'}
-          </Text>
-        </TouchableOpacity>
-      </View>
-      <Spacer minHeight={16} />
-    </>
-  );
-
-  // ── Screen 2: Work tools ─────────────────────────────────────────────────
+  // ── Screen 1: Work tools ─────────────────────────────────────────────────
 
   const renderWorkTools = () => (
     <>
@@ -423,22 +331,6 @@ export default function Onboarding() {
       <Text style={styles.screenSubtitle}>
         Connect what you use. Koan reads meeting load and rhythm — never schedules, never edits.
       </Text>
-      <View style={styles.alwaysOnCard}>
-        <Text style={styles.alwaysOnHeader}>Read-only · Calendar signals</Text>
-        {[
-          { name: 'Meeting load', desc: 'How packed your days are, back-to-back density.' },
-          { name: 'Transition time', desc: 'Gaps between meetings, or the lack of them.' },
-          { name: 'Rhythm', desc: 'Heavy days, recovery days, and weekly patterns.' },
-        ].map((signal, i) => (
-          <View key={i} style={[styles.signalRow, i > 0 && styles.signalRowBorder]}>
-            <View style={styles.signalDot} />
-            <View style={styles.signalTextBlock}>
-              <Text style={styles.signalName}>{signal.name}</Text>
-              <Text style={styles.signalDesc}>{signal.desc}</Text>
-            </View>
-          </View>
-        ))}
-      </View>
       <View style={styles.integrationCard}>
         <View style={styles.integrationHeader}>
           <View style={{ width: 32, height: 32, borderRadius: 8, overflow: 'hidden' }}>
@@ -450,7 +342,7 @@ export default function Onboarding() {
           </View>
         </View>
         <Text style={styles.integrationDesc}>
-          Detects back-to-back meetings, transition time, and heavy days.
+          Reads today's meeting count, total meeting minutes, and back-to-back density.
         </Text>
         <TouchableOpacity
           style={[styles.connectButton, gCalConnected && styles.connectedButton]}
@@ -470,11 +362,11 @@ export default function Onboarding() {
           </View>
           <View style={styles.integrationInfo}>
             <Text style={styles.integrationName}>Microsoft 365</Text>
-            <Text style={styles.integrationSubtext}>Outlook · Teams · Read-only</Text>
+            <Text style={styles.integrationSubtext}>Outlook · Read-only</Text>
           </View>
         </View>
         <Text style={styles.integrationDesc}>
-          Same signals from Outlook calendar and Teams meeting load.
+          Same signals from Outlook.
         </Text>
         <TouchableOpacity
           style={[styles.connectButton, msConnected && styles.connectedButton]}
@@ -634,33 +526,22 @@ export default function Onboarding() {
               <Text style={styles.primaryButtonText}>Continue</Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.ghostButton} onPress={() => slideToStep(2)} activeOpacity={0.6}>
-              <Text style={styles.ghostButtonText}>Skip</Text>
+              <Text style={styles.ghostButtonText}>Skip for now</Text>
             </TouchableOpacity>
           </>
         );
       case 2:
         return (
           <>
-            <TouchableOpacity style={styles.primaryButton} onPress={() => slideToStep(3)} activeOpacity={0.8}>
-              <Text style={styles.primaryButtonText}>Continue</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.ghostButton} onPress={() => slideToStep(3)} activeOpacity={0.6}>
-              <Text style={styles.ghostButtonText}>Skip for now</Text>
-            </TouchableOpacity>
-          </>
-        );
-      case 3:
-        return (
-          <>
             <TouchableOpacity style={styles.primaryButton} onPress={handleEnableNotifications} activeOpacity={0.8}>
               <Text style={styles.primaryButtonText}>Enable notifications</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.ghostButton} onPress={() => slideToStep(4)} activeOpacity={0.6}>
+            <TouchableOpacity style={styles.ghostButton} onPress={() => slideToStep(3)} activeOpacity={0.6}>
               <Text style={styles.ghostButtonText}>Not now</Text>
             </TouchableOpacity>
           </>
         );
-      case 4:
+      case 3:
         return (
           <>
             <TouchableOpacity
@@ -671,12 +552,12 @@ export default function Onboarding() {
             >
               <Text style={styles.primaryButtonText}>Continue</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.ghostButton} onPress={() => slideToStep(5)} activeOpacity={0.6}>
+            <TouchableOpacity style={styles.ghostButton} onPress={() => slideToStep(4)} activeOpacity={0.6}>
               <Text style={styles.ghostButtonText}>Set this later</Text>
             </TouchableOpacity>
           </>
         );
-      case 5:
+      case 4:
         return (
           <>
             <TouchableOpacity style={styles.beginButton} onPress={handleBegin} activeOpacity={0.8}>
@@ -703,12 +584,11 @@ export default function Onboarding() {
           showsVerticalScrollIndicator={false}
         >
           <Animated.View style={{ transform: [{ translateX: slideAnim }] }}>
-            {currentStep === 0 && renderPhoneSignals()}
-            {currentStep === 1 && renderScreenTime()}
-            {currentStep === 2 && renderWorkTools()}
-            {currentStep === 3 && renderNotifications()}
-            {currentStep === 4 && renderAnchor()}
-            {currentStep === 5 && renderReady()}
+            {currentStep === 0 && renderAppleHealth()}
+            {currentStep === 1 && renderWorkTools()}
+            {currentStep === 2 && renderNotifications()}
+            {currentStep === 3 && renderAnchor()}
+            {currentStep === 4 && renderReady()}
           </Animated.View>
         </ScrollView>
         <View style={{ paddingHorizontal: 20, paddingBottom: 28, paddingTop: 8, gap: 6 }}>
