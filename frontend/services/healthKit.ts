@@ -12,10 +12,13 @@ if (Platform.OS === 'ios') {
     // .Constants.Permissions, which may be undefined during module init
     // even when the native module is fully present.
     HealthKitAvailable = AppleHealthKit != null;
+    console.log('[HealthKit] module load result — AppleHealthKit:', typeof AppleHealthKit, '| HealthKitAvailable:', HealthKitAvailable, '| hasConstants:', AppleHealthKit?.Constants != null);
   } catch (e) {
-    console.warn('react-native-health module failed to load:', e);
+    console.error('[HealthKit] react-native-health require() threw — native module is not linked or registered. Error:', e);
     HealthKitAvailable = false;
   }
+} else {
+  console.log('[HealthKit] skipping module load — Platform.OS is:', Platform.OS);
 }
 
 const buildPermissions = () => {

@@ -106,10 +106,14 @@ export default function Onboarding() {
     if (currentStep !== 5 || planOffering || plansLoading || Platform.OS !== 'ios') return;
     setPlansLoading(true);
     setPlansError(false);
+    console.log('[RevenueCat] fetching offerings');
     Purchases.getOfferings()
-      .then(o => setPlanOffering(o.current))
+      .then(o => {
+        console.log('[RevenueCat] offerings result — current:', o.current?.identifier ?? 'null', '| availablePackages:', JSON.stringify(o.current?.availablePackages?.map(p => ({ id: p.identifier, product: p.product.identifier }))));
+        setPlanOffering(o.current);
+      })
       .catch((err) => {
-        console.error('[RevenueCat] getOfferings failed:', JSON.stringify(err));
+        console.error('[RevenueCat] getOfferings failed — code:', err?.code, '| message:', err?.message, '| full:', JSON.stringify(err));
         setPlansError(true);
       })
       .finally(() => setPlansLoading(false));
@@ -154,6 +158,7 @@ export default function Onboarding() {
       if (msg.includes('NOT_IOS')) {
         Alert.alert('Apple Health', 'Apple Health is only available on iOS.');
       } else if (msg.includes('MODULE_UNAVAILABLE')) {
+        console.error('[HealthKit] MODULE_UNAVAILABLE in handleConnectHealth. Full error:', err, '| message:', msg);
         Alert.alert('Apple Health', 'Apple Health setup is unavailable in this build. Please reinstall from TestFlight.');
       } else {
         Alert.alert('Apple Health', "Apple Health setup didn't complete. You can connect it later in Settings.");
@@ -785,7 +790,7 @@ export default function Onboarding() {
                             Purchases.getOfferings()
                               .then(o => setPlanOffering(o.current))
                               .catch((err) => {
-                                console.error('[RevenueCat] getOfferings retry failed:', JSON.stringify(err));
+                                console.error('[RevenueCat] getOfferings retry failed — code:', err?.code, '| message:', err?.message, '| full:', JSON.stringify(err));
                                 setPlansError(true);
                               })
                               .finally(() => setPlansLoading(false));

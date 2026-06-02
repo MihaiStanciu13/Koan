@@ -10,12 +10,13 @@ import { ErrorBoundary } from '../components/ErrorBoundary';
 
 // Configure RevenueCat once at module load, before any child component can call it.
 if (Platform.OS === 'ios') {
+  const rcKey = process.env.EXPO_PUBLIC_REVENUECAT_API_KEY ?? '';
+  console.log('[RevenueCat] configuring with key prefix:', rcKey.slice(0, 12) || '(empty — EXPO_PUBLIC_REVENUECAT_API_KEY not set)');
   try {
-    Purchases.configure({
-      apiKey: process.env.EXPO_PUBLIC_REVENUECAT_API_KEY ?? '',
-    });
+    Purchases.configure({ apiKey: rcKey });
+    console.log('[RevenueCat] configure complete');
   } catch (e) {
-    console.warn('RevenueCat configure failed:', e);
+    console.error('[RevenueCat] configure failed:', e);
   }
 }
 
