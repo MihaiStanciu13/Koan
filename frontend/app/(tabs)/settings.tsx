@@ -16,7 +16,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useAuth } from '../../contexts/AuthContext';
 import { preferencesAPI, subscriptionAPI, authAPI, calendarAPI, microsoftAPI } from '../../services/api';
-import { requestHealthKitPermissions } from '../../services/healthKit';
+import { requestHealthKitPermissions, finalizeHealthKitSetup } from '../../services/healthKit';
 import * as WebBrowser from 'expo-web-browser';
 
 const WORKPLACE_TOOLS = [
@@ -141,6 +141,8 @@ export default function SettingsScreen() {
       } else {
         try {
           await requestHealthKitPermissions();
+          // Deferred, fully-guarded native follow-up (test getter + observers).
+          finalizeHealthKitSetup();
           const newTools = [...connectedTools, 'apple_health'];
           setConnectedTools(newTools);
           await updatePreference('connected_tools', newTools);

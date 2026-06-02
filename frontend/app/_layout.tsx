@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { Platform } from 'react-native';
+import { Platform, View } from 'react-native';
 import { Stack, router } from 'expo-router';
 import Purchases from 'react-native-purchases';
 import { AuthProvider, useAuth } from '../contexts/AuthContext';
@@ -54,6 +54,15 @@ function RootLayoutNav() {
 
     wasAuthenticated.current = isAuthenticated;
   }, [isAuthenticated, isExpired, loading]);
+
+  // Root ready gate: until the auth/token check resolves, render a blank
+  // background-colored view instead of the navigator. This prevents the Stack
+  // from mounting and painting its default initial route (index) before we
+  // know where the user should go — the race that caused the screen flash on
+  // first open, after auth, and before the first onboarding screen.
+  if (loading) {
+    return <View style={{ flex: 1, backgroundColor: '#FAFDFA' }} />;
+  }
 
   return (
     <Stack screenOptions={{ headerShown: false }}>

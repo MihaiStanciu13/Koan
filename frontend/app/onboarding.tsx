@@ -21,7 +21,7 @@ import Svg, { Rect } from 'react-native-svg';
 import Purchases, { PurchasesOffering } from 'react-native-purchases';
 import { storage } from '../services/storage';
 import { calendarAPI, microsoftAPI, preferencesAPI } from '../services/api';
-import { requestHealthKitPermissions, registerHealthKitObservers } from '../services/healthKit';
+import { requestHealthKitPermissions, finalizeHealthKitSetup } from '../services/healthKit';
 import { requestScreenTimeAuthorization } from '../services/screenTime';
 import Spacer from '../components/Spacer';
 
@@ -142,8 +142,12 @@ export default function Onboarding() {
   const handleConnectHealth = async () => {
     try {
       await requestHealthKitPermissions();
-      registerHealthKitObservers();
+      // Update UI immediately (JS-only). Do NOT call any native HealthKit
+      // follow-up here — finalizeHealthKitSetup defers all post-init native
+      // interaction (test getter + observers) by 2s off the init callback
+      // chain, which is the NSRangeException crash window.
       setHealthConnected(true);
+      finalizeHealthKitSetup();
       try {
         const prefs = await preferencesAPI.get();
         const existing: string[] = prefs.connected_tools || [];

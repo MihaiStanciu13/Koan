@@ -34,6 +34,20 @@ let HealthKitAvailable = false;
 // module with NSRangeException on com.facebook.react.AppleHealthKitQueue.
 let healthKitInitialized = false;
 
+// Stronger gate than healthKitInitialized: flips true only after a single test
+// getter (getStepCount) actually succeeds, proving the native HKHealthStore is
+// fully settled and queryable. ALL production data collection and background
+// delivery (observer) setup must gate on this, not just healthKitInitialized.
+let isHealthKitFullyReady = false;
+
+// Delay before any post-init native interaction, to let native HealthKit state
+// settle after the authorization sheet is dismissed. Calling setObserver /
+// getters immediately inside the initHealthKit success callback is a known
+// trigger for NSRangeException on com.facebook.react.AppleHealthKitQueue.
+const POST_INIT_SETTLE_MS = 2000;
+
+const delay = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
+
 if (Platform.OS === 'ios') {
   try {
     // react-native-health uses module.exports (CommonJS) — no .default property.
@@ -158,62 +172,163 @@ export async function requestHealthKitPermissions(): Promise<boolean> {
 }
 
 /**
- * Register HKObserverQuery observers for key health types so iOS can wake
- * the app in the background when new data arrives.
- *
- * IMPORTANT: This is a no-op unless initHealthKit has already SUCCEEDED in the
- * current session. Calling setObserver on types that were never initialized
- * crashes the native module with NSRangeException (index beyond bounds) on
- * com.facebook.react.AppleHealthKitQueue. Native background delivery for
- * already-authorized users is handled separately in AppDelegate.swift, so it
- * is safe for this to do nothing on a cold launch.
+ * Read the HealthKit authorization status for a SINGLE permission type.
+ * Returns the numeric status (0 = NotDetermined, 1 = SharingDenied,
+ * 2 = SharingAuthorized) or null if it cannot be determined. Fully wrapped —
+ * never throws. Querying status for a denied type and then registering an
+ * observer on it is a known NSRangeException trigger, so callers must check
+ * this and skip non-authorized types.
  */
-export function registerHealthKitObservers(): void {
+async function getAuthStatusForType(type: string): Promise<number | null> {
+  if (!HealthKitAvailable || typeof AppleHealthKit?.getAuthStatus !== 'function') {
+    return null;
+  }
+  return new Promise((resolve) => {
+    try {
+      AppleHealthKit.getAuthStatus(
+        { permissions: { read: [type], write: [] } },
+        (err: any, results: any) => {
+          if (err) {
+            console.error('[HealthKit] post-init failure — getAuthStatus error for', type, ':', err);
+            resolve(null);
+          } else {
+            const status = results?.permissions?.read?.[0];
+            resolve(typeof status === 'number' ? status : null);
+          }
+        }
+      );
+    } catch (e) {
+      console.error('[HealthKit] post-init failure — getAuthStatus threw for', type, ':', e);
+      resolve(null);
+    }
+  });
+}
+
+/**
+ * Run a single lightweight test getter (getStepCount, empty options) to prove
+ * the native store is fully settled and queryable. On success flips
+ * isHealthKitFullyReady. Fully wrapped — never throws.
+ */
+async function runHealthKitTestGetter(): Promise<boolean> {
+  if (!HealthKitAvailable || typeof AppleHealthKit?.getStepCount !== 'function') {
+    return false;
+  }
+  return new Promise((resolve) => {
+    try {
+      AppleHealthKit.getStepCount({}, (err: any) => {
+        if (err) {
+          console.error('[HealthKit] post-init failure — test getter (getStepCount) returned error:', err);
+          resolve(false);
+        } else {
+          isHealthKitFullyReady = true;
+          console.log('[HealthKit] test getter succeeded — isHealthKitFullyReady = true');
+          resolve(true);
+        }
+      });
+    } catch (e) {
+      console.error('[HealthKit] post-init failure — test getter (getStepCount) threw:', e);
+      resolve(false);
+    }
+  });
+}
+
+/**
+ * Register HKObserverQuery observers for key health types so iOS can wake the
+ * app in the background when new data arrives.
+ *
+ * Defensive: no-op unless isHealthKitFullyReady (test getter passed). For each
+ * type it first checks getAuthStatus and only registers when the type is
+ * explicitly authorized — denied/undetermined types are skipped silently, as
+ * they are a known NSRangeException trigger. Every native call is individually
+ * wrapped; a failure on one type never affects the others or crashes.
+ */
+export async function registerHealthKitObservers(): Promise<void> {
   if (Platform.OS !== 'ios' || !HealthKitAvailable) return;
-  if (!healthKitInitialized) {
-    console.log('[HealthKit] skipping observer registration — initHealthKit has not succeeded this session');
+  if (!isHealthKitFullyReady) {
+    console.log('[HealthKit] skipping observer registration — HealthKit not fully ready (test getter has not passed)');
     return;
   }
   const P = AppleHealthKit?.Constants?.Permissions;
   if (!P) return;
+  const SHARING_AUTHORIZED = 2;
   const observedTypes = ['Steps', 'SleepAnalysis', 'HeartRateVariability', 'RestingHeartRate', 'ActiveEnergyBurned']
     .map((key) => P[key])
     .filter((v: unknown): v is string => typeof v === 'string' && v.length > 0);
-  observedTypes.forEach((type) => {
+
+  for (const type of observedTypes) {
     try {
+      const status = await getAuthStatusForType(type);
+      if (status !== SHARING_AUTHORIZED) {
+        console.log('[HealthKit] skipping observer for', type, '— status not authorized:', status);
+        continue;
+      }
       AppleHealthKit.setObserver({ type }, () => {
         // Collect and forward data whenever HealthKit wakes us
         collectAndSendHealthData().catch(() => {});
       });
     } catch (e) {
-      console.warn(`HealthKit observer registration failed for ${type}:`, e);
+      console.error('[HealthKit] post-init failure — observer registration failed for', type, ':', e);
+      // continue silently to the next type
     }
-  });
+  }
+}
+
+/**
+ * Post-authorization finalization. MUST be the only thing that touches native
+ * HealthKit after a successful initHealthKit. Deferred by POST_INIT_SETTLE_MS
+ * so it never runs inside the init success callback chain (the crash window).
+ * Runs the test getter to set isHealthKitFullyReady, then registers observers.
+ * Fire-and-forget; never throws.
+ */
+export function finalizeHealthKitSetup(): void {
+  if (Platform.OS !== 'ios' || !HealthKitAvailable) return;
+  setTimeout(() => {
+    (async () => {
+      try {
+        const ready = await runHealthKitTestGetter();
+        if (!ready) {
+          console.error('[HealthKit] post-init failure — finalize aborted, test getter did not pass');
+          return;
+        }
+        await registerHealthKitObservers();
+      } catch (e) {
+        console.error('[HealthKit] post-init failure — finalize threw:', e);
+      }
+    })();
+  }, POST_INIT_SETTLE_MS);
 }
 
 export async function collectAndSendHealthData(): Promise<void> {
   if (Platform.OS !== 'ios') return;
   if (!HealthKitAvailable) return;
 
-  // Never call native HealthKit getters unless the user has authorized
-  // HealthKit. This runs automatically on the home tab at launch, so for a
-  // user who never connected (session flag false, no persisted flag) we must
-  // skip silently — touching the native module before initHealthKit risks the
-  // same NSRangeException crash we fixed in the observer path.
-  if (!healthKitInitialized) {
-    const previouslyAuthorized = await wasHealthKitPreviouslyAuthorized();
-    if (!previouslyAuthorized) {
-      console.log('[HealthKit] collectAndSendHealthData skipped — not authorized this session and no persisted authorization');
-      return;
+  // Production collection gates on isHealthKitFullyReady (a passed test getter),
+  // not just healthKitInitialized. This runs automatically on the home tab at
+  // launch, so for a user who never connected we skip silently — touching the
+  // native module before init risks the same NSRangeException crash.
+  if (!isHealthKitFullyReady) {
+    if (!healthKitInitialized) {
+      const previouslyAuthorized = await wasHealthKitPreviouslyAuthorized();
+      if (!previouslyAuthorized) {
+        console.log('[HealthKit] collectAndSendHealthData skipped — not authorized this session and no persisted authorization');
+        return;
+      }
+      // Authorized in a prior session, but HKHealthStore isn't set up this
+      // session yet. Re-run the safe init path (no re-prompt for already-
+      // authorized users; this is NOT the setObserver path that crashed).
+      try {
+        await requestHealthKitPermissions();
+      } catch (e) {
+        console.warn('[HealthKit] re-init for previously-authorized user failed; skipping collection:', e);
+        return;
+      }
+      // Let native state settle before the first query after a fresh init.
+      await delay(POST_INIT_SETTLE_MS);
     }
-    // Authorized in a prior session, but HKHealthStore isn't set up this
-    // session yet. Re-run the safe init path (no re-prompt for already-
-    // authorized users; this is NOT the setObserver path that crashed) so the
-    // getters below have a valid health store. Skip collection if it fails.
-    try {
-      await requestHealthKitPermissions();
-    } catch (e) {
-      console.warn('[HealthKit] re-init for previously-authorized user failed; skipping collection:', e);
+    // Prove the store is queryable before reading production data.
+    const ready = await runHealthKitTestGetter();
+    if (!ready) {
+      console.error('[HealthKit] post-init failure — collectAndSendHealthData skipped, test getter did not pass');
       return;
     }
   }
@@ -231,8 +346,17 @@ export async function collectAndSendHealthData(): Promise<void> {
     endDate: endOfYesterday.toISOString(),
   };
 
+  // Each native getter invocation is individually wrapped: if the native call
+  // throws synchronously, resolve null instead of letting it crash the chain.
   const getAsync = <T>(fn: (opts: any, cb: (err: string, res: T) => void) => void, opts: any): Promise<T | null> =>
-    new Promise((resolve) => fn(opts, (err, res) => resolve(err ? null : res)));
+    new Promise((resolve) => {
+      try {
+        fn(opts, (err, res) => resolve(err ? null : res));
+      } catch (e) {
+        console.error('[HealthKit] post-init failure — native getter threw:', e);
+        resolve(null);
+      }
+    });
 
   // Steps
   let steps: number | undefined;
