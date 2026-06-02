@@ -289,7 +289,7 @@ export default function Onboarding() {
 
   const renderPhoneSignals = () => (
     <>
-      <Text style={styles.sectionLabel}>THIS IS WHERE KOAN BEGINS</Text>
+      <Text style={styles.sectionLabel}>PHONE & HEALTH SIGNALS</Text>
       <Text style={styles.screenTitle}>This is where Koan begins</Text>
       <Text style={styles.screenSubtitle}>
         Koan's nudges are only as good as the signals behind them. Phone patterns — how often you reach for your device, how your attention moves through the day — are the foundation everything else builds on. Apple Health adds energy and recovery context on top.
@@ -362,6 +362,22 @@ export default function Onboarding() {
       <Text style={styles.permissionsReassurance}>
         Read-only. Nothing is recorded without permission.
       </Text>
+      <View style={styles.alwaysOnCard}>
+        <Text style={styles.alwaysOnHeader}>Read-only · App usage</Text>
+        {[
+          { name: 'App categories', desc: 'How your time splits across work, social, and entertainment.' },
+          { name: 'Focus drift', desc: 'When attention scatters across too many apps.' },
+          { name: 'Daily totals', desc: 'Total time on screen, without tracking specific sites.' },
+        ].map((signal, i) => (
+          <View key={i} style={[styles.signalRow, i > 0 && styles.signalRowBorder]}>
+            <View style={styles.signalDot} />
+            <View style={styles.signalTextBlock}>
+              <Text style={styles.signalName}>{signal.name}</Text>
+              <Text style={styles.signalDesc}>{signal.desc}</Text>
+            </View>
+          </View>
+        ))}
+      </View>
       <View style={styles.integrationCard}>
         <View style={styles.integrationHeader}>
           <View style={[styles.emojiIconContainer, { backgroundColor: '#F0F4FF' }]}>
@@ -398,6 +414,22 @@ export default function Onboarding() {
       <Text style={styles.screenSubtitle}>
         Connect what you use. Koan reads meeting load and rhythm — never schedules, never edits.
       </Text>
+      <View style={styles.alwaysOnCard}>
+        <Text style={styles.alwaysOnHeader}>Read-only · Calendar signals</Text>
+        {[
+          { name: 'Meeting load', desc: 'How packed your days are, back-to-back density.' },
+          { name: 'Transition time', desc: 'Gaps between meetings, or the lack of them.' },
+          { name: 'Rhythm', desc: 'Heavy days, recovery days, and weekly patterns.' },
+        ].map((signal, i) => (
+          <View key={i} style={[styles.signalRow, i > 0 && styles.signalRowBorder]}>
+            <View style={styles.signalDot} />
+            <View style={styles.signalTextBlock}>
+              <Text style={styles.signalName}>{signal.name}</Text>
+              <Text style={styles.signalDesc}>{signal.desc}</Text>
+            </View>
+          </View>
+        ))}
+      </View>
       <View style={styles.integrationCard}>
         <View style={styles.integrationHeader}>
           <View style={{ width: 32, height: 32, borderRadius: 8, overflow: 'hidden' }}>
