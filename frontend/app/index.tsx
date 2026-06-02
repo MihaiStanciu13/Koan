@@ -430,7 +430,7 @@ export default function Index() {
     }
   };
 
-  if (!splashCheckDone && !user && !loading) return null;
+  if (!splashCheckDone && !user && !loading) return <View style={{ flex: 1, backgroundColor: '#FAFDFA' }} />;
 
   // Show loading while checking auth
   if (loading) {

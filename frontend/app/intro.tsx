@@ -64,7 +64,10 @@ const SCREENS: {
 
 export default function IntroScreen() {
   const [step, setStep] = useState(0);
+  const [ready, setReady] = useState(false);
   const router = useRouter();
+
+  useEffect(() => { setReady(true); }, []);
 
   // Breathing dot animation (same as splash.tsx)
   const pulseScale = useRef(new Animated.Value(1)).current;
@@ -109,6 +112,8 @@ export default function IntroScreen() {
   const handleLogIn = () => {
     router.navigate({ pathname: '/', params: { auth: 'login' } } as any);
   };
+
+  if (!ready) return <View style={{ flex: 1, backgroundColor: '#FAFDFA' }} />;
 
   return (
     <SafeAreaView style={styles.container}>
