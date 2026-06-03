@@ -41,9 +41,9 @@ async def record_phone_behavior(
         )
         
         await db.phone_behaviors.insert_one(behavior.dict())
-        
+
         # Check if we should trigger a nudge based on this behavior
-        await check_behavior_triggers(db, current_user.id, event.event_type)
+        await check_behavior_triggers(db, current_user.id, event.event_type, event.metadata)
         
         return {"status": "recorded", "timestamp": behavior.timestamp}
     except Exception as e:
@@ -113,17 +113,18 @@ async def get_behavior_summary(
         logger.error(f"Error getting behavior summary: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
-async def check_behavior_triggers(db: AsyncIOMotorDatabase, user_id: str, event_type: str):
+async def check_behavior_triggers(db: AsyncIOMotorDatabase, user_id: str, event_type: str, metadata: Dict = None):
     """Check if behavior should trigger a nudge"""
     from nudge_engine import create_nudge
-    
+    metadata = metadata or {}
+
     # Get recent behaviors to detect patterns
     recent_cutoff = datetime.utcnow() - timedelta(minutes=30)
     recent_behaviors = await db.phone_behaviors.find({
         "user_id": user_id,
         "timestamp": {"$gte": recent_cutoff}
     }).to_list(100)
-    
+
     # Context-switch fatigue: rapid app switches
     if event_type == "app_switch":
         switch_count = sum(1 for b in recent_behaviors if b["event_type"] == "app_switch")
@@ -131,7 +132,7 @@ async def check_behavior_triggers(db: AsyncIOMotorDatabase, user_id: str, event_
             await create_nudge(db, user_id, "context_switch", {
                 "switch_count": switch_count
             })
-    
+
     # Energy drift: repeated pickups
     if event_type == "pickup":
         pickup_count = sum(1 for b in recent_behaviors if b["event_type"] == "pickup")
@@ -139,9 +140,28 @@ async def check_behavior_triggers(db: AsyncIOMotorDatabase, user_id: str, event_
             await create_nudge(db, user_id, "energy_drift", {
                 "pickup_count": pickup_count
             })
-    
+
     # Late night usage
     if event_type == "late_night":
         await create_nudge(db, user_id, "late_night", {
             "time": datetime.utcnow().strftime("%H:%M")
         })
+
+    # Device-wide Screen Time threshold crossings (iOS DeviceActivityMonitor).
+    # Coarse, honest signal: the user crossed one of their own chosen-app limits.
+    # Single combined bucket — we know a limit was crossed and the threshold tier,
+    # not the specific app category (iOS does not expose nameable categories).
+    if event_type == "screen_time_thresholds":
+        crossings = metadata.get("screen_time_thresholds_crossed_today", []) or []
+        max_threshold = 0
+        for c in crossings:
+            try:
+                max_threshold = max(max_threshold, int(c.get("threshold_minutes", 0)))
+            except (ValueError, TypeError):
+                continue
+        # Only nudge on a meaningful crossing to preserve restraint.
+        if max_threshold >= 90:
+            await create_nudge(db, user_id, "attention_limit", {
+                "threshold_minutes": max_threshold,
+                "crossings": len(crossings),
+            })

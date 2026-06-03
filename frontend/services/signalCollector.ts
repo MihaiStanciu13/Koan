@@ -1,9 +1,11 @@
 import { AppState, AppStateStatus } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { healthAPI } from './api';
+import { healthAPI, behaviorAPI } from './api';
+import { getScreenTimeThresholdsCrossedToday } from './screenTime';
 
 const STORAGE_KEY = 'koan_daily_signal';
 const PICKUP_KEY = 'koan_pickups';
+const ST_POSTED_KEY = 'koan_st_thresholds_posted';
 
 interface DailySignal {
   date: string;
@@ -59,6 +61,39 @@ async function onAppForeground() {
     signal.first_pickup_time = now;
   }
   await saveSignal(signal);
+
+  // Device-wide Screen Time threshold crossings (iOS DeviceActivityMonitor).
+  // Coarse, honest signal: which of the user's chosen-app limits were crossed
+  // today. Fire-and-forget; deduped so we don't re-post the same crossings.
+  reportScreenTimeThresholds().catch(() => {});
+}
+
+// Read today's threshold crossings from the monitor extension and POST any new
+// ones to the behavior endpoint. Deduped per day by event name.
+async function reportScreenTimeThresholds() {
+  const crossings = getScreenTimeThresholdsCrossedToday();
+  if (crossings.length === 0) return;
+
+  const todayStr = today();
+  const raw = await AsyncStorage.getItem(ST_POSTED_KEY);
+  const stored = raw ? JSON.parse(raw) : null;
+  const postedNames: string[] =
+    stored && stored.date === todayStr ? stored.event_names || [] : [];
+
+  const hasNew = crossings.some((c) => !postedNames.includes(c.event_name));
+  if (!hasNew) return;
+
+  try {
+    await behaviorAPI.recordPhoneBehavior('screen_time_thresholds', {
+      screen_time_thresholds_crossed_today: crossings,
+    });
+    await AsyncStorage.setItem(
+      ST_POSTED_KEY,
+      JSON.stringify({ date: todayStr, event_names: crossings.map((c) => c.event_name) })
+    );
+  } catch {
+    // fail silently — will retry next foreground
+  }
 }
 
 async function onAppBackground() {

@@ -19,9 +19,16 @@ import * as WebBrowser from 'expo-web-browser';
 import * as Notifications from 'expo-notifications';
 import Svg, { Rect } from 'react-native-svg';
 import Purchases, { PurchasesOffering } from 'react-native-purchases';
+import { DeviceActivitySelectionSheetViewPersisted } from 'react-native-device-activity';
 import { storage } from '../services/storage';
 import { calendarAPI, microsoftAPI, preferencesAPI } from '../services/api';
 import { requestHealthKitPermissions, finalizeHealthKitSetup } from '../services/healthKit';
+import {
+  requestScreenTimeAuthorization,
+  registerScreenTimeThresholds,
+  hasScreenTimeSelection,
+  SCREEN_TIME_SELECTION_ID,
+} from '../services/screenTime';
 import Spacer from '../components/Spacer';
 
 const { width: screenWidth } = Dimensions.get('window');
@@ -67,6 +74,8 @@ export default function Onboarding() {
   const router = useRouter();
   const [currentStep, setCurrentStep] = useState(0);
   const [healthConnected, setHealthConnected] = useState(false);
+  const [screenTimeConnected, setScreenTimeConnected] = useState(false);
+  const [stPickerVisible, setStPickerVisible] = useState(false);
   const [gCalConnected, setGCalConnected] = useState(false);
   const [msConnected, setMsConnected] = useState(false);
   const [selectedAnchors, setSelectedAnchors] = useState<string[]>([]);
@@ -101,7 +110,7 @@ export default function Onboarding() {
   // Pre-fetch RC offerings when the ready screen is reached so plan cards
   // are available the moment the user taps "See all plans".
   useEffect(() => {
-    if (currentStep !== 4 || planOffering || plansLoading || Platform.OS !== 'ios') return;
+    if (currentStep !== 5 || planOffering || plansLoading || Platform.OS !== 'ios') return;
     setPlansLoading(true);
     setPlansError(false);
     console.log('[RevenueCat] fetching offerings');
@@ -159,6 +168,42 @@ export default function Onboarding() {
     }
   };
 
+  // Screen Time: authorize Family Controls, then present the system picker so
+  // the user chooses which apps/categories to monitor (iOS categories aren't
+  // nameable — a selection is required to attach thresholds to). On picker
+  // dismiss we register the threshold events against that selection.
+  const handleAuthorizeScreenTime = async () => {
+    try {
+      const granted = await requestScreenTimeAuthorization();
+      if (!granted) {
+        Alert.alert('Screen Time', 'Screen Time is only available on iOS.');
+        return;
+      }
+      setStPickerVisible(true);
+    } catch {
+      Alert.alert('Screen Time', "Screen Time setup didn't complete. You can connect it later.");
+    }
+  };
+
+  const handleScreenTimePickerDismiss = async () => {
+    setStPickerVisible(false);
+    // Register thresholds only if the user actually picked something.
+    if (!hasScreenTimeSelection()) return;
+    const ok = await registerScreenTimeThresholds();
+    if (ok) {
+      setScreenTimeConnected(true);
+      try {
+        const prefs = await preferencesAPI.get();
+        const existing: string[] = prefs.connected_tools || [];
+        if (!existing.includes('screen_time')) {
+          await preferencesAPI.update({ connected_tools: [...existing, 'screen_time'] });
+        }
+      } catch {
+        // non-fatal
+      }
+    }
+  };
+
   const handleConnectGCal = async () => {
     try {
       const { auth_url } = await calendarAPI.getAuthUrl();
@@ -207,7 +252,7 @@ export default function Onboarding() {
 
   const handleEnableNotifications = async () => {
     await Notifications.requestPermissionsAsync();
-    slideToStep(3);
+    slideToStep(4);
   };
 
   const toggleAnchor = (chip: string) => {
@@ -233,7 +278,7 @@ export default function Onboarding() {
         // Don't block navigation on failure
       }
     }
-    slideToStep(4);
+    slideToStep(5);
   };
 
   const handleBegin = () => {
@@ -247,7 +292,7 @@ export default function Onboarding() {
   // ── Header ──────────────────────────────────────────────────────────────
 
   const renderHeader = () => {
-    if (currentStep === 4) {
+    if (currentStep === 5) {
       return (
         <View style={styles.headerCentered}>
           <Text style={styles.wordmarkCentered}>Koan</Text>
@@ -268,7 +313,7 @@ export default function Onboarding() {
         </View>
         <Text style={styles.wordmark}>Koan</Text>
         <View style={styles.dotsRow}>
-          {[0, 1, 2, 3, 4].map(i => (
+          {[0, 1, 2, 3, 4, 5].map(i => (
             <View
               key={i}
               style={[
@@ -323,7 +368,47 @@ export default function Onboarding() {
     </>
   );
 
-  // ── Screen 1: Work tools ─────────────────────────────────────────────────
+  // ── Screen 1: Screen Time (DeviceActivityMonitor thresholds) ─────────────
+
+  const renderScreenTime = () => (
+    <>
+      <Text style={styles.sectionLabel}>WHERE YOUR ATTENTION GOES</Text>
+      <Text style={styles.screenTitle}>When your day tips toward the unintentional</Text>
+      <Text style={styles.screenSubtitle}>
+        Screen Time lets Koan notice when your time on social media, entertainment, or games crosses your own limits — not to count minutes, but to recognize patterns worth pausing on. Categories only. Read-only.
+      </Text>
+      <Text style={styles.permissionsReassurance}>
+        Read-only. Nothing is recorded without permission.
+      </Text>
+      <View style={styles.integrationCard}>
+        <View style={styles.integrationHeader}>
+          <View style={[styles.emojiIconContainer, { backgroundColor: '#F0F4FF' }]}>
+            <Text style={styles.emojiIcon}>📱</Text>
+          </View>
+          <View style={styles.integrationInfo}>
+            <Text style={styles.integrationName}>Screen Time</Text>
+            <Text style={styles.integrationSubtext}>Category thresholds · Read-only</Text>
+          </View>
+        </View>
+        <Text style={styles.integrationDesc}>
+          You choose which apps to watch. Koan only learns when a limit is crossed — never the minute-by-minute detail.
+        </Text>
+        <TouchableOpacity
+          style={[styles.connectButton, screenTimeConnected && styles.connectedButton]}
+          onPress={handleAuthorizeScreenTime}
+          disabled={screenTimeConnected}
+          activeOpacity={0.8}
+        >
+          <Text style={[styles.connectButtonText, screenTimeConnected && styles.connectedButtonText]}>
+            {screenTimeConnected ? '✓ Authorized' : 'Authorize Screen Time'}
+          </Text>
+        </TouchableOpacity>
+      </View>
+      <Spacer minHeight={16} />
+    </>
+  );
+
+  // ── Screen 2: Work tools ─────────────────────────────────────────────────
 
   const renderWorkTools = () => (
     <>
@@ -526,22 +611,33 @@ export default function Onboarding() {
               <Text style={styles.primaryButtonText}>Continue</Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.ghostButton} onPress={() => slideToStep(2)} activeOpacity={0.6}>
-              <Text style={styles.ghostButtonText}>Skip for now</Text>
+              <Text style={styles.ghostButtonText}>Skip</Text>
             </TouchableOpacity>
           </>
         );
       case 2:
         return (
           <>
-            <TouchableOpacity style={styles.primaryButton} onPress={handleEnableNotifications} activeOpacity={0.8}>
-              <Text style={styles.primaryButtonText}>Enable notifications</Text>
+            <TouchableOpacity style={styles.primaryButton} onPress={() => slideToStep(3)} activeOpacity={0.8}>
+              <Text style={styles.primaryButtonText}>Continue</Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.ghostButton} onPress={() => slideToStep(3)} activeOpacity={0.6}>
-              <Text style={styles.ghostButtonText}>Not now</Text>
+              <Text style={styles.ghostButtonText}>Skip for now</Text>
             </TouchableOpacity>
           </>
         );
       case 3:
+        return (
+          <>
+            <TouchableOpacity style={styles.primaryButton} onPress={handleEnableNotifications} activeOpacity={0.8}>
+              <Text style={styles.primaryButtonText}>Enable notifications</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.ghostButton} onPress={() => slideToStep(4)} activeOpacity={0.6}>
+              <Text style={styles.ghostButtonText}>Not now</Text>
+            </TouchableOpacity>
+          </>
+        );
+      case 4:
         return (
           <>
             <TouchableOpacity
@@ -552,12 +648,12 @@ export default function Onboarding() {
             >
               <Text style={styles.primaryButtonText}>Continue</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.ghostButton} onPress={() => slideToStep(4)} activeOpacity={0.6}>
+            <TouchableOpacity style={styles.ghostButton} onPress={() => slideToStep(5)} activeOpacity={0.6}>
               <Text style={styles.ghostButtonText}>Set this later</Text>
             </TouchableOpacity>
           </>
         );
-      case 4:
+      case 5:
         return (
           <>
             <TouchableOpacity style={styles.beginButton} onPress={handleBegin} activeOpacity={0.8}>
@@ -585,10 +681,11 @@ export default function Onboarding() {
         >
           <Animated.View style={{ transform: [{ translateX: slideAnim }] }}>
             {currentStep === 0 && renderAppleHealth()}
-            {currentStep === 1 && renderWorkTools()}
-            {currentStep === 2 && renderNotifications()}
-            {currentStep === 3 && renderAnchor()}
-            {currentStep === 4 && renderReady()}
+            {currentStep === 1 && renderScreenTime()}
+            {currentStep === 2 && renderWorkTools()}
+            {currentStep === 3 && renderNotifications()}
+            {currentStep === 4 && renderAnchor()}
+            {currentStep === 5 && renderReady()}
           </Animated.View>
         </ScrollView>
         <View style={{ paddingHorizontal: 20, paddingBottom: 28, paddingTop: 8, gap: 6 }}>
@@ -696,6 +793,20 @@ export default function Onboarding() {
           </View>
         </View>
       </Modal>
+
+      {/* System FamilyActivityPicker — lets the user choose which apps/categories
+          to monitor. The library persists the selection under SCREEN_TIME_SELECTION_ID;
+          on dismiss we register the threshold events against it. */}
+      {stPickerVisible && Platform.OS === 'ios' && (
+        <DeviceActivitySelectionSheetViewPersisted
+          familyActivitySelectionId={SCREEN_TIME_SELECTION_ID}
+          includeEntireCategory
+          headerText="Choose the apps that pull at your attention"
+          footerText="Koan only learns when a limit is crossed — never the detail."
+          onDismissRequest={handleScreenTimePickerDismiss}
+          style={{ position: 'absolute', width: 0, height: 0 }}
+        />
+      )}
     </SafeAreaView>
   );
 }

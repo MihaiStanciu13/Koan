@@ -97,6 +97,19 @@ NUDGE_TEMPLATES = {
             "no motivational language, no pressure. Tone: quiet affirmation."
         )
     },
+    # attention_limit: a device-wide Screen Time threshold the user set for
+    # their own distracting apps was crossed today (coarse, category-less signal).
+    # Example outputs:
+    #   "The apps you flagged have had more of today than you meant to give."
+    #   "Past the line you drew for yourself. Worth a glance, not a verdict."
+    "attention_limit": {
+        "title": "A line you drew",
+        "prompt": (
+            "The apps the user themselves chose to watch crossed {threshold_minutes} minutes today. "
+            "Write one calm observation (10-15 words) about attention drifting past a self-set limit — "
+            "no advice, no scolding, no numbers. Tone: quiet, like a sentence you'd underline in a book."
+        )
+    },
 }
 
 async def create_nudge(db: AsyncIOMotorDatabase, user_id: str, nudge_type: str, context: Dict):
