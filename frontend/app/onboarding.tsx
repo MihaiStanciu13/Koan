@@ -114,13 +114,16 @@ export default function Onboarding() {
     setPlansLoading(true);
     setPlansError(false);
     console.log('[RevenueCat] fetching offerings');
+    console.log('[RC-DEBUG] onboarding(ready screen): calling getOfferings | step:', currentStep, '| ts:', new Date().toISOString());
     Purchases.getOfferings()
       .then(o => {
         console.log('[RevenueCat] offerings result — current:', o.current?.identifier ?? 'null', '| availablePackages:', JSON.stringify(o.current?.availablePackages?.map(p => ({ id: p.identifier, product: p.product.identifier }))));
+        console.log('[RC-DEBUG] onboarding: getOfferings RESOLVED | current:', o.current?.identifier ?? 'null', '| pkgCount:', o.current?.availablePackages?.length ?? 0, '| allOfferingKeys:', JSON.stringify(Object.keys(o.all ?? {})), '| full:', JSON.stringify(o));
         setPlanOffering(o.current);
       })
-      .catch((err) => {
+      .catch((err: any) => {
         console.error('[RevenueCat] getOfferings failed — code:', err?.code, '| message:', err?.message, '| full:', JSON.stringify(err));
+        console.log('[RC-DEBUG] onboarding: getOfferings ERROR | code:', err?.code, '| underlyingErrorMessage:', err?.underlyingErrorMessage, '| message:', err?.message, '| full:', JSON.stringify(err));
         setPlansError(true);
       })
       .finally(() => setPlansLoading(false));
@@ -704,6 +707,7 @@ export default function Onboarding() {
               const monthly = planOffering?.monthly;
               const yearly = planOffering?.annual;
               const lifetime = planOffering?.lifetime;
+              console.log('[RC-DEBUG] onboarding plans-modal render | planOffering:', planOffering?.identifier ?? 'NULL', '| monthly:', !!monthly, '| yearly:', !!yearly, '| lifetime:', !!lifetime, '| plansLoading:', plansLoading, '| plansError:', plansError);
               const savingsPct = (() => {
                 const y = yearly?.product.price;
                 const m = monthly?.product.price;
@@ -768,10 +772,15 @@ export default function Onboarding() {
                           onPress={() => {
                             setPlansError(false);
                             setPlansLoading(true);
+                            console.log('[RC-DEBUG] onboarding RETRY: calling getOfferings | ts:', new Date().toISOString());
                             Purchases.getOfferings()
-                              .then(o => setPlanOffering(o.current))
-                              .catch((err) => {
+                              .then(o => {
+                                console.log('[RC-DEBUG] onboarding RETRY resolved | current:', o.current?.identifier ?? 'null', '| pkgCount:', o.current?.availablePackages?.length ?? 0, '| full:', JSON.stringify(o));
+                                setPlanOffering(o.current);
+                              })
+                              .catch((err: any) => {
                                 console.error('[RevenueCat] getOfferings retry failed — code:', err?.code, '| message:', err?.message, '| full:', JSON.stringify(err));
+                                console.log('[RC-DEBUG] onboarding RETRY ERROR | code:', err?.code, '| underlyingErrorMessage:', err?.underlyingErrorMessage, '| message:', err?.message, '| full:', JSON.stringify(err));
                                 setPlansError(true);
                               })
                               .finally(() => setPlansLoading(false));

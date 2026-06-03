@@ -56,8 +56,10 @@ export default function SubscriptionScreen() {
   const fetchOfferings = async () => {
     setLoadingOfferings(true);
     setError(null);
+    console.log('[RC-DEBUG] subscription.tsx fetchOfferings: calling getOfferings | ts:', new Date().toISOString());
     try {
       const offerings = await Purchases.getOfferings();
+      console.log('[RC-DEBUG] subscription.tsx getOfferings RESOLVED | current:', offerings.current?.identifier ?? 'NULL', '| pkgCount:', offerings.current?.availablePackages?.length ?? 0, '| allOfferingKeys:', JSON.stringify(Object.keys(offerings.all ?? {})), '| hasMonthly:', !!offerings.current?.monthly, '| hasAnnual:', !!offerings.current?.annual, '| hasLifetime:', !!offerings.current?.lifetime, '| full:', JSON.stringify(offerings));
       setOffering(offerings.current);
       // Default plan selection: yearly → monthly → lifetime
       if (!offerings.current?.annual) {
@@ -68,6 +70,7 @@ export default function SubscriptionScreen() {
         }
       }
     } catch (e: any) {
+      console.log('[RC-DEBUG] subscription.tsx getOfferings ERROR | code:', e?.code, '| underlyingErrorMessage:', e?.underlyingErrorMessage, '| message:', e?.message, '| full:', JSON.stringify(e));
       setError('Could not load subscription options. Please try again.');
     } finally {
       setLoadingOfferings(false);
@@ -82,6 +85,8 @@ export default function SubscriptionScreen() {
     plan === 'yearly' ? yearlyPackage :
     plan === 'lifetime' ? lifetimePackage :
     monthlyPackage;
+
+  console.log('[RC-DEBUG] subscription.tsx RENDER | offering:', offering?.identifier ?? 'NULL', '| loadingOfferings:', loadingOfferings, '| isPremium:', isPremium, '| monthly:', !!monthlyPackage, '| yearly:', !!yearlyPackage, '| lifetime:', !!lifetimePackage, '| selectedPackage:', !!selectedPackage, '| error:', error);
 
   const handleSubscribe = async () => {
     if (!selectedPackage) return;

@@ -11,11 +11,14 @@ import { ErrorBoundary } from '../components/ErrorBoundary';
 if (Platform.OS === 'ios') {
   const rcKey = process.env.EXPO_PUBLIC_REVENUECAT_API_KEY ?? '';
   console.log('[RevenueCat] configuring with key prefix:', rcKey.slice(0, 12) || '(empty — EXPO_PUBLIC_REVENUECAT_API_KEY not set)');
+  console.log('[RC-DEBUG] configure CALLED | keyLength:', rcKey.length, '| keyPrefix:', rcKey.slice(0, 8), '| looksLikeAppl:', rcKey.startsWith('appl_'), '| ts:', new Date().toISOString());
   try {
     Purchases.configure({ apiKey: rcKey });
     console.log('[RevenueCat] configure complete');
-  } catch (e) {
+    console.log('[RC-DEBUG] configure COMPLETE (anonymous app user id — no explicit appUserID passed) | ts:', new Date().toISOString());
+  } catch (e: any) {
     console.error('[RevenueCat] configure failed:', e);
+    console.log('[RC-DEBUG] configure FAILED | code:', e?.code, '| message:', e?.message, '| full:', JSON.stringify(e));
   }
 }
 
