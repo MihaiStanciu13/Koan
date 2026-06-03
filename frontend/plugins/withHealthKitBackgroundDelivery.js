@@ -1,4 +1,4 @@
-const { withDangerousMods } = require('@expo/config-plugins');
+const { withDangerousMod } = require('expo/config-plugins');
 const fs = require('fs');
 const path = require('path');
 
@@ -285,7 +285,7 @@ class ReactNativeDelegate: ExpoReactNativeFactoryDelegate {
 `;
 
 const withHealthKitBackgroundDelivery = (config) => {
-  return withDangerousMods(config, [
+  return withDangerousMod(config, [
     'ios',
     async (config) => {
       const projectRoot = config.modRequest.platformProjectRoot;
