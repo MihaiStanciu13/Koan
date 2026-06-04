@@ -33,7 +33,7 @@ async def send_push_notification(
     """
     try:
         # Get user's push token
-        user = await db.users.find_one({"_id": user_id})
+        user = await db.users.find_one({"id": user_id})
         if not user or not user.get("push_token"):
             logger.warning(f"No push token found for user {user_id}")
             return False

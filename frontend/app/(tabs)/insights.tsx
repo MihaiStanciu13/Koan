@@ -26,7 +26,7 @@ const PATTERN_LABELS: Record<string, string> = {
   sleep_late_night_phone: 'Late night screen use',
   sleep_duration_short: 'Short sleep streak',
   attention_social_media_heavy: 'Heavy social media use',
-  attention_high_pickups: 'Frequent phone pickups',
+  attention_high_pickups: 'Restless attention',
   attention_screen_improving: 'Screen time improving',
   stress_hrv_low: 'Low recovery signals',
   stress_resting_hr_elevated: 'Elevated resting heart rate',

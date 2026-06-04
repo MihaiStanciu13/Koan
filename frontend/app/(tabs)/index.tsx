@@ -25,27 +25,27 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 const LEARNING_MESSAGES_BY_PHASE = [
   // Phase 0: Just started
   [
-    "Learning from your phone usage patterns…",
-    "Building your behavioral baseline…",
-    "Understanding your daily rhythm…",
+    "Learning the rhythm of your sleep and movement…",
+    "Settling in. Watching how your days are shaped…",
+    "Reading the signals your body keeps…",
   ],
-  // Phase 1: Early learning (1-10 events)
+  // Phase 1: Early learning
   [
-    "Observing when you pick up your phone…",
-    "Noting your app switching patterns…",
-    "Learning your focus windows…",
+    "Noticing how rest and movement move together…",
+    "Watching the shape of your calendar…",
+    "Learning where your energy tends to go…",
   ],
-  // Phase 2: Building patterns (10-50 events)
+  // Phase 2: Building patterns
   [
-    "Understanding your switching habits…",
-    "Noting your afternoon flow…",
-    "Sensing your energy patterns…",
+    "Connecting sleep, recovery, and the days that drain them…",
+    "Noticing the weight of back-to-back days…",
+    "Sensing when recovery runs short…",
   ],
-  // Phase 3: Active learning (50+ events)
+  // Phase 3: Active learning
   [
-    "Learning your rhythm…",
-    "Observing your focus patterns…",
-    "Sensing your energy drift…",
+    "Reading recovery, movement, and meeting density together…",
+    "Watching how steady your attention stays…",
+    "Noticing when a day tips past the limit you set…",
   ],
 ];
 
@@ -201,7 +201,6 @@ export default function HomeScreen() {
   const [subscription, setSubscription] = useState<any>(null);
   const [learningPhase, setLearningPhase] = useState(0); // Track which phase of learning we're in
   const [currentHint, setCurrentHint] = useState(0);
-  const [show5thNudgeMilestone, setShow5thNudgeMilestone] = useState(false);
   const [calendarConnected, setCalendarConnected] = useState(false);
   const [weeklyPattern, setWeeklyPattern] = useState<any>(null);
 
@@ -291,23 +290,6 @@ export default function HomeScreen() {
     ).start();
   };
 
-  const checkNudgeMilestone = async () => {
-    try {
-      const hasSeenMilestone = await AsyncStorage.getItem('seen5thNudgeMilestone');
-      if (hasSeenMilestone) return;
-      
-      // Get total nudge count
-      const nudgeCount = await nudgeAPI.getCount();
-      
-      if (nudgeCount >= 5) {
-        setShow5thNudgeMilestone(true);
-        await AsyncStorage.setItem('seen5thNudgeMilestone', 'true');
-      }
-    } catch (error) {
-      console.error('Failed to check nudge milestone:', error);
-    }
-  };
-
   const loadData = async () => {
     if (!user || !isMounted.current) return;
     try {
@@ -354,9 +336,6 @@ export default function HomeScreen() {
       setPendingNudges(allNudges);
       setTrialDays(subStatus.trial_days_remaining || 0);
       setSubscription(subStatus);
-      
-      // Check for 5th nudge milestone
-      await checkNudgeMilestone();
     } catch (error) {
       console.error('Failed to load data:', error);
     }
@@ -495,25 +474,6 @@ export default function HomeScreen() {
           )}
         </TouchableOpacity>
 
-        {/* 5th Nudge Milestone */}
-        {show5thNudgeMilestone && (
-          <View style={styles.milestoneCard}>
-            <View style={styles.milestoneHeader}>
-              <Ionicons name="trophy-outline" size={32} color="#5FAD8E" />
-            </View>
-            <Text style={styles.milestoneTitle}>Your pattern baseline is forming</Text>
-            <Text style={styles.milestoneText}>
-              You've received 5 nudges. Koan works best over time — your subtle patterns are starting to emerge.
-            </Text>
-            <TouchableOpacity 
-              style={styles.milestoneButton}
-              onPress={() => setShow5thNudgeMilestone(false)}
-            >
-              <Text style={styles.milestoneButtonText}>Continue</Text>
-            </TouchableOpacity>
-          </View>
-        )}
-
         {/* Sunday weekly summary */}
         {weeklyPattern && <WeeklyCard pattern={weeklyPattern} />}
 
@@ -537,29 +497,8 @@ export default function HomeScreen() {
           </View>
         )}
 
-        {/* Calendar / Week card */}
-        {calendarConnected ? (
-          <View style={styles.weekCard}>
-            <Text style={styles.weekLabel}>THIS WEEK</Text>
-            <View style={styles.weekRow}>
-              <View style={[styles.weekDot, styles.weekDotGreen]} />
-              <Text style={styles.weekRowText}>Focus blocks</Text>
-              <Text style={styles.weekRowValue}>3 detected</Text>
-            </View>
-            <View style={styles.weekDivider} />
-            <View style={styles.weekRow}>
-              <View style={[styles.weekDot, styles.weekDotAmber]} />
-              <Text style={styles.weekRowText}>Late sessions</Text>
-              <Text style={styles.weekRowValue}>2 this week</Text>
-            </View>
-            <View style={styles.weekDivider} />
-            <View style={styles.weekRow}>
-              <View style={[styles.weekDot, styles.weekDotGreen]} />
-              <Text style={styles.weekRowText}>Anchor completed</Text>
-              <Text style={styles.weekRowValue}>5 of 7 days</Text>
-            </View>
-          </View>
-        ) : (
+        {/* Connect-your-tools prompt — only when nothing is connected */}
+        {!calendarConnected && (
           <View style={styles.calendarCard}>
             <View style={styles.calendarCardHeader}>
               <View style={styles.calendarDot} />
@@ -864,56 +803,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
   },
-  weekCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    padding: 20,
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: '#E6E6E4',
-  },
-  weekLabel: {
-    fontSize: 10,
-    fontWeight: '500',
-    letterSpacing: 1.2,
-    textTransform: 'uppercase',
-    color: '#5FAD8E',
-    marginBottom: 16,
-  },
-  weekRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 2,
-  },
-  weekDot: {
-    width: 7,
-    height: 7,
-    borderRadius: 3.5,
-    marginRight: 10,
-  },
-  weekDotGreen: {
-    backgroundColor: '#5FAD8E',
-  },
-  weekDotAmber: {
-    backgroundColor: '#E8A838',
-  },
-  weekRowText: {
-    flex: 1,
-    fontSize: 14,
-    color: '#3A3A3A',
-    fontFamily: 'Georgia',
-  },
-  weekRowValue: {
-    fontSize: 13,
-    color: '#3A3A3A',
-    opacity: 0.55,
-    fontWeight: '400',
-  },
-  weekDivider: {
-    height: 1,
-    backgroundColor: '#F0F0EE',
-    marginVertical: 10,
-  },
   philosophyCard: {
     backgroundColor: '#D9F7EB',
     borderRadius: 12,
@@ -964,41 +853,5 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#5FAD8E',
     fontWeight: '500',
-  },
-  milestoneCard: {
-    backgroundColor: '#D9F7EB',
-    borderRadius: 16,
-    padding: 24,
-    marginBottom: 16,
-    alignItems: 'center',
-  },
-  milestoneHeader: {
-    marginBottom: 16,
-  },
-  milestoneTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#3A3A3A',
-    marginBottom: 12,
-    textAlign: 'center',
-  },
-  milestoneText: {
-    fontSize: 15,
-    color: '#3A3A3A',
-    opacity: 0.8,
-    lineHeight: 22,
-    textAlign: 'center',
-    marginBottom: 20,
-  },
-  milestoneButton: {
-    backgroundColor: '#5FAD8E',
-    paddingVertical: 12,
-    paddingHorizontal: 32,
-    borderRadius: 12,
-  },
-  milestoneButtonText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '600',
   },
 });

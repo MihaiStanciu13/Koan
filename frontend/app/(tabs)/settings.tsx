@@ -10,6 +10,7 @@ import {
   Alert,
   Modal,
   Linking,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -17,10 +18,19 @@ import { useRouter } from 'expo-router';
 import { useAuth } from '../../contexts/AuthContext';
 import { preferencesAPI, subscriptionAPI, authAPI, calendarAPI, microsoftAPI } from '../../services/api';
 import { requestHealthKitPermissions, finalizeHealthKitSetup } from '../../services/healthKit';
+import {
+  requestScreenTimeAuthorization,
+  registerScreenTimeThresholds,
+  hasScreenTimeSelection,
+  getScreenTimeAuthorizationStatus,
+  SCREEN_TIME_SELECTION_ID,
+} from '../../services/screenTime';
+import { DeviceActivitySelectionSheetViewPersisted } from 'react-native-device-activity';
 import * as WebBrowser from 'expo-web-browser';
 
 const WORKPLACE_TOOLS = [
   { id: 'apple_health', name: 'Apple Health', icon: 'heart-outline', color: '#EA4335' },
+  { id: 'screen_time', name: 'Screen Time', icon: 'hourglass-outline', color: '#5856D6' },
   { id: 'gcalendar', name: 'Google Calendar', icon: 'calendar-outline', color: '#4285F4' },
   { id: 'microsoft365', name: 'Microsoft 365', icon: 'people-outline', color: '#0078D4' },
 ];
@@ -61,6 +71,7 @@ export default function SettingsScreen() {
   const [microMode, setMicroMode] = useState('standard');
   const [anchorAction, setAnchorAction] = useState('close one loop');
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+  const [stPickerVisible, setStPickerVisible] = useState(false);
   
   
 
@@ -96,6 +107,20 @@ export default function SettingsScreen() {
         setConnectedTools(prev =>
           prev.includes('microsoft365') ? prev : [...prev, 'microsoft365']
         );
+      }
+
+      // Reflect the real DeviceActivityMonitor authorization + selection state.
+      if (Platform.OS === 'ios') {
+        try {
+          const stStatus = await getScreenTimeAuthorizationStatus();
+          if (stStatus === 'approved' && hasScreenTimeSelection()) {
+            setConnectedTools(prev =>
+              prev.includes('screen_time') ? prev : [...prev, 'screen_time']
+            );
+          }
+        } catch {
+          // Family Controls entitlement unavailable — leave row off
+        }
       }
     } catch (error) {
       console.error('Failed to load settings:', error);
@@ -135,6 +160,30 @@ export default function SettingsScreen() {
           await updatePreference('connected_tools', newTools);
         } catch {
           Alert.alert('Apple Health is only available on iOS.');
+        }
+      }
+      return;
+    }
+    // Special handling for Screen Time (DeviceActivityMonitor + FamilyActivityPicker)
+    if (toolId === 'screen_time') {
+      if (connectedTools.includes('screen_time')) {
+        // Visual disconnect only — Koan stops treating it as active. The OS-level
+        // Family Controls authorization is not revoked here.
+        const newTools = connectedTools.filter(t => t !== 'screen_time');
+        setConnectedTools(newTools);
+        await updatePreference('connected_tools', newTools);
+      } else {
+        try {
+          const granted = await requestScreenTimeAuthorization();
+          if (!granted) {
+            Alert.alert('Screen Time', 'Screen Time is only available on iOS.');
+            return;
+          }
+          // Present the system picker so the user chooses which apps to watch;
+          // thresholds are registered on dismiss (same flow as onboarding).
+          setStPickerVisible(true);
+        } catch {
+          Alert.alert('Screen Time', "Screen Time setup didn't complete. You can try again later.");
         }
       }
       return;
@@ -236,6 +285,19 @@ export default function SettingsScreen() {
   const changeMicroMode = async (mode: string) => {
     setMicroMode(mode);
     await updatePreference('micro_mode', mode);
+  };
+
+  const handleScreenTimePickerDismiss = async () => {
+    setStPickerVisible(false);
+    if (!hasScreenTimeSelection()) return;
+    const ok = await registerScreenTimeThresholds();
+    if (ok) {
+      const newTools = connectedTools.includes('screen_time')
+        ? connectedTools
+        : [...connectedTools, 'screen_time'];
+      setConnectedTools(newTools);
+      await updatePreference('connected_tools', newTools);
+    }
   };
 
   
@@ -493,6 +555,20 @@ export default function SettingsScreen() {
           </View>
         </View>
       </Modal>
+
+      {/* Screen Time — system FamilyActivityPicker. The library persists the
+          selection under SCREEN_TIME_SELECTION_ID; on dismiss we register the
+          threshold events against it. */}
+      {stPickerVisible && Platform.OS === 'ios' && (
+        <DeviceActivitySelectionSheetViewPersisted
+          familyActivitySelectionId={SCREEN_TIME_SELECTION_ID}
+          includeEntireCategory
+          headerText="Choose the apps that pull at your attention"
+          footerText="Koan only learns when a limit is crossed — never the detail."
+          onDismissRequest={handleScreenTimePickerDismiss}
+          style={{ position: 'absolute', width: 0, height: 0 }}
+        />
+      )}
     </SafeAreaView>
   );
 }

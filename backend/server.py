@@ -236,7 +236,7 @@ async def update_push_token(
         raise HTTPException(status_code=400, detail="push_token is required")
     
     await db.users.update_one(
-        {"_id": current_user.id},
+        {"id": current_user.id},
         {"$set": {"push_token": token}}
     )
     
@@ -290,7 +290,7 @@ async def disconnect_calendar(
 ):
     """Disconnect Google Calendar."""
     await db.users.update_one(
-        {"_id": current_user.id},
+        {"id": current_user.id},
         {"$unset": {
             "google_calendar_token": "",
             "google_calendar_refresh_token": "",
@@ -304,7 +304,7 @@ async def get_calendar_status(
     current_user: User = Depends(get_current_user)
 ):
     """Check whether Google Calendar is connected."""
-    user = await db.users.find_one({"_id": current_user.id})
+    user = await db.users.find_one({"id": current_user.id})
     connected = bool(user and user.get("google_calendar_connected"))
     return {"connected": connected}
 
@@ -313,7 +313,7 @@ async def get_calendar_today(
     current_user: User = Depends(get_current_user)
 ):
     """Get today's meeting density for the current user."""
-    user = await db.users.find_one({"_id": current_user.id})
+    user = await db.users.find_one({"id": current_user.id})
     if not user or not user.get("google_calendar_token"):
         return {"connected": False}
     density = await get_meeting_density(
@@ -368,7 +368,7 @@ async def microsoft_oauth_callback(
 @api_router.delete("/integrations/microsoft/disconnect")
 async def disconnect_microsoft(current_user: User = Depends(get_current_user)):
     await db.users.update_one(
-        {"_id": current_user.id},
+        {"id": current_user.id},
         {"$unset": {
             "microsoft_access_token": "",
             "microsoft_refresh_token": "",
@@ -380,14 +380,14 @@ async def disconnect_microsoft(current_user: User = Depends(get_current_user)):
 
 @api_router.get("/integrations/microsoft/status")
 async def get_microsoft_status(current_user: User = Depends(get_current_user)):
-    user = await db.users.find_one({"_id": current_user.id})
+    user = await db.users.find_one({"id": current_user.id})
     connected = bool(user and user.get("microsoft_connected"))
     return {"connected": connected}
 
 
 @api_router.get("/integrations/microsoft/today")
 async def get_microsoft_today(current_user: User = Depends(get_current_user)):
-    user = await db.users.find_one({"_id": current_user.id})
+    user = await db.users.find_one({"id": current_user.id})
     if not user or not user.get("microsoft_access_token"):
         return {"connected": False}
     density = await ms_get_meeting_density(user["microsoft_access_token"])

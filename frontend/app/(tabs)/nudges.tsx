@@ -86,7 +86,7 @@ export default function NudgesScreen() {
             </View>
             <Text style={styles.emptyTitle}>Koan is listening</Text>
             <Text style={styles.emptyText}>
-              For the next 24–48 hours, Koan is building your baseline from phone usage patterns — pickup frequency, app switches, and session length.
+              For the next day or two, Koan is building your baseline from the signals you've shared — sleep, movement, and recovery from Apple Health, and the shape of your days when your calendar is connected.
             </Text>
             {(!healthConnected || !gcalConnected || !msConnected) && (
               <Text style={styles.toolsLabel}>Connect your tools to unlock richer nudges:</Text>
@@ -112,14 +112,14 @@ export default function NudgesScreen() {
             {patternsExpanded && (
               <View style={styles.patternsDetail}>
                 <Text style={styles.patternsDetailText}>
-                  Koan tracks signals across three dimensions: <Text style={styles.patternsDetailBold}>phone pickups</Text> (how often and when you reach for your phone, including your first pickup of the day), <Text style={styles.patternsDetailBold}>screen time patterns</Text> (total usage, app categories, and how your attention is distributed), and <Text style={styles.patternsDetailBold}>meeting load</Text> (when connected to your calendar — dense blocks vs. open time — so nudges arrive when you actually have capacity to act on them).
+                  Koan reads a few honest signals: <Text style={styles.patternsDetailBold}>body signals</Text> from Apple Health (sleep, movement, heart rate patterns, and recovery), <Text style={styles.patternsDetailBold}>calendar density</Text> when connected (how many meetings, how long, and how back-to-back your days run), and a <Text style={styles.patternsDetailBold}>Screen Time limit</Text> you set yourself (Koan notices only when a chosen daily limit is crossed — never what's behind it).
                 </Text>
               </View>
             )}
             <Spacer minHeight={24} />
             <View style={[styles.philosophyCard, { alignSelf: 'stretch' }]}>
               <Text style={styles.philosophyText}>
-                You know the next step. We just help you remember.
+                Koan notices the patterns. The rest was always yours.
               </Text>
             </View>
           </View>

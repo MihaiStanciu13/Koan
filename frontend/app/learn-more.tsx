@@ -46,7 +46,7 @@ export default function LearnMoreScreen() {
             </View>
             <View style={styles.stepContent}>
               <Text style={styles.stepTitle}>Koan watches quietly</Text>
-              <Text style={styles.stepBody}>Phone pickups, app switches, meeting density. Nothing personal.</Text>
+              <Text style={styles.stepBody}>Sleep, movement, recovery, meeting density. Nothing personal.</Text>
             </View>
           </View>
 

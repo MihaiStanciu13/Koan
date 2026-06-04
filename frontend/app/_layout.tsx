@@ -68,7 +68,7 @@ function RootLayoutNav() {
   }
 
   return (
-    <Stack screenOptions={{ headerShown: false }}>
+    <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: '#FAFDFA' } }}>
       <Stack.Screen name="index" />
       <Stack.Screen name="intro" />
       <Stack.Screen name="landing" />
