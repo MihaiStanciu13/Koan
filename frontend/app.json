@@ -22,10 +22,25 @@
         "NSHealthShareUsageDescription": "Koan uses health data to understand your movement, sleep, and energy patterns and deliver more relevant nudges.",
         "NSHealthUpdateUsageDescription": "Koan does not write to Health.",
         "ITSAppUsesNonExemptEncryption": false,
-        "UIBackgroundModes": ["fetch", "remote-notification"],
-        "BGTaskSchedulerPermittedIdentifiers": ["koan-health-background-fetch"]
+        "UIBackgroundModes": [
+          "fetch",
+          "remote-notification"
+        ],
+        "BGTaskSchedulerPermittedIdentifiers": [
+          "koan-health-background-fetch"
+        ],
+        "CFBundleURLTypes": [
+          {
+            "CFBundleURLSchemes": [
+              "com.googleusercontent.apps.4915943468-s71crd124ktuimajqqcgaml5nhf9q77u"
+            ]
+          }
+        ]
       },
-      "backgroundModes": ["healthkit", "fetch"],
+      "backgroundModes": [
+        "healthkit",
+        "fetch"
+      ],
       "entitlements": {
         "com.apple.developer.healthkit": true,
         "com.apple.developer.family-controls": true,
