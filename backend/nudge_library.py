@@ -1,9 +1,12 @@
 """
 Koan Nudge Library
-Grounded in: circadian research, blue zone principles, Andrei Roșu longevity framework,
-and the 15 behaviours of the top 1% of healthy people.
+Grounded in circadian research, blue-zone living, and longevity practice.
 Each nudge has a trigger_id, principle, and one or more message variants.
 The engine picks randomly from variants to avoid repetition.
+
+Voice: cool observational. Concrete over abstract, present over prescriptive,
+one thought per line. No statistics, no imperatives without an observation
+first, no motivational register, no first-person plural.
 """
 
 import random
@@ -13,480 +16,523 @@ NUDGE_LIBRARY = {
 
     # ── MORNING BOUNDARIES ──────────────────────────────────────────────
     "morning_phone_early": {
-        "principle": "The first 30-60 minutes of the day belong to you, not your phone.",
+        "principle": "The first minutes of the day set its tone. The phone is happy to take them.",
         "category": "morning_boundary",
         "longevity_factor": "stress_chronic",
         "threshold": "First phone pickup before 7am, 2 consecutive days",
         "messages": [
-            "The first 30 minutes of the day are the most uncontested time you have. Your phone was already there.",
-            "Two mornings in a row, the phone before anything else. That window shapes the cortisol pattern for everything that follows.",
-            "Before coffee, before light, before a thought of your own — the phone. That first reach is a habit forming.",
+            "The first minutes of the day, and the phone was already in them.",
+            "Two mornings running, the screen before the window. The day starts on someone else's terms.",
+            "Before coffee, before light, before a thought of your own — the phone.",
         ],
         "personalised_messages": [
-            "Two mornings in a row, the phone before anything else. That first {first_pickup_time} sets the cortisol pattern for everything that follows.",
+            "Two mornings running, the phone first — by {first_pickup_time}, before the day was yours.",
         ]
     },
     "morning_phone_consistent": {
-        "principle": "Cortisol rises naturally in the morning — don't add to it with notifications.",
+        "principle": "Cortisol rises on its own in the morning. The phone adds to a load already climbing.",
         "category": "morning_boundary",
         "longevity_factor": "stress_chronic",
         "threshold": "First phone pickup before 7am, 7 consecutive days",
         "messages": [
-            "Every morning this week, the phone first. That's not a coincidence anymore — it's a settled habit. Habits can be redesigned.",
-            "Seven days of the same first reach. The body has already decided what the morning looks like. The question is whether you have.",
-            "A week of mornings that started the same way. Cortisol peaks naturally in the first hour — the phone adds to that load every time.",
+            "Every morning this week, the phone first. Not a slip anymore — a shape the day has taken.",
+            "Seven mornings, the same first reach. The hand knows the way before the eyes are open.",
+            "A week of mornings that began on the screen. The day was decided before it started.",
         ]
     },
 
     # ── MOVEMENT ────────────────────────────────────────────────────────
     "movement_declining": {
-        "principle": "Daily movement integrated into life — not exercise — is what the longest-lived people have in common.",
+        "principle": "The longest-lived people don't exercise. They live in ways that keep them moving.",
         "category": "movement",
         "longevity_factor": "inflammation_chronic",
         "threshold": "Step count declining vs baseline for 4 consecutive days",
         "messages": [
-            "Movement has been fading since Monday. The longest-lived people don't exercise — they just never stop moving. Even 20 minutes changes the afternoon.",
-            "Four days of fewer steps. The body notices drift before the mind does — and it takes longer to recover than to lose.",
-            "This week's movement has been lower than your usual. A walk after dinner does more for the next morning than another hour at the desk.",
+            "Movement has been thinning since Monday. The body drifts quietly, and comes back slowly.",
+            "Four days of fewer steps. The legs forget faster than the calendar does.",
+            "Less moving this week than usual. A walk after dinner does more for the morning than another hour at the desk.",
         ],
         "personalised_messages": [
-            "Four days of fewer steps than your usual {avg_steps_formatted}. The body notices drift before the mind does.",
-            "Movement has been fading this week — averaging {current_avg_steps} steps vs your usual {avg_steps_formatted}.",
+            "Four days under the usual {avg_steps_formatted}. The body drifts before the mind notices.",
+            "Movement thinning this week — around {current_avg_steps} steps against the usual {avg_steps_formatted}.",
         ]
     },
     "movement_sedentary_day": {
-        "principle": "Sitting for long periods raises inflammation markers even in otherwise active people.",
+        "principle": "It is the sitting unbroken, more than the step count, that the body minds.",
         "category": "movement",
         "longevity_factor": "inflammation_chronic",
         "threshold": "Steps below 3000 in a day. Only fires if movement_declining has NOT fired in the last 3 days.",
         "messages": [
-            "Mostly still today. Ten minutes outside interrupts the pattern — the body responds faster than you'd expect.",
-            "A long day on screens, a short day on your feet. Even a short walk after dinner resets more than another hour of catching up.",
-            "Low movement day. The research is clear: it's the interruption of sitting, not just the total steps, that matters most.",
+            "Mostly still today. Ten minutes outdoors breaks the spell faster than it sounds.",
+            "A long day on the screen, a short one on the feet.",
+            "Low movement today. It is the sitting, more than the missing steps, that the body keeps.",
         ],
         "personalised_messages": [
-            "Fewer than {steps_today} steps today. Ten minutes outside interrupts the pattern — the body responds faster than you'd expect.",
+            "Under {steps_today} steps today. Ten minutes outside is enough to change the shape of it.",
         ]
     },
     "movement_good_streak": {
-        "principle": "Consistent movement is more protective than intense occasional exercise.",
+        "principle": "Consistent movement protects more than intense, occasional effort.",
         "category": "movement",
         "longevity_factor": "inflammation_chronic",
         "threshold": "3+ consecutive days above movement baseline. Max once per 14 days.",
         "messages": [
-            "Three days of consistent movement. Not the amount — just that it kept happening. That's the thing.",
-            "You've been moving every day this week. The body is starting to expect it.",
-            "Movement has been consistent. Small and steady is what actually compounds over time.",
+            "Three days of moving, every one of them. Not the amount — that it kept happening.",
+            "Movement every day this week. The body is starting to expect it.",
+            "Steady on the feet this week. Small and repeated is the thing that compounds.",
         ]
     },
     "movement_work_hours_gap": {
-        "principle": "Prolonged unbroken sitting during work hours raises inflammation and impairs cognitive performance.",
+        "principle": "Long unbroken sitting through the workday stiffens the body and dulls the mind.",
         "category": "movement",
         "longevity_factor": "inflammation_chronic",
         "threshold": "Any 3-4 hour window between 9am and 5pm with fewer than 300 steps total, on 3+ days in a week. Check all possible windows: 9-12, 10-1, 11-2, 12-3, 1-4, 2-5. Fire if any window qualifies. If calendar data is available and shows meetings in that window, use the calendar variant message.",
         "messages": [
-            "Koan noticed a long stretch without movement during your workday. Even two minutes changes what the next hour costs you.",
-            "A few hours passed this afternoon without any real movement. That's when focus fades and the body stiffens — a short walk interrupts both.",
-            "Three days this week with a long unbroken sit during work hours. The energy dip that follows isn't inevitable — movement prevents it.",
-            "[Calendar] Back-to-back meetings through a long stretch again. The body pays a physical cost for that. Even a two-minute walk between them changes what the next one costs you.",
+            "A long stretch of the workday passed without movement. Two minutes changes the hour that follows.",
+            "An afternoon went by in the chair. Focus fades and the body stiffens in the same stillness; a short walk loosens both.",
+            "Three days this week, a long unbroken sit through working hours. The slump that follows isn't fated — it's seated.",
+            "[Calendar] Back-to-back through a long stretch again. A body holds the meetings in the shoulders. Two minutes between them changes the next.",
         ]
     },
     "standing_gap": {
-        "principle": "Breaking up sitting with even brief standing or walking every 90-120 minutes measurably reduces cardiovascular and metabolic risk.",
+        "principle": "Breaking up sitting every couple of hours steadies circulation and attention both.",
         "category": "movement",
         "longevity_factor": "inflammation_chronic",
         "threshold": "No movement (fewer than 50 steps) detected for 2 consecutive hours during waking hours (7am-10pm). Uses step count data from Apple Health or signalCollector. Fire at most once per day.",
         "messages": [
-            "You haven't moved in the past two hours. Take a short walk — even two minutes is enough to reset the body.",
-            "Two hours without movement. The body wasn't built for this much stillness — standing up now changes the next stretch.",
-            "A long sit. Getting up for even a few minutes interrupts what prolonged sitting does to circulation and focus.",
+            "Two hours without moving. The body stiffens in the stillness; a few steps undo it.",
+            "A long sit. Circulation and attention both slow in it — standing breaks both.",
+            "Still for two hours. The body wasn't built to hold one shape this long.",
         ]
     },
 
     # ── SLEEP ───────────────────────────────────────────────────────────
     "sleep_timing_inconsistent": {
-        "principle": "Sleep consistency matters more than duration. The body clock is more sensitive to timing than to hours.",
+        "principle": "The body clock is more sensitive to when you sleep than to how long.",
         "category": "sleep",
         "longevity_factor": "hormonal_dysregulation",
         "threshold": "Bedtime variance greater than 90 minutes across 5 of last 7 days",
         "messages": [
-            "Your sleep timing has been shifting all week. The body clock is more sensitive to when you sleep than how long.",
-            "Different bedtimes most nights this week. Consistency of timing protects sleep quality more than adding an extra hour does.",
-            "Koan has noticed your sleep schedule drifting this week. The circadian rhythm notices that before you do.",
+            "Sleep landed at a different hour most nights this week. The clock minds the when more than the how long.",
+            "Different bedtimes all week. Steady timing protects sleep more than an added hour does.",
+            "The sleep schedule has been drifting. The body keeps the time even when the calendar doesn't.",
         ],
         "personalised_messages": [
-            "Your sleep timing has shifted by up to {sleep_variance_minutes} minutes this week. The body clock notices that before you do.",
+            "Bedtime moved by as much as {sleep_variance_minutes} minutes this week. The clock notices that before you do.",
         ]
     },
     "sleep_late_night_phone": {
-        "principle": "Blue light and stimulation in the last hour before sleep delays melatonin by 90 minutes.",
+        "principle": "Light in the last hour before sleep pushes the whole night later.",
         "category": "sleep",
         "longevity_factor": "hormonal_dysregulation",
         "threshold": "Phone active after 10:30pm for more than 15 minutes, 3+ nights",
         "messages": [
-            "Your phone was active late last night. The last hour before sleep is worth protecting.",
-            "Late screen time doesn't just delay sleep — it changes the quality of what follows.",
-            "Three nights of late phone use. Melatonin is delayed by light exposure — the body doesn't know the difference between a screen and the sun.",
+            "The screen was on past 11 again. The last hour before sleep is worth keeping dark.",
+            "Late light, three nights running. The body reads a screen the way it reads the sun.",
+            "Three nights of the phone past bedtime. Sleep still comes, but thinner.",
         ]
     },
     "sleep_duration_short": {
-        "principle": "Chronic sleep restriction below 7 hours accelerates biological aging.",
+        "principle": "Short sleep, repeated, wears the body down from the inside.",
         "category": "sleep",
         "longevity_factor": "cellular_senescence",
         "threshold": "Average sleep duration below 7 hours over 4+ consecutive days",
         "messages": [
-            "A few short nights in a row. The body doesn't catch up as fast as it falls behind.",
-            "Sleep has been short this week. Repair happens at night — less time means less of it.",
-            "Short sleep compresses recovery. The deficit from this week will show up somewhere.",
+            "A few short nights in a row. The body falls behind faster than it catches up.",
+            "Sleep has been short this week. Repair happens in the hours that went missing.",
+            "Short nights compress the night's work. The shortfall surfaces somewhere later.",
         ],
         "personalised_messages": [
-            "A few short nights in a row — averaging {avg_sleep_hours}h instead of your usual {baseline_sleep_hours}h.",
+            "A few short nights running — nearer {avg_sleep_hours}h than the usual {baseline_sleep_hours}h.",
         ]
     },
     "sleep_late_bedtime": {
-        "principle": "Sleep before midnight has different restorative properties — slow-wave sleep is front-loaded in the night.",
+        "principle": "The deep, slow-wave sleep is front-loaded. The hours before midnight carry it.",
         "category": "sleep",
         "longevity_factor": "hormonal_dysregulation",
         "threshold": "Sleep start after 11:30pm, 3+ nights in a row",
         "messages": [
-            "Lights out after midnight again. The hours before 12 recover you differently than the hours after.",
-            "Three late nights. The body doesn't negotiate on sleep timing the way it does on sleep duration.",
-            "Late to bed most of this week. The circadian clock keeps its own schedule regardless of yours.",
+            "Lights out after midnight again. The hours before twelve restore differently than the ones after.",
+            "Three late nights. The body argues less about how long than about when.",
+            "Late to bed most of the week. The clock keeps its own hours regardless.",
         ],
         "personalised_messages": [
-            "Lights out at {avg_bedtime} again. The hours before midnight recover you differently than the hours after.",
+            "Asleep near {avg_bedtime} again. The hours before midnight do the deeper work.",
         ]
     },
     "sleep_alarm_dependent": {
-        "principle": "Consistent wake times forced by alarm against variable bedtimes creates chronic social jet lag.",
+        "principle": "A fixed alarm against a wandering bedtime is its own quiet kind of jet lag.",
         "category": "sleep",
         "longevity_factor": "hormonal_dysregulation",
         "threshold": "Wake time variance less than 15 minutes but sleep start variance greater than 60 minutes, over 7 days",
         "messages": [
-            "Consistent alarm, inconsistent bedtime. The alarm is compensating for the clock — but the body keeps the bill.",
-            "You're waking at the same time every day, going to bed at different hours. The body prefers both ends to be stable.",
-            "The alarm keeps the mornings consistent. The evenings are less predictable. That asymmetry has a cost.",
+            "Steady alarm, wandering bedtime. The morning holds its line; the body keeps the difference.",
+            "Same wake time, a different hour asleep each night. The body prefers both ends fixed.",
+            "The alarm steadies the mornings. The evenings drift. That gap has a quiet cost.",
         ]
     },
 
     # ── ATTENTION & SCREEN ───────────────────────────────────────────────
     "attention_social_media_heavy": {
-        "principle": "Protecting attention is one of the 15 behaviours of the top 1% of healthy people.",
+        "principle": "Attention is the rarest thing the day spends. Guarding it is its own discipline.",
         "category": "attention",
         "longevity_factor": "stress_chronic",
-        "threshold": "Social media app sessions exceed 40% of total screen time AND social media time exceeds 60 minutes. Requires social_media_minutes field from signalCollector.",
+        "threshold": "Social media sessions make up more than two-fifths of screen time and exceed 60 minutes. Requires social_media_minutes field from signalCollector.",
         "messages": [
-            "More than half of today's screen time was social media. That's not connection — that's drift.",
-            "The feed is designed to keep you there. Noticing that is the first step.",
-            "An hour of social media rarely leaves you feeling better. Today was heavy on it.",
+            "Most of today's screen went to the feed. That's not connection — that's the current.",
+            "The feed is built to hold you. Noticing the pull is most of the work.",
+            "A long stretch in the feed today. It rarely leaves the day better than it found it.",
         ],
         "personalised_messages": [
-            "{social_media_minutes} minutes of social media today — {social_pct}% of your screen time. That's not connection — that's drift.",
+            "{social_media_minutes} minutes in the feed today — most of the screen. Not connection. Drift.",
         ]
     },
     "attention_high_pickups": {
-        "principle": "Frequent phone pickups fragment attention and raise baseline cortisol.",
+        "principle": "Each pickup is a small cut in whatever was underway. The reflex arrives before the reason.",
         "category": "attention",
         "longevity_factor": "stress_chronic",
-        "threshold": "More than 80 pickups in a day, or more than 40% above the user's 7-day baseline",
+        "threshold": "More than 80 pickups in a day, or well above the user's 7-day baseline",
         "messages": [
-            "You picked up your phone a lot today. Each pickup is a small interruption to whatever you were doing.",
-            "Frequent pickups aren't always about the phone — sometimes they're about avoiding something else.",
-            "A high pickup day. The phone becomes a reflex before it becomes a choice. That gap is worth noticing.",
+            "The phone went in and out of the hand all day. Each time, a small cut in whatever was underway.",
+            "A lot of reaching for the phone today. The reflex arrives before the reason.",
+            "A high-pickup day. Sometimes the phone is the thing; sometimes it's the not-the-other-thing.",
         ],
         "personalised_messages": [
-            "{pickups_today} pickups today — {pickups_above_baseline} more than your usual. Each one is a small interruption.",
+            "{pickups_today} pickups today, {pickups_above_baseline} past the usual. Each one a small interruption.",
         ]
     },
     "attention_screen_improving": {
-        "principle": "Reducing screen time has compounding benefits on sleep, stress, and focus.",
+        "principle": "Less screen has a quiet way of compounding into sleep, focus, and ease.",
         "category": "attention",
         "longevity_factor": "stress_chronic",
-        "threshold": "Screen time down more than 20% vs prior week average, 3+ days. Max once per 14 days.",
+        "threshold": "Screen time down markedly versus the prior week, 3+ days. Max once per 14 days.",
         "messages": [
-            "Screen time has been lower this week. Your attention is quieter than it was.",
-            "Less time on the phone, more time somewhere else. That's worth noticing.",
-            "A week of less screen time. The attention you didn't spend on the phone went somewhere.",
+            "Less screen this week. The attention is quieter than it was.",
+            "Fewer hours on the phone. They went somewhere — that's worth seeing.",
+            "A lighter week on the screen. The time not spent there landed elsewhere.",
         ]
     },
 
     # ── STRESS & RECOVERY ────────────────────────────────────────────────
     "stress_hrv_low": {
-        "principle": "HRV is the body's report card on recovery. Low HRV means the nervous system needs rest, not more input.",
+        "principle": "HRV is the body's report on its own recovery. Low means rest, not more input.",
         "category": "recovery",
         "longevity_factor": "stress_chronic",
-        "threshold": "HRV more than 20% below user's 30-day baseline, 3+ consecutive days",
+        "threshold": "HRV well below user's 30-day baseline, 3+ consecutive days",
         "messages": [
-            "Your body's recovery signals are low. This isn't a push-through moment.",
-            "Low HRV doesn't mean something is wrong — it means something needs rest.",
-            "The week has left its mark on your recovery signals. The body is asking for less, not more.",
+            "The recovery signals are low. This isn't a push-through stretch.",
+            "Low HRV isn't a fault. It's a request for rest.",
+            "The week left its mark on recovery. The body is asking for less.",
         ],
         "personalised_messages": [
-            "Your HRV is {hrv_pct}% below where it usually sits. That's the body asking for rest, not a push-through moment.",
+            "HRV sitting below its usual line this week. That's the body asking for rest, not effort.",
         ]
     },
     "stress_resting_hr_elevated": {
-        "principle": "Elevated resting heart rate sustained over days indicates chronic stress load.",
+        "principle": "A resting pulse held high across days is the body carrying a load it hasn't set down.",
         "category": "recovery",
         "longevity_factor": "cardiovascular",
         "threshold": "Resting HR more than 8bpm above user's 30-day baseline, 3+ consecutive days",
         "messages": [
-            "Your resting heart rate has been higher than usual. The body is carrying something.",
-            "Elevated heart rate over several days is the body asking for less, not more.",
-            "Three days of elevated resting heart rate. That's not a one-off — it's a signal about load.",
+            "Resting heart rate has run high for days. The body is holding something it hasn't set down.",
+            "A raised resting pulse, several mornings now. Not a one-off — a load.",
+            "The heart has idled higher than usual this week. Something is still being carried.",
         ],
         "personalised_messages": [
-            "Your resting heart rate has been {rhr_current}bpm this week — {rhr_delta}bpm above your usual. The body is carrying something.",
+            "Resting pulse near {rhr_current} this week, {rhr_delta} above the usual line. Something is being carried.",
         ]
     },
     "stress_back_to_back_meetings": {
-        "principle": "The mind needs transition time between focused demands — back-to-back meetings erode cognitive quality.",
+        "principle": "The mind needs a seam between demands. Back-to-back wears it thin.",
         "category": "recovery",
         "longevity_factor": "stress_chronic",
         "threshold": "3+ consecutive calendar events with fewer than 10 minutes gap, in a single day. Requires calendar connection.",
         "messages": [
-            "Back-to-back meetings today. Even two minutes between them changes what the next one costs you.",
-            "No gaps between meetings means no recovery between demands. That compounds through the day.",
-            "A day without transitions. The mind needs even a short gap between demands — back-to-back erodes quality faster than people expect.",
+            "Back-to-back meetings today. Two minutes between them changes the next.",
+            "No gaps means no recovery between demands. It accrues across the day.",
+            "A day without transitions. The mind needs the seam between things; back-to-back wears it thin.",
         ],
         "personalised_messages": [
-            "{meeting_count} meetings today with fewer than 10 minutes between them. Even two minutes changes what the next one costs you.",
+            "{meeting_count} meetings nose-to-tail today. Even two minutes between would change the next.",
         ]
     },
     "stress_heavy_meeting_day": {
-        "principle": "More than 5 hours of meetings in a day leaves no cognitive reserve for the rest of life.",
+        "principle": "A day spent being on leaves no reserve for the rest of life. The evening doesn't owe anyone.",
         "category": "recovery",
         "longevity_factor": "stress_chronic",
         "threshold": "More than 5 hours of calendar events in a single day. Requires calendar connection.",
         "messages": [
-            "A heavy meeting day. Tonight is for nothing in particular.",
-            "Five hours of meetings is a lot of being on. The evening doesn't need to be productive.",
-            "Most of the day was other people's agendas. The evening belongs to you.",
+            "A heavy day of meetings. Tonight is for nothing in particular.",
+            "Hours of being on. The evening doesn't owe anyone productivity.",
+            "Most of the day ran on other people's agendas. The evening is yours.",
         ],
         "personalised_messages": [
-            "{meeting_hours} hours of meetings today. Tonight is for nothing in particular.",
+            "{meeting_hours} hours of meetings today. The evening is for nothing in particular.",
         ]
     },
 
     # ── OUTDOOR TIME ─────────────────────────────────────────────────────
     "outdoor_low_week": {
-        "principle": "Natural light exposure regulates cortisol, melatonin, and attention restoration.",
+        "principle": "Daylight calibrates more than mood. The body sets its clock by light it actually gets.",
         "category": "outdoor",
         "longevity_factor": "hormonal_dysregulation",
         "threshold": "Outdoor time below 20 minutes per day average, over 5 of last 7 days. Source: Apple Health outdoor minutes.",
         "messages": [
-            "Most of this week has been indoors. The nervous system notices the absence of natural light before you do.",
-            "Five days mostly inside. The body uses daylight to calibrate more than just mood.",
-            "Outdoor time has been low this week. Even 20 minutes in natural light changes what the afternoon costs you.",
+            "Most of the week was spent indoors. The nervous system misses daylight before the mind does.",
+            "Five days mostly inside. The body keeps its clock by light it didn't get.",
+            "Little time outside this week. Twenty minutes of daylight changes the afternoon.",
         ]
     },
     "outdoor_streak": {
-        "principle": "Consistent outdoor exposure aligns the circadian clock and restores directed attention.",
+        "principle": "Regular daylight steadies the clock and restores worn attention.",
         "category": "outdoor",
         "longevity_factor": "stress_chronic",
         "threshold": "Outdoor time above 20 minutes per day for 4+ consecutive days. Max once per 14 days.",
         "messages": [
-            "You've been getting outside consistently this week. That's doing more than it looks like.",
-            "Four days of regular outdoor time. The circadian rhythm has something to work with.",
-            "Consistent time outside this week. That's one of the quieter forms of self-care.",
+            "Outside most days this week. It's doing more than it looks like.",
+            "Four days of daylight in a row. The clock has something steady to work from.",
+            "Regular time outside this week — one of the quieter repairs.",
         ]
     },
 
     # ── WORKOUT RECOVERY ─────────────────────────────────────────────────
     "recovery_insufficient": {
-        "principle": "Elevated resting heart rate after intense activity signals the body hasn't restored yet.",
+        "principle": "A pulse still high the day after hard effort means the body hasn't restored yet.",
         "category": "recovery",
         "longevity_factor": "cardiovascular",
         "threshold": "Resting HR elevated more than 5bpm above baseline the day after a high active-minutes day",
         "messages": [
-            "Yesterday was heavy. Your resting heart rate hasn't come back down yet.",
-            "Hard effort yesterday, elevated heart rate today. The body is still in the middle of the last thing.",
-            "The workout landed. The recovery hasn't caught up. That gap is where most overtraining starts.",
+            "Yesterday was heavy. The resting pulse hasn't come back down.",
+            "Hard effort yesterday, the heart still high today. The body is mid-sentence with the last thing.",
+            "The work landed; the recovery hasn't. That gap is where overreaching begins.",
         ]
     },
     "recovery_good": {
-        "principle": "Rising HRV after training load signals adaptation is occurring.",
+        "principle": "HRV rising after a hard run of days is the body adapting to the load.",
         "category": "recovery",
         "longevity_factor": "cardiovascular",
         "threshold": "HRV rising after 3+ days of high training load. Max once per 14 days.",
         "messages": [
-            "Recent training load has been high, and your HRV is rising. The body is adapting.",
-            "You've been putting in the work, and the recovery signals are responding. That's the cycle working.",
-            "HRV up after a demanding stretch. The effort is converting.",
+            "A demanding stretch, and the recovery signals are rising. The body is adapting.",
+            "The work went in; the body is answering. That's the cycle doing its work.",
+            "Recovery climbing after a hard run of days. The effort is converting.",
         ]
     },
 
     # ── WORK-LIFE BOUNDARY ───────────────────────────────────────────────
     "boundary_evening_work": {
-        "principle": "Evening work hours displace recovery and psychological detachment.",
+        "principle": "Evening work crowds out the detachment that recovery needs.",
         "category": "work_boundary",
         "longevity_factor": "stress_chronic",
         "threshold": "Calendar events after 7pm on 3+ evenings in a week. Requires calendar connection.",
         "messages": [
             "Three evenings this week with work on the calendar. The day keeps not ending.",
-            "Late meetings most nights this week. The evening is part of the day too.",
-            "Work has been running past 7pm most nights. The body needs the day to have an end.",
+            "Late meetings most nights. The evening is part of the day too.",
+            "Work ran past seven most nights. The body needs the day to have an edge.",
         ]
     },
     "boundary_weekend_meetings": {
-        "principle": "Weekend work interrupts the psychological recovery that weekends exist to provide.",
+        "principle": "The weekend exists to interrupt the week. Work crosses into it at a cost.",
         "category": "work_boundary",
         "longevity_factor": "stress_chronic",
         "threshold": "Any calendar event on Saturday or Sunday. Requires calendar connection.",
         "messages": [
-            "There's a meeting on your weekend. The weekend is the only part of the week that doesn't need a meeting.",
-            "Calendar events on a weekend. Recovery requires time without demands — even scheduled ones.",
-            "A weekend meeting. The body doesn't distinguish between a calendar block and a workday when it's trying to rest.",
+            "A meeting on the weekend. The one stretch that doesn't need one.",
+            "Work on a Saturday. Rest needs hours with no demand in them.",
+            "A weekend on the calendar. The body doesn't tell a meeting from a workday when it's trying to rest.",
         ]
     },
 
     # ── RHYTHM & BALANCE ─────────────────────────────────────────────────
     "rhythm_balanced_day": {
-        "principle": "A balanced day — movement, rest, focus, limited screens — is the oldest form of health.",
+        "principle": "A day of movement, rest, focus, and quiet screens is the oldest form of health.",
         "category": "balance",
         "longevity_factor": "inflammation_chronic",
         "threshold": "Score 1 point per condition met: (1) steps >= 7000, (2) total screen time <= 3 hours, (3) no phone use after 10pm, (4) sleep start previous night before 11pm, (5) calendar meetings <= 4 hours if calendar connected. Fire if 3 or more conditions are met.",
         "messages": [
-            "Yesterday ticked several boxes quietly — movement, rest, reasonable screens. Those days are rarer than they should be.",
-            "Koan noticed a good day yesterday. Not one big thing — a few small ones that came together.",
-            "A balanced day by most measures. Movement, rest, some quiet. That combination is the whole formula.",
+            "Yesterday quietly did several things right — moving, resting, the screen set down. Rarer than it should be.",
+            "A good day yesterday. Not one big thing; a few small ones that lined up.",
+            "A balanced day by most measures — some movement, some rest, some quiet. That's the whole of it.",
         ]
     },
     "rhythm_weekend_recovery": {
-        "principle": "Weekends restore what the week depletes — but only when the conditions for recovery are actually met.",
+        "principle": "Weekends restore the week, but only when the conditions for rest are actually met.",
         "category": "balance",
         "longevity_factor": "stress_chronic",
         "threshold": "Score 1 point per condition: (1) no calendar meetings, (2) steps >= 5000, (3) sleep previous night >= 7 hours, (4) social media time < 45 minutes. Fire if 3 or more conditions are met. Only fires on Saturday or Sunday.",
         "messages": [
-            "Yesterday had most of what a weekend should — movement, rest, some quiet. That's what recovery actually looks like.",
-            "A real weekend day. Not because it was perfect, but because it was unhurried and the body got what it needed.",
-            "Koan noticed the weekend actually felt like one. Most of the recovery signals were there. That matters.",
+            "Yesterday had most of what a weekend is for — movement, rest, some quiet.",
+            "A real weekend day. Not perfect — unhurried, and the body took what it needed.",
+            "The weekend felt like one. Most of the recovery was there. That counts.",
         ]
     },
 
     # ── WISDOM ──────────────────────────────────────────────────────────
-    # Wisdom nudges require no user data. They fire at most once per week
-    # as variety, drawn from blue zone research and the Andrei Roșu
-    # longevity framework. Tone: a sentence from a book you'd underline.
+    # Wisdom nudges are the rarest category — at most once per ~12 days.
+    # Each is tied to one or more trigger patterns (see "triggers"); the
+    # orchestrator prefers a line whose pattern is active right now.
+    # One observation per entry, in the voice of a sentence you'd underline.
 
-    "wisdom_natural_movement": {
-        "principle": "The longest-lived people don't exercise — they live in environments that make movement unavoidable.",
+    "wisdom_movement_woven": {
+        "principle": "Movement belongs in the structure of a day, not the schedule of one.",
         "category": "wisdom",
         "longevity_factor": "inflammation_chronic",
+        "triggers": ["movement_declining", "movement_work_hours_gap", "movement_sedentary_day"],
         "messages": [
-            "The healthiest people in the world never had gym memberships. They just lived in ways that kept them moving.",
-            "Natural movement isn't a workout. It's what happens when your life is designed around a body.",
-            "A walk isn't exercise. It's what you are.",
+            "Movement was once woven into the day, not scheduled into it.",
         ]
     },
-    "wisdom_sleep_consistency": {
-        "principle": "Your body runs on a clock that predates civilisation. Disrupting it has costs that accumulate silently.",
+    "wisdom_walk_is_what_you_are": {
+        "principle": "A walk is closer to what a body is than to a thing a body does.",
+        "category": "wisdom",
+        "longevity_factor": "inflammation_chronic",
+        "triggers": ["movement_declining", "standing_gap"],
+        "messages": [
+            "A walk isn't exercise. It's nearer to what a body is for.",
+        ]
+    },
+    "wisdom_chair_opinion": {
+        "principle": "Comfort and rest are not the same thing. The chair confuses them.",
+        "category": "wisdom",
+        "longevity_factor": "inflammation_chronic",
+        "triggers": ["standing_gap", "movement_work_hours_gap"],
+        "messages": [
+            "The chair is comfortable. The body keeps a different opinion.",
+        ]
+    },
+    "wisdom_old_clock": {
+        "principle": "The internal clock predates the calendar and keeps time either way.",
         "category": "wisdom",
         "longevity_factor": "hormonal_dysregulation",
+        "triggers": ["sleep_timing_inconsistent", "sleep_alarm_dependent"],
         "messages": [
-            "Consistency of sleep timing predicts longevity better than duration. The clock matters more than the hours.",
-            "The body doesn't distinguish between jet lag and an irregular schedule. Both confuse it the same way.",
-            "Going to bed at the same time is one of the oldest forms of self-care. It predates the word.",
+            "The body runs on a clock older than the calendar. It keeps time either way.",
         ]
     },
-    "wisdom_purpose": {
-        "principle": "Ikigai — a reason to get up in the morning — is one of the strongest predictors of longevity across cultures.",
-        "category": "wisdom",
-        "longevity_factor": "stress_chronic",
-        "messages": [
-            "Okinawans don't retire. They just keep doing what they love, at a pace that suits the decade.",
-            "Purpose doesn't need to be grand. It needs to be real.",
-            "People who live the longest tend to know why they got up today. The reason doesn't have to be important.",
-        ]
-    },
-    "wisdom_social_connection": {
-        "principle": "Loneliness is as harmful to health as smoking 15 cigarettes a day. Connection is not optional.",
-        "category": "wisdom",
-        "longevity_factor": "stress_chronic",
-        "messages": [
-            "The Roseto Effect: a community that ate badly, smoked, and worked hard — but had almost no heart disease. They had each other.",
-            "Strong social ties reduce mortality risk by 50%. Not 5. Fifty.",
-            "Connection is not a reward for finishing the work. It is part of what makes the work sustainable.",
-        ]
-    },
-    "wisdom_chronic_vs_acute_stress": {
-        "principle": "Acute stress is adaptive. Chronic stress is corrosive. The body can't tell the difference between a deadline and a predator.",
-        "category": "wisdom",
-        "longevity_factor": "stress_chronic",
-        "messages": [
-            "Short stress is useful. Long stress eats the things that protect you.",
-            "The stress response evolved for emergencies. When it runs all day, the body pays the bill later.",
-            "A body in chronic stress ages faster. Not metaphorically — measurably, at the cellular level.",
-        ]
-    },
-    "wisdom_unstructured_time": {
-        "principle": "The brain's default mode network — active during unstructured time — is essential for creativity, memory consolidation, and emotional regulation.",
-        "category": "wisdom",
-        "longevity_factor": "stress_chronic",
-        "messages": [
-            "Boredom isn't a problem to solve. It's a condition the brain needs.",
-            "The most useful thinking often happens when you're doing nothing in particular.",
-            "Unstructured time is not wasted time. It's when the brain does its background work.",
-        ]
-    },
-    "wisdom_eating_patterns": {
-        "principle": "When you eat may matter as much as what you eat. Eating within a consistent window aligns with your body's metabolic rhythms.",
-        "category": "wisdom",
-        "longevity_factor": "inflammation_chronic",
-        "messages": [
-            "Blue zone populations eat their largest meal at midday and their smallest in the evening. The timing is part of the practice.",
-            "Late-night eating asks the digestive system to work when the body expects to rest.",
-            "Consistent meal timing is a form of circadian hygiene most people never consider.",
-        ]
-    },
-    "wisdom_chronic_overwork": {
-        "principle": "Karoshi — death from overwork — is a recognised cause of death in Japan. Sustained overwork compresses lifespan, not just wellbeing.",
-        "category": "wisdom",
-        "longevity_factor": "stress_chronic",
-        "messages": [
-            "The countries with the highest life expectancy are not the ones that work the most hours.",
-            "Overwork is not a personality trait. It's a chronic stressor with a long invoice.",
-            "Rest is not the opposite of productivity. It is what makes continued productivity possible.",
-        ]
-    },
-    "wisdom_circadian_alignment": {
-        "principle": "Light is the primary signal that sets your internal clock. Morning light and evening darkness are among the most powerful health levers available.",
+    "wisdom_dark_hour": {
+        "principle": "The hour before sleep was dark for nearly all of human history.",
         "category": "wisdom",
         "longevity_factor": "hormonal_dysregulation",
+        "triggers": ["sleep_late_night_phone", "sleep_late_bedtime"],
         "messages": [
-            "Morning light in the first 30 minutes after waking sets the cortisol rhythm for the entire day.",
-            "The body has been calibrating to sunrise and sunset for 300,000 years. Electric light is very new.",
-            "Bright light in the morning and dim light in the evening is not a preference — it's what the biology expects.",
+            "The last hour before sleep was dark for most of human history. The body still expects it.",
         ]
     },
-    "wisdom_nature_exposure": {
-        "principle": "Time in nature reduces cortisol, lowers blood pressure, and improves immune function — effects that last days after a single exposure.",
+    "wisdom_sleep_repair": {
+        "principle": "Sleep is when the body does its repairs, on its own schedule.",
         "category": "wisdom",
-        "longevity_factor": "stress_chronic",
+        "longevity_factor": "cellular_senescence",
+        "triggers": ["sleep_duration_short", "sleep_late_bedtime"],
         "messages": [
-            "Shinrin-yoku — forest bathing — is prescribed by doctors in Japan. The trees are doing something.",
-            "20 minutes outside lowers cortisol measurably. The body responds to nature faster than the mind does.",
-            "You evolved outside. The inside is the recent experiment.",
+            "Sleep does its repairs at night, and keeps its own hours.",
         ]
     },
-    "wisdom_rest_vs_recovery": {
-        "principle": "Rest and recovery are not the same. Rest is passive. Recovery is active restoration — sleep, movement, connection, quiet.",
-        "category": "wisdom",
-        "longevity_factor": "stress_chronic",
-        "messages": [
-            "Sitting on a couch scrolling is not recovery. Recovery requires something that restores.",
-            "The body recovers through sleep, movement, and ease. Not through passive consumption.",
-            "What you call doing nothing matters. Not all nothing is restoring.",
-        ]
-    },
-    "wisdom_compounding_small_choices": {
-        "principle": "Health is not made in dramatic interventions. It accumulates through small choices made consistently over years.",
+    "wisdom_plants_were_medicine": {
+        "principle": "Plant-forward eating is medicine taken as food, not instead of it.",
         "category": "wisdom",
         "longevity_factor": "inflammation_chronic",
+        "triggers": ["rhythm_balanced_day", "rhythm_weekend_recovery"],
         "messages": [
-            "The people who live well at 80 didn't start preparing at 79. It was the accumulation of ordinary days.",
-            "No single choice matters very much. The pattern of choices, compounded over years, matters enormously.",
-            "Small consistent actions outperform large occasional ones. The body responds to what it can rely on.",
+            "The plants on the plate were the medicine. The medicine was just lunch.",
+        ]
+    },
+    "wisdom_hara_hachi_bu": {
+        "principle": "Eating to most-of-the-way-full is its own old discipline.",
+        "category": "wisdom",
+        "longevity_factor": "inflammation_chronic",
+        "triggers": ["rhythm_balanced_day"],
+        "messages": [
+            "Hara hachi bu. Eat to eight parts of ten, and stop.",
+        ]
+    },
+    "wisdom_morning_light": {
+        "principle": "Morning light is the strongest signal the body has for setting its day.",
+        "category": "wisdom",
+        "longevity_factor": "hormonal_dysregulation",
+        "triggers": ["morning_phone_early", "sleep_timing_inconsistent", "outdoor_low_week"],
+        "messages": [
+            "Morning light tells the body what time it is. Nothing else does it as well.",
+        ]
+    },
+    "wisdom_assembled_outdoors": {
+        "principle": "The body was assembled outdoors. Indoors is the recent arrangement.",
+        "category": "wisdom",
+        "longevity_factor": "stress_chronic",
+        "triggers": ["outdoor_low_week"],
+        "messages": [
+            "You were assembled outdoors. The inside is the recent experiment.",
+        ]
+    },
+    "wisdom_attention_is_a_life": {
+        "principle": "Attention is the currency a life is spent in. It is also the one the feed wants.",
+        "category": "wisdom",
+        "longevity_factor": "stress_chronic",
+        "triggers": ["attention_social_media_heavy", "attention_high_pickups"],
+        "messages": [
+            "Attention is the one currency that buys a life. The feed knows it too.",
+        ]
+    },
+    "wisdom_short_vs_long_stress": {
+        "principle": "Acute stress sharpens; chronic stress erodes. The body can't always tell them apart.",
+        "category": "wisdom",
+        "longevity_factor": "stress_chronic",
+        "triggers": ["stress_hrv_low", "stress_resting_hr_elevated"],
+        "messages": [
+            "Short stress sharpens. Long stress erodes. The body can't tell a deadline from a predator.",
+        ]
+    },
+    "wisdom_the_seam": {
+        "principle": "The mind lands in the gap between things. Back-to-back removes the gap.",
+        "category": "wisdom",
+        "longevity_factor": "stress_chronic",
+        "triggers": ["stress_back_to_back_meetings", "stress_heavy_meeting_day"],
+        "messages": [
+            "The mind needs a seam between things. Back-to-back leaves nowhere to land.",
+        ]
+    },
+    "wisdom_overwork_invoice": {
+        "principle": "Sustained overwork is a debt the body settles later, with interest.",
+        "category": "wisdom",
+        "longevity_factor": "stress_chronic",
+        "triggers": ["boundary_evening_work", "boundary_weekend_meetings", "stress_heavy_meeting_day"],
+        "messages": [
+            "The body keeps the invoice for overwork, and pays it later.",
+        ]
+    },
+    "wisdom_rest_is_not_recovery": {
+        "principle": "Rest is passive; recovery restores. The two are easy to confuse.",
+        "category": "wisdom",
+        "longevity_factor": "stress_chronic",
+        "triggers": ["stress_hrv_low", "recovery_insufficient"],
+        "messages": [
+            "Doing nothing and recovering are not the same. One restores; one only passes the time.",
+        ]
+    },
+    "wisdom_a_reason_to_rise": {
+        "principle": "A reason to get up in the morning is among the steadiest predictors of a long life.",
+        "category": "wisdom",
+        "longevity_factor": "stress_chronic",
+        "triggers": ["rhythm_weekend_recovery", "recovery_good"],
+        "messages": [
+            "The Okinawans don't retire. They keep a reason to rise, sized to the decade.",
+        ]
+    },
+    "wisdom_shared_meal": {
+        "principle": "Connection is not a reward for the work. It is part of what makes a life hold.",
+        "category": "wisdom",
+        "longevity_factor": "stress_chronic",
+        "triggers": ["boundary_weekend_meetings", "rhythm_weekend_recovery"],
+        "messages": [
+            "A shared meal does something a supplement can't.",
+        ]
+    },
+    "wisdom_pattern_of_days": {
+        "principle": "Health is not made in a day. It accumulates in the pattern of them.",
+        "category": "wisdom",
+        "longevity_factor": "inflammation_chronic",
+        "triggers": ["movement_good_streak", "attention_screen_improving", "outdoor_streak"],
+        "messages": [
+            "No single day decides much. The pattern of days decides everything.",
         ]
     },
 }

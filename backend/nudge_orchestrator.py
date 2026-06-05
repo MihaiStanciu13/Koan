@@ -113,9 +113,14 @@ class NudgeOrchestrator:
                     "relevance_score": 0.0,
                 })
 
-        # ── Wisdom / philosophical nudge (at most once per week) ──────────
+        # ── Wisdom / philosophical nudge (rarest category; ~once per 12 days) ──
+        # Each wisdom line is bound to one or more pattern trigger_ids via the
+        # library's "triggers" field. When wisdom is due, prefer a line whose
+        # pattern is active right now; fall back to any wisdom line otherwise.
         try:
-            wisdom_triggers = [k for k in NUDGE_LIBRARY if k.startswith("wisdom_")]
+            wisdom_triggers = [
+                k for k, v in NUDGE_LIBRARY.items() if v.get("category") == "wisdom"
+            ]
             if wisdom_triggers:
                 last_wisdom = await self.db.nudges.find_one(
                     {"user_id": user_id, "nudge_type": "wisdom"},
@@ -126,12 +131,20 @@ class NudgeOrchestrator:
                     or (
                         datetime.utcnow()
                         - last_wisdom.get("created_at", datetime.min)
-                    ).days >= 7
+                    ).days >= 12
                 )
                 if wisdom_due:
+                    active_pattern_ids = {
+                        c["trigger_id"] for c in candidates if c["source"] == "pattern"
+                    }
+                    matched = [
+                        k for k in wisdom_triggers
+                        if active_pattern_ids & set(NUDGE_LIBRARY[k].get("triggers", []))
+                    ]
+                    chosen = random.choice(matched) if matched else random.choice(wisdom_triggers)
                     candidates.append({
                         "source": "wisdom",
-                        "trigger_id": random.choice(wisdom_triggers),
+                        "trigger_id": chosen,
                         "nudge_type": "wisdom",
                         "context": {},
                         "relevance_score": 0.0,
