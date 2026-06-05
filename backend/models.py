@@ -96,6 +96,7 @@ class Nudge(BaseModel):
     opened: bool = False
     action_taken: Optional[str] = None
     silent: bool = False  # True when nudge_style is "silent" — delivered without sound
+    featured_at: Optional[datetime] = None  # set when surfaced as the home "Today" card; excluded from the feed
 
 class NudgeResponse(BaseModel):
     nudge_id: str

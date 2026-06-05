@@ -57,13 +57,6 @@ function getGreeting(): string {
   return 'Still up.'; // late night — gently observational
 }
 
-const TODAY_HINTS = [
-  "You know the next step.",
-  "Return to focus.",
-  "Start with one clear action.",
-  "Take a moment before switching tasks.",
-  "Decide your next step.",
-];
 
 function WeeklyCard({ pattern }: { pattern: any }) {
   const router = useRouter();
@@ -200,7 +193,7 @@ export default function HomeScreen() {
   const [trialDays, setTrialDays] = useState(0);
   const [subscription, setSubscription] = useState<any>(null);
   const [learningPhase, setLearningPhase] = useState(0); // Track which phase of learning we're in
-  const [currentHint, setCurrentHint] = useState(0);
+  const [todayCard, setTodayCard] = useState<any>(null);
   const [calendarConnected, setCalendarConnected] = useState(false);
   const [weeklyPattern, setWeeklyPattern] = useState<any>(null);
 
@@ -215,10 +208,6 @@ export default function HomeScreen() {
     loadData();
     startPulseAnimation();
     determineLearningPhase();
-
-    // Rotate hint daily
-    const hint = new Date().getDate() % TODAY_HINTS.length;
-    setCurrentHint(hint);
 
     startSignalCollection();
     flushToBackend(); // send any pending signals from previous session
@@ -293,6 +282,14 @@ export default function HomeScreen() {
   const loadData = async () => {
     if (!user || !isMounted.current) return;
     try {
+      // Fetch the "Today" card first: on weekdays the backend marks the
+      // featured observation, which the pending/pattern-nudge feed then
+      // excludes — so this must resolve before those queries run.
+      const todayCardResult = await nudgeAPI.getTodayCard().catch(() => null);
+      if (isMounted.current) {
+        setTodayCard(todayCardResult && todayCardResult.type ? todayCardResult : null);
+      }
+
       const [prefs, nudges, subStatus, fallback, patternResult, weeklyResult] = await Promise.all([
         preferencesAPI.get(),
         nudgeAPI.getPending(),
@@ -331,6 +328,13 @@ export default function HomeScreen() {
         if (!alreadyPresent) {
           allNudges = [patternResult.nudge, ...allNudges];
         }
+      }
+
+      // Safety net: the backend already excludes the featured observation from
+      // the feed (featured_at + pattern-nudge exclusion), but in case of a race
+      // also drop any feed item with the same text as today's featured card.
+      if (todayCardResult?.type === 'observation' && todayCardResult.text) {
+        allNudges = allNudges.filter((n: any) => n.message !== todayCardResult.text);
       }
 
       setPendingNudges(allNudges);
@@ -424,14 +428,19 @@ export default function HomeScreen() {
           </View>
         </View>
 
-        {/* Today's Hint Card */}
-        <View style={styles.hintCard}>
-          <View style={styles.hintHeader}>
-            <View style={styles.hintDot} />
-            <Text style={styles.hintLabel}>Today's Hint</Text>
+        {/* Today card — Sunday: classical koan; weekday: top observation; else absent */}
+        {todayCard?.type === 'classical_koan' && (
+          <View style={styles.koanCard}>
+            <Text style={styles.koanText}>{todayCard.text}</Text>
+            <Text style={styles.koanAttribution}>{todayCard.attribution}</Text>
           </View>
-          <Text style={styles.hintText}>{TODAY_HINTS[currentHint]}</Text>
-        </View>
+        )}
+        {todayCard?.type === 'observation' && (
+          <View style={styles.observationCard}>
+            <View style={styles.observationDot} />
+            <Text style={styles.observationText}>{todayCard.text}</Text>
+          </View>
+        )}
 
         {/* Anchor Actions Card */}
         <TouchableOpacity 
@@ -623,37 +632,56 @@ const styles = StyleSheet.create({
     fontStyle: 'italic',
     flex: 1,
   },
-  hintCard: {
+  // Sunday classical koan — "silent classical" register. Border-only, generous
+  // breathing room, Georgia serif, attribution quiet beneath. Deliberately
+  // distinct from the rest of the product.
+  koanCard: {
+    backgroundColor: '#FAFDFA',
+    borderWidth: 1,
+    borderColor: '#E6E6E4',
+    borderRadius: 14,
+    paddingVertical: 32,
+    paddingHorizontal: 28,
+    marginBottom: 24,
+    marginTop: 4,
+  },
+  koanText: {
+    fontFamily: 'Georgia',
+    fontSize: 19,
+    fontWeight: '400',
+    color: '#2D6B4E',
+    lineHeight: 30,
+  },
+  koanAttribution: {
+    fontFamily: 'Georgia',
+    fontSize: 12.5,
+    color: '#3A3A3A',
+    opacity: 0.5,
+    marginTop: 16,
+  },
+  // Weekday observation — integrated home-card style, subtle category dot.
+  observationCard: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
     backgroundColor: '#D9F7EB',
     borderRadius: 12,
     padding: 20,
     marginBottom: 16,
   },
-  hintHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  hintDot: {
+  observationDot: {
     width: 6,
     height: 6,
     borderRadius: 3,
     backgroundColor: '#5FAD8E',
-    marginRight: 8,
+    marginRight: 12,
+    marginTop: 8,
   },
-  hintLabel: {
-    fontSize: 12,
-    fontWeight: '600',
+  observationText: {
+    flex: 1,
+    fontSize: 16,
+    fontWeight: '400',
     color: '#3A3A3A',
-    opacity: 0.6,
-    textTransform: 'uppercase',
-    letterSpacing: 1,
-  },
-  hintText: {
-    fontSize: 18,
-    fontWeight: '500',
-    color: '#3A3A3A',
-    lineHeight: 26,
+    lineHeight: 24,
   },
   card: {
     backgroundColor: '#FFFFFF',

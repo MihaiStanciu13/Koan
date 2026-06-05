@@ -417,9 +417,19 @@ async def get_pattern_nudge(
 ):
     """Get the highest priority nudge based on current patterns."""
     import uuid
+    from datetime import datetime as _dt, timedelta as _td
     from models import MicroMode
     detector = PatternDetector(db)
-    nudge_data = await detector.get_priority_nudge(current_user.id)
+
+    # Exclude the observation already featured on today's home "Today" card so
+    # the feed never duplicates it.
+    featured = await db.nudges.find_one(
+        {"user_id": current_user.id, "featured_at": {"$gte": _dt.utcnow() - _td(hours=24)}},
+        sort=[("featured_at", -1)],
+    )
+    exclude = {featured["trigger_id"]} if featured and featured.get("trigger_id") else set()
+
+    nudge_data = await detector.get_priority_nudge(current_user.id, exclude_trigger_ids=exclude)
     if not nudge_data:
         return {"nudge": None}
 
@@ -446,6 +456,76 @@ async def get_pattern_nudge(
         print(f"Push notification failed (non-blocking): {e}")
 
     return {"nudge": nudge.dict()}
+
+
+# Home "Today" card — Sundays: a classical koan; weekdays: the single most
+# pattern-significant observation (or nothing). The weekday observation is
+# marked featured_at so it is excluded from the main nudge feed for the day.
+@api_router.get("/nudges/today-card")
+async def get_today_card(
+    tz_offset: int = 0,  # minutes east of UTC, supplied by the client
+    current_user: User = Depends(require_active_subscription)
+):
+    import uuid
+    from datetime import datetime as _dt, timedelta as _td
+    from koan_library import koan_for_week
+    from models import Nudge
+
+    local_now = _dt.utcnow() + _td(minutes=tz_offset)
+
+    # Sunday: deterministic per-user, per-ISO-week classical koan.
+    if local_now.weekday() == 6:
+        iso_week = local_now.isocalendar()[1]
+        koan = koan_for_week(current_user.id, iso_week)
+        return {
+            "type": "classical_koan",
+            "text": koan["text"],
+            "attribution": koan["attribution"],
+        }
+
+    # Weekday: feature the highest-priority observation, once per local day.
+    local_midnight = local_now.replace(hour=0, minute=0, second=0, microsecond=0)
+    day_start_utc = local_midnight - _td(minutes=tz_offset)
+    existing = await db.nudges.find_one(
+        {"user_id": current_user.id, "featured_at": {"$gte": day_start_utc}},
+        sort=[("featured_at", -1)],
+    )
+    if existing:
+        return {
+            "type": "observation",
+            "text": existing["message"],
+            "category": existing.get("nudge_type"),
+            "trigger": existing.get("trigger_id"),
+        }
+
+    detector = PatternDetector(db)
+    nudge_data = await detector.get_priority_nudge(current_user.id)
+    if not nudge_data:
+        return {"type": None}
+
+    # Store as a featured nudge (not pushed — this is an in-app card).
+    prefs = await db.preferences.find_one({"user_id": current_user.id}) or {}
+    nudge_style = prefs.get("nudge_style", "silent")
+    nudge_obj = Nudge(
+        id=str(uuid.uuid4()),
+        user_id=current_user.id,
+        nudge_type=nudge_data["category"],
+        message=nudge_data["message"],
+        explanation=nudge_data.get("principle", ""),
+        delivered=False,
+        silent=(nudge_style == "silent"),
+        featured_at=_dt.utcnow(),
+    )
+    doc = nudge_obj.dict()
+    doc["trigger_id"] = nudge_data["trigger_id"]
+    await db.nudges.insert_one(doc)
+
+    return {
+        "type": "observation",
+        "text": nudge_data["message"],
+        "category": nudge_data["category"],
+        "trigger": nudge_data["trigger_id"],
+    }
 
 @api_router.post("/nudges/{nudge_id}/delivered")
 async def mark_delivered(

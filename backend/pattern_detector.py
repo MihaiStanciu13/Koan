@@ -560,14 +560,57 @@ class PatternDetector:
             if wake_range < 15 and sleep_range > 60:
                 triggered.append("sleep_alarm_dependent")
 
+        # ── sleep_late_night_phone ──
+        # Signal source: Screen Time threshold crossings (Phase 1a
+        # DeviceActivityMonitor), posted to phone_behaviors by signalCollector
+        # with a `crossed_at` timestamp. A crossing at a late hour is direct
+        # evidence the phone was in use past a reasonable bedtime. Fires on 3+
+        # such nights in the last 7 days.
+        #
+        # LIMITATION: crossed_at is stored in UTC and no user timezone is
+        # captured, so the late-hour window is approximate; and the signal only
+        # covers the apps the user chose to monitor, not all device use. This is
+        # the only real late-evening phone signal currently collected. A precise
+        # detector would need signalCollector to record local-time late-night
+        # device activity (e.g. minutes of use after 22:30 local) in the daily
+        # health signal.
+        try:
+            week_cutoff = datetime.utcnow() - timedelta(days=7)
+            st_events = await self.db.phone_behaviors.find({
+                "user_id": user_id,
+                "event_type": "screen_time_thresholds",
+                "timestamp": {"$gte": week_cutoff},
+            }).to_list(200)
+            late_nights = set()
+            for ev in st_events:
+                crossings = (ev.get("metadata") or {}).get("screen_time_thresholds_crossed_today", []) or []
+                for c in crossings:
+                    crossed_at = c.get("crossed_at")
+                    if not crossed_at:
+                        continue
+                    try:
+                        dt = datetime.fromisoformat(str(crossed_at).replace("Z", "+00:00"))
+                    except (ValueError, TypeError):
+                        continue
+                    if dt.hour >= 23 or dt.hour <= 2:
+                        late_nights.add(dt.date())
+            if len(late_nights) >= 3:
+                triggered.append("sleep_late_night_phone")
+        except Exception:
+            pass  # screen-time data unavailable — skip silently
+
         return triggered
 
-    async def get_priority_nudge(self, user_id: str) -> Optional[dict]:
+    async def get_priority_nudge(self, user_id: str, exclude_trigger_ids: Optional[set] = None) -> Optional[dict]:
         """
         Get the single most important nudge for the user right now.
         Checks what was recently sent to avoid repetition.
         Priority order: stress/recovery > sleep > morning boundary > movement > attention > balance
+
+        exclude_trigger_ids: trigger_ids to skip (e.g. the observation already
+        featured on the home "Today" card today, so the feed doesn't duplicate it).
         """
+        exclude_trigger_ids = exclude_trigger_ids or set()
         triggered = await self.detect_patterns(user_id)
         if not triggered:
             return None
@@ -615,7 +658,7 @@ class PatternDetector:
         recent_types = {n.get("nudge_type") for n in recent_nudges}
 
         for trigger_id in priority_order:
-            if trigger_id in triggered:
+            if trigger_id in triggered and trigger_id not in exclude_trigger_ids:
                 nudge_data = NUDGE_LIBRARY.get(trigger_id, {})
                 category = nudge_data.get("category", trigger_id)
                 if category not in recent_types:

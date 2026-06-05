@@ -109,6 +109,12 @@ export const nudgeAPI = {
   },
   getPatternNudge: () =>
     api.get('/nudges/pattern-nudge').then(r => r.data),
+  // Home "Today" card. tz_offset = minutes east of UTC so the backend can
+  // decide Sunday-vs-weekday and per-day featuring in the user's local time.
+  getTodayCard: () => {
+    const tzOffset = -new Date().getTimezoneOffset();
+    return api.get(`/nudges/today-card?tz_offset=${tzOffset}`).then(r => r.data);
+  },
 };
 
 export const preferencesAPI = {

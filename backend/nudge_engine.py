@@ -267,12 +267,18 @@ def should_send_nudge(nudge_type: str, micro_mode: str) -> bool:
     return True
 
 async def get_pending_nudges(db: AsyncIOMotorDatabase, user_id: str):
-    """Get nudges that haven't been delivered yet"""
+    """Get nudges that haven't been delivered yet.
+
+    Excludes nudges featured on the home "Today" card (featured_at set) so the
+    same observation never appears twice. {"featured_at": None} matches both
+    null and missing fields in MongoDB, so pre-existing nudges are unaffected.
+    """
     nudges = await db.nudges.find({
         "user_id": user_id,
-        "delivered": False
+        "delivered": False,
+        "featured_at": None,
     }).sort("created_at", -1).to_list(10)
-    
+
     return [Nudge(**nudge) for nudge in nudges]
 
 async def mark_nudge_delivered(db: AsyncIOMotorDatabase, nudge_id: str):
