@@ -5,9 +5,16 @@ from enum import Enum
 
 class MicroMode(str, Enum):
     STANDARD = "standard"
-    FOCUS = "focus"
-    MEETING = "meeting"
     WHISPER = "whisper"
+
+
+def normalize_micro_mode(value) -> str:
+    """Map any stored micro_mode to the current two-value set.
+
+    Legacy "focus" and "meeting" values (removed in Phase 1d) collapse to
+    "standard". Used for lazy migration on read and as a safety net in gating.
+    """
+    return value if value in ("standard", "whisper") else "standard"
 
 class SubscriptionStatus(str, Enum):
     TRIAL = "trial"
@@ -59,7 +66,6 @@ class WorkplaceData(BaseModel):
 class Preferences(BaseModel):
     user_id: str
     micro_mode: MicroMode = MicroMode.STANDARD
-    whisper_mode: bool = False
     anchor_action: str = "close one loop"
     anchor_actions: List[Dict] = []  # List of anchor actions with text, time, enabled
     quiet_periods: List[Dict] = []  # Learned periods when user focuses
@@ -69,11 +75,12 @@ class Preferences(BaseModel):
     quiet_hours_enabled: bool = True
     quiet_hours_start: str = "23:00"
     quiet_hours_end: str = "07:00"
+    tz_offset: int = 0  # minutes east of UTC; last reported by the client (today-card)
+    last_koan_push_week: Optional[str] = None  # "YYYY-WW" of the last Sunday koan push
     story_viewed: bool = False
 
 class PreferencesUpdate(BaseModel):
     micro_mode: Optional[MicroMode] = None
-    whisper_mode: Optional[bool] = None
     anchor_action: Optional[str] = None
     anchor_actions: Optional[List[Dict]] = None
     connected_tools: Optional[List[str]] = None

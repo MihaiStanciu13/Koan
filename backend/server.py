@@ -23,7 +23,7 @@ from auth import router as auth_router, get_current_user, require_active_subscri
 from behavioral_monitor import router as behavior_router
 from subscription import router as subscription_router
 from models import User, Preferences, PreferencesUpdate, Nudge, NudgeResponse, HealthSignalCreate
-from nudge_engine import get_pending_nudges, mark_nudge_delivered, mark_nudge_opened, create_nudge
+from nudge_engine import get_pending_nudges, mark_nudge_delivered, mark_nudge_opened, create_nudge, deliver_nudge
 from nudge_orchestrator import NudgeOrchestrator
 from pattern_detector import PatternDetector, detect_weekly_patterns, learn_quiet_periods
 
@@ -46,58 +46,52 @@ db = client[db_name]
 async def get_db() -> AsyncIOMotorDatabase:
     return db
 
-async def send_weekly_summary_notifications():
-    """Runs every Sunday at 08:00 UTC. Sends a push notification to users whose
-    weekly pattern narrative is ready (i.e. not the baseline placeholder)."""
-    from push_notifications import send_push_notification
+async def send_sunday_koan_push():
+    """Hourly job. Delivers each user the Sunday classical koan as a single push
+    at 08:00 in their local time (preferences.tz_offset, default UTC), at most
+    once per ISO week. This is the only Today-card push of the week — weekday
+    observations stay pull-only. Replaces the former weekly-summary push
+    (recap deferred to v1.1). Fires even in Whisper mode (the one weekly content
+    surface Whisper users opted into)."""
+    from koan_library import koan_for_week
 
-    logger.info("Weekly summary notification job started")
     users = await db.users.find(
         {"subscription_status": {"$in": ["trial", "active"]}}
     ).to_list(None)
-
-    def _first_reflection_date(created_at):
-        """First Sunday >= 7 days after signup."""
-        from datetime import timezone as _tz
-        if created_at is None:
-            return None
-        if created_at.tzinfo is None:
-            created_at = created_at.replace(tzinfo=_tz.utc)
-        earliest = created_at + timedelta(days=7)
-        days_to_sunday = (6 - earliest.weekday()) % 7  # Monday=0, Sunday=6
-        return earliest + timedelta(days=days_to_sunday)
-
-    now = datetime.utcnow().replace(tzinfo=None)
 
     sent = 0
     for user in users:
         user_id = user.get("id")
         if not user_id:
             continue
-        # Skip if user's first eligible reflection Sunday hasn't arrived yet
-        created_at = user.get("created_at")
-        if created_at:
-            if hasattr(created_at, 'tzinfo') and created_at.tzinfo is not None:
-                created_at = created_at.replace(tzinfo=None)
-            first_reflection = _first_reflection_date(created_at.replace(tzinfo=None) if created_at else None)
-            if first_reflection and now < first_reflection.replace(tzinfo=None):
-                continue
         try:
-            result = await PatternDetector(db).detect_weekly_patterns(user_id)
-            narrative = result.get("narrative", "")
-            if narrative and "Koan is still building your baseline" not in narrative:
-                await send_push_notification(
-                    db=db,
-                    user_id=user_id,
-                    title="Koan",
-                    body="Your weekly reflection is ready.",
-                    data={"type": "weekly_summary", "navigate": "insights"},
-                )
-                sent += 1
-        except Exception as e:
-            logger.error(f"Weekly summary notification failed for user {user_id}: {e}")
+            prefs = await db.preferences.find_one({"user_id": user_id}) or {}
+            tz_offset = int(prefs.get("tz_offset", 0) or 0)
+            local_now = datetime.utcnow() + timedelta(minutes=tz_offset)
+            # Fire only at the user's local Sunday 08:xx hour.
+            if local_now.weekday() != 6 or local_now.hour != 8:
+                continue
+            iso_year, iso_week, _ = local_now.isocalendar()
+            week_key = f"{iso_year}-{iso_week:02d}"
+            if prefs.get("last_koan_push_week") == week_key:
+                continue  # already pushed this week
 
-    logger.info(f"Weekly summary notifications sent: {sent}/{len(users)} users")
+            koan = koan_for_week(user_id, iso_week)
+            # bypass_gates so Whisper still receives it; write=False because the
+            # koan is rendered from the deterministic library, not stored.
+            await deliver_nudge(
+                db, user_id,
+                {"nudge_type": "wisdom", "message": koan["text"]},
+                channel="push", bypass_gates=True, write=False,
+            )
+            await db.preferences.update_one(
+                {"user_id": user_id}, {"$set": {"last_koan_push_week": week_key}}
+            )
+            sent += 1
+        except Exception as e:
+            logger.error(f"Sunday koan push failed for user {user_id}: {e}")
+
+    logger.info(f"Sunday koan push: {sent} koans sent this hour")
 
 
 async def run_daily_nudge_evaluation():
@@ -133,10 +127,11 @@ async def lifespan(app: FastAPI):
     logger.info(f"Starting app, connecting to MongoDB at {mongo_url}")
 
     scheduler.add_job(run_daily_nudge_evaluation, CronTrigger(hour=9, minute=0))
-    scheduler.add_job(send_weekly_summary_notifications, CronTrigger(day_of_week="sun", hour=8, minute=0))
+    # Hourly so the Sunday koan push can fire at 08:00 in each user's local time.
+    scheduler.add_job(send_sunday_koan_push, CronTrigger(minute=0))
     scheduler.start()
     logger.info("Daily nudge scheduler started (runs at 09:00 UTC)")
-    logger.info("Weekly summary scheduler started (runs Sundays at 08:00 UTC)")
+    logger.info("Sunday koan push scheduler started (hourly; fires at local Sunday 08:00)")
     yield
     # Shutdown
     scheduler.shutdown()
@@ -203,6 +198,14 @@ async def get_preferences(
         default_prefs = Preferences(user_id=current_user.id, micro_mode=MicroMode.STANDARD)
         await db.preferences.insert_one(default_prefs.dict())
         return default_prefs.dict()
+
+    # Lazy migration: collapse removed micro_modes (focus/meeting) to standard,
+    # rewriting the stored value so it never resurfaces.
+    if prefs.get("micro_mode") in ("focus", "meeting"):
+        await db.preferences.update_one(
+            {"user_id": current_user.id}, {"$set": {"micro_mode": "standard"}}
+        )
+        prefs["micro_mode"] = "standard"
 
     # Remove MongoDB _id field for JSON serialization
     if '_id' in prefs:
@@ -416,9 +419,7 @@ async def get_pattern_nudge(
     current_user: User = Depends(require_active_subscription)
 ):
     """Get the highest priority nudge based on current patterns."""
-    import uuid
     from datetime import datetime as _dt, timedelta as _td
-    from models import MicroMode
     detector = PatternDetector(db)
 
     # Exclude the observation already featured on today's home "Today" card so
@@ -433,29 +434,19 @@ async def get_pattern_nudge(
     if not nudge_data:
         return {"nudge": None}
 
-    # Create nudge directly with library content (pre-formed message + principle)
-    prefs = await db.preferences.find_one({"user_id": current_user.id}) or {}
-    nudge_style = prefs.get("nudge_style", "silent")
-    nudge_id = str(uuid.uuid4())
-    from models import Nudge
-    nudge = Nudge(
-        id=nudge_id,
-        user_id=current_user.id,
-        nudge_type=nudge_data["category"],
-        message=nudge_data["message"],
-        explanation=nudge_data["principle"],
-        delivered=False,
-        silent=(nudge_style == "silent"),
+    # Single delivery gate: applies mode (Whisper), frequency, and quiet-hours,
+    # then writes + pushes. Returns None when gated out.
+    delivered = await deliver_nudge(
+        db, current_user.id,
+        {
+            "nudge_type": nudge_data["category"],
+            "message": nudge_data["message"],
+            "explanation": nudge_data["principle"],
+            "trigger_id": nudge_data["trigger_id"],
+        },
+        channel="both",
     )
-    await db.nudges.insert_one(nudge.dict())
-
-    try:
-        from push_notifications import send_nudge_push
-        await send_nudge_push(db, current_user.id, nudge.message)
-    except Exception as e:
-        print(f"Push notification failed (non-blocking): {e}")
-
-    return {"nudge": nudge.dict()}
+    return {"nudge": delivered}
 
 
 # Home "Today" card — Sundays: a classical koan; weekdays: the single most
@@ -466,12 +457,16 @@ async def get_today_card(
     tz_offset: int = 0,  # minutes east of UTC, supplied by the client
     current_user: User = Depends(require_active_subscription)
 ):
-    import uuid
     from datetime import datetime as _dt, timedelta as _td
     from koan_library import koan_for_week
-    from models import Nudge
 
     local_now = _dt.utcnow() + _td(minutes=tz_offset)
+
+    # Record the client's timezone offset so the Sunday-koan cron and quiet-hours
+    # can reason in the user's local time.
+    await db.preferences.update_one(
+        {"user_id": current_user.id}, {"$set": {"tz_offset": tz_offset}}
+    )
 
     # Sunday: deterministic per-user, per-ISO-week classical koan.
     if local_now.weekday() == 6:
@@ -503,22 +498,24 @@ async def get_today_card(
     if not nudge_data:
         return {"type": None}
 
-    # Store as a featured nudge (not pushed — this is an in-app card).
-    prefs = await db.preferences.find_one({"user_id": current_user.id}) or {}
-    nudge_style = prefs.get("nudge_style", "silent")
-    nudge_obj = Nudge(
-        id=str(uuid.uuid4()),
-        user_id=current_user.id,
-        nudge_type=nudge_data["category"],
-        message=nudge_data["message"],
-        explanation=nudge_data.get("principle", ""),
-        delivered=False,
-        silent=(nudge_style == "silent"),
-        featured_at=_dt.utcnow(),
+    # Store as a featured in-app card via the single gate. channel="in_app"
+    # means no push; enforce_frequency=False because the card is already
+    # once-per-day by the idempotency check above. Whisper mode suppresses it
+    # (deliver_nudge returns None) so no weekday card shows.
+    delivered = await deliver_nudge(
+        db, current_user.id,
+        {
+            "nudge_type": nudge_data["category"],
+            "message": nudge_data["message"],
+            "explanation": nudge_data.get("principle", ""),
+            "trigger_id": nudge_data["trigger_id"],
+            "featured_at": _dt.utcnow(),
+        },
+        channel="in_app",
+        enforce_frequency=False,
     )
-    doc = nudge_obj.dict()
-    doc["trigger_id"] = nudge_data["trigger_id"]
-    await db.nudges.insert_one(doc)
+    if not delivered:
+        return {"type": None}
 
     return {
         "type": "observation",

@@ -156,15 +156,10 @@ class AdaptiveNudgeEngine:
         # Apply user preference filters
         preferences = await self.db.preferences.find_one({"user_id": user_id})
         if preferences:
-            micro_mode = preferences.get("micro_mode", "standard")
-            # Travel mode: suppress all adaptive nudges
-            if micro_mode == "whisper":
-                return None
-            # Focus mode: suppress all adaptive nudges (no anchor reminders in adaptive engine)
-            if micro_mode == "focus":
-                return None
-            # Whisper mode: deliver only 1 in 3 nudges (~70% suppression)
-            if preferences.get("whisper_mode", False) and random.random() > 0.333:
+            # Whisper suppresses all adaptive nudges; Standard allows them.
+            # (Legacy focus/meeting fall through to Standard, matching the lazy
+            # migration.) Anchor reminders are local and unaffected.
+            if preferences.get("micro_mode", "standard") == "whisper":
                 return None
 
         # Get adaptive weight for this signal type
@@ -220,10 +215,8 @@ class AdaptiveNudgeEngine:
                 # Apply user preference filters
                 preferences = await self.db.preferences.find_one({"user_id": user_id})
                 if preferences:
-                    micro_mode = preferences.get("micro_mode", "standard")
-                    if micro_mode in ("whisper", "focus"):
-                        return None
-                    if preferences.get("whisper_mode", False) and random.random() > 0.333:
+                    # Whisper suppresses adaptive fallback nudges; Standard allows.
+                    if preferences.get("micro_mode", "standard") == "whisper":
                         return None
 
                 nudge_style = preferences.get("nudge_style", "silent") if preferences else "silent"

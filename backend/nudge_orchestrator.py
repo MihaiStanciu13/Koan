@@ -24,10 +24,9 @@ from motor.motor_asyncio import AsyncIOMotorDatabase
 
 from adaptive_nudge_engine import Signal, SignalType
 from models import Nudge
-from nudge_engine import create_nudge
+from nudge_engine import create_nudge, deliver_nudge
 from nudge_library import NUDGE_LIBRARY, get_nudge_message
 from pattern_detector import PatternDetector
-from push_notifications import send_nudge_push
 
 logger = logging.getLogger(__name__)
 
@@ -681,31 +680,25 @@ class NudgeOrchestrator:
                 compound_messages=compound.get("personalised_messages", []),
             )
             message = personalised if personalised else random.choice(compound["messages"])
-            nudge_id = str(uuid.uuid4())
-            nudge_obj = Nudge(
-                id=nudge_id,
-                user_id=user_id,
-                nudge_type=compound["nudge_type"],
-                message=message,
-                explanation="",
-                delivered=False,
-                silent=(nudge_style == "silent"),
+            delivered = await deliver_nudge(
+                self.db, user_id,
+                {
+                    "nudge_type": compound["nudge_type"],
+                    "message": message,
+                    "explanation": "",
+                    "trigger_id": compound["trigger_id"],
+                },
+                channel="both",
             )
-            nudge_doc = nudge_obj.dict()
-            nudge_doc["trigger_id"] = compound["trigger_id"]
-            await self.db.nudges.insert_one(nudge_doc)
-            nudge_dict = nudge_obj.dict()
-            try:
-                await send_nudge_push(self.db, user_id, message, nudge_id=nudge_id)
-            except Exception as exc:
-                logger.error(f"Push notification failed for user {user_id}: {exc}")
+            if not delivered:
+                return None
             logger.info(
                 f"Orchestrator delivered compound nudge "
                 f"(trigger={compound['trigger_id']}, "
                 f"score={compound['relevance_score']:.2f}) "
                 f"to user {user_id}"
             )
-            return nudge_dict
+            return delivered
 
         # 5. Score and filter — compute personalisation multipliers once
         multipliers = await self.get_category_multipliers(user_id)
@@ -764,26 +757,23 @@ class NudgeOrchestrator:
                             return None
                         message = random.choice(local_msgs)
                         explanation = ""
-            nudge_id = str(uuid.uuid4())
-            nudge_obj = Nudge(
-                id=nudge_id,
-                user_id=user_id,
-                nudge_type=best["nudge_type"],
-                message=message,
-                explanation=explanation,
-                delivered=False,
-                silent=(nudge_style == "silent"),
+            delivered = await deliver_nudge(
+                self.db, user_id,
+                {
+                    "nudge_type": best["nudge_type"],
+                    "message": message,
+                    "explanation": explanation,
+                    "trigger_id": best["trigger_id"],
+                },
+                channel="both",
             )
-            # Store trigger_id alongside the nudge document (not part of Nudge model)
-            # so that per-trigger cooldown queries (positive triggers, standing_gap) work.
-            nudge_doc = nudge_obj.dict()
-            nudge_doc["trigger_id"] = best["trigger_id"]
-            await self.db.nudges.insert_one(nudge_doc)
-            nudge_dict = nudge_obj.dict()
+            if not delivered:
+                return None
+            nudge_dict = delivered
 
         else:
-            # Realtime: delegate to nudge_engine (AI-generated content)
-            # Strip internal bookkeeping keys before passing context to engine
+            # Realtime: delegate to nudge_engine, which generates AI content and
+            # routes delivery through deliver_nudge (mode/frequency/quiet-hours).
             context = {
                 k: v for k, v in best["context"].items()
                 if not k.startswith("_")
@@ -792,19 +782,11 @@ class NudgeOrchestrator:
             if not nudge_obj:
                 return None
             nudge_dict = nudge_obj.dict()
-            nudge_id = nudge_dict["id"]
-            message = nudge_dict["message"]
             # Store trigger_id for realtime nudges too
             await self.db.nudges.update_one(
-                {"id": nudge_id},
+                {"id": nudge_dict["id"]},
                 {"$set": {"trigger_id": best["trigger_id"]}},
             )
-
-        # 8. Push notification (non-fatal)
-        try:
-            await send_nudge_push(self.db, user_id, message, nudge_id=nudge_id)
-        except Exception as exc:
-            logger.error(f"Push notification failed for user {user_id}: {exc}")
 
         logger.info(
             f"Orchestrator delivered {best['source']} nudge "

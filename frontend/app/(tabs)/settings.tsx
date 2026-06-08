@@ -42,19 +42,9 @@ const MICRO_MODES = [
     description: 'Balanced nudges throughout the day',
   },
   {
-    value: 'focus',
-    name: 'Focus Mode',
-    description: 'Minimal interruptions, deep work support',
-  },
-  {
-    value: 'meeting',
-    name: 'Meeting-Heavy',
-    description: 'Recovery nudges between meetings',
-  },
-  {
     value: 'whisper',
     name: 'Whisper',
-    description: 'Ultra-rare nudges, anchor reminders only — for travel or high-pressure periods',
+    description: 'Suppress most nudges. Anchor reminders continue. The Sunday koan still arrives.',
   },
 ];
 

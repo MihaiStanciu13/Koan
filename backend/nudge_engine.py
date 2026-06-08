@@ -11,15 +11,14 @@
 # (switch_count, pickup_count, time). Falls back to hardcoded strings if the
 # API call fails.
 #
-# Filtering rules:
-#   - whisper_mode: skips nudge if any nudge sent in the last 4 hours
-#   - micro_mode FOCUS: all engine nudges suppressed
-#   - micro_mode MEETING: only meeting_recovery nudges
-#   - micro_mode WHISPER: all engine nudges suppressed
+# Delivery gating (all server-side nudges route through deliver_nudge):
+#   - micro_mode WHISPER: all engine nudges suppressed (except the Sunday koan)
 #   - micro_mode STANDARD: all nudge types allowed
+#   - frequency: at most one feed/push nudge per 6 hours
+#   - quiet hours: suppress push (still write in-app) during the user's window
 #
-# Data used: MongoDB collections `nudges` (created/delivered/opened state) and
-# `preferences` (whisper_mode, micro_mode per user).
+# Data used: MongoDB collections `nudges` (created/delivered/opened/featured
+# state) and `preferences` (micro_mode, quiet_hours_*, tz_offset per user).
 
 from motor.motor_asyncio import AsyncIOMotorDatabase
 from datetime import datetime, timedelta
@@ -32,7 +31,7 @@ try:
     import anthropic
 except ImportError:
     anthropic = None
-from models import Nudge, MicroMode
+from models import Nudge, MicroMode, normalize_micro_mode
 
 logger = logging.getLogger(__name__)
 
@@ -113,47 +112,27 @@ NUDGE_TEMPLATES = {
 }
 
 async def create_nudge(db: AsyncIOMotorDatabase, user_id: str, nudge_type: str, context: Dict):
-    """Create and store a nudge for the user"""
+    """Generate AI nudge content and deliver it through the single gate."""
     try:
-        # Check if user is in Whisper Mode (fewer nudges)
         preferences = await db.preferences.find_one({"user_id": user_id})
-        if preferences and preferences.get("whisper_mode", False):
-            # Whisper mode: deliver only 1 in 3 nudges (~70% suppression)
-            if random.random() > 0.333:
-                logger.info(f"Skipping nudge for user {user_id} in whisper mode (1-in-3 delivery)")
-                return None
-        
-        # Check nudge frequency based on micro-mode
-        micro_mode = preferences.get("micro_mode", MicroMode.STANDARD) if preferences else MicroMode.STANDARD
+        # Cheap pre-gate so we don't spend an AI call on a nudge the mode would
+        # suppress anyway. deliver_nudge re-applies the authoritative gate.
+        micro_mode = normalize_micro_mode(preferences.get("micro_mode") if preferences else None)
         if not should_send_nudge(nudge_type, micro_mode):
             logger.info(f"Skipping nudge type {nudge_type} for mode {micro_mode}")
             return None
-        
-        # Generate nudge content using AI
+
         message, explanation = await generate_nudge_content(nudge_type, context, preferences, db, user_id)
-        
-        nudge_style = preferences.get("nudge_style", "silent") if preferences else "silent"
-        nudge_id = str(uuid.uuid4())
-        nudge = Nudge(
-            id=nudge_id,
-            user_id=user_id,
-            nudge_type=nudge_type,
-            message=message,
-            explanation=explanation,
-            delivered=False,
-            silent=(nudge_style == "silent"),
+
+        delivered = await deliver_nudge(
+            db, user_id,
+            {"nudge_type": nudge_type, "message": message, "explanation": explanation},
+            channel="both",
         )
-        
-        await db.nudges.insert_one(nudge.dict())
-        logger.info(f"Created nudge {nudge_id} for user {user_id}")
-
-        try:
-            from push_notifications import send_nudge_push
-            await send_nudge_push(db, user_id, nudge.message)
-        except Exception as e:
-            print(f"Push notification failed (non-blocking): {e}")
-
-        return nudge
+        if delivered:
+            logger.info(f"Created nudge {delivered['id']} for user {user_id}")
+            return Nudge(**delivered)
+        return None
     except Exception as e:
         logger.error(f"Error creating nudge: {str(e)}")
         return None
@@ -250,21 +229,110 @@ async def generate_nudge_content(
         return fallback_messages.get(nudge_type, ("Take a moment", "Based on your patterns"))
 
 def should_send_nudge(nudge_type: str, micro_mode: str) -> bool:
-    """Determine if nudge should be sent based on micro-mode"""
-    # Focus mode: suppress all engine nudges
-    if micro_mode == MicroMode.FOCUS:
+    """Whisper suppresses all engine-generated nudges; Standard allows them."""
+    return normalize_micro_mode(micro_mode) != MicroMode.WHISPER
+
+
+async def _in_quiet_hours(prefs: dict) -> bool:
+    """True if the user's local time is within their quiet-hours window.
+
+    Local time uses prefs.tz_offset (minutes east of UTC, last reported by the
+    client via the today-card call). Users who have never opened the app have
+    no offset, so this falls back to UTC — a v1.0 simplification. Windows that
+    cross midnight (e.g. 23:00–07:00) are handled.
+    """
+    if not prefs.get("quiet_hours_enabled", True):
+        return False
+    try:
+        tz_offset = int(prefs.get("tz_offset", 0) or 0)
+        local = datetime.utcnow() + timedelta(minutes=tz_offset)
+        cur = local.hour * 60 + local.minute
+        sh, sm = map(int, str(prefs.get("quiet_hours_start", "23:00")).split(":"))
+        eh, em = map(int, str(prefs.get("quiet_hours_end", "07:00")).split(":"))
+        start, end = sh * 60 + sm, eh * 60 + em
+        if start == end:
+            return False
+        if start < end:
+            return start <= cur < end
+        return cur >= start or cur < end  # crosses midnight
+    except Exception:
         return False
 
-    # Meeting mode: meeting recovery only
-    if micro_mode == MicroMode.MEETING:
-        return nudge_type == "meeting_recovery"
 
-    # Whisper mode: suppress all engine nudges
-    if micro_mode == MicroMode.WHISPER:
-        return False
+async def deliver_nudge(
+    db: AsyncIOMotorDatabase,
+    user_id: str,
+    payload: Dict,
+    *,
+    channel: str = "both",       # "in_app" | "push" | "both"
+    enforce_frequency: bool = True,
+    bypass_gates: bool = False,  # the Sunday koan delivers regardless of mode/frequency/quiet-hours
+    write: bool = True,          # False for the koan push (content is rendered, not stored)
+) -> Optional[Dict]:
+    """The single chokepoint for every server-side nudge delivery.
 
-    # Standard mode: all nudges allowed
-    return True
+    Gating order: mode (Whisper suppresses) -> frequency (one feed/push nudge
+    per 6h, featured cards excluded) -> quiet hours (push suppression only,
+    in-app write still happens). Then writes to db.nudges and/or pushes.
+
+    payload keys: nudge_type, message, explanation (opt), trigger_id (opt),
+                  featured_at (opt datetime).
+    Returns the stored nudge dict, or None if gated out; or {"pushed": bool}
+    when write is False.
+    """
+    prefs = await db.preferences.find_one({"user_id": user_id}) or {}
+    micro_mode = normalize_micro_mode(prefs.get("micro_mode"))
+    nudge_type = payload.get("nudge_type")
+
+    if not bypass_gates:
+        if not should_send_nudge(nudge_type, micro_mode):
+            logger.info(f"deliver_nudge: suppressed by mode '{micro_mode}' for {user_id}")
+            return None
+        if enforce_frequency:
+            cutoff = datetime.utcnow() - timedelta(hours=6)
+            recent = await db.nudges.find_one({
+                "user_id": user_id,
+                "created_at": {"$gte": cutoff},
+                "featured_at": None,
+            })
+            if recent:
+                logger.info(f"deliver_nudge: frequency-capped for {user_id}")
+                return None
+
+    push = channel in ("push", "both")
+    if push and not bypass_gates and await _in_quiet_hours(prefs):
+        push = False  # quiet hours — write in-app, skip the push
+
+    nudge_dict = None
+    if write:
+        nudge_style = prefs.get("nudge_style", "silent")
+        nudge = Nudge(
+            id=str(uuid.uuid4()),
+            user_id=user_id,
+            nudge_type=nudge_type,
+            message=payload["message"],
+            explanation=payload.get("explanation", ""),
+            delivered=False,
+            silent=(nudge_style == "silent"),
+            featured_at=payload.get("featured_at"),
+        )
+        doc = nudge.dict()
+        if payload.get("trigger_id"):
+            doc["trigger_id"] = payload["trigger_id"]
+        await db.nudges.insert_one(doc)
+        nudge_dict = nudge.dict()
+
+    if push:
+        try:
+            from push_notifications import send_nudge_push
+            await send_nudge_push(
+                db, user_id, payload["message"],
+                nudge_id=(nudge_dict["id"] if nudge_dict else ""),
+            )
+        except Exception as e:
+            logger.error(f"deliver_nudge push failed for {user_id}: {e}")
+
+    return nudge_dict if write else {"pushed": push}
 
 async def get_pending_nudges(db: AsyncIOMotorDatabase, user_id: str):
     """Get nudges that haven't been delivered yet.
@@ -301,11 +369,9 @@ async def check_health_signal_triggers(db, user_id: str, signal: dict) -> Option
     Returns a nudge dict or None.
     Each trigger checks a specific condition and maps to a research-grounded principle.
     """
-    prefs = await db.preferences.find_one({"user_id": user_id}) or {}
-    micro_mode = prefs.get("micro_mode", "standard")
-    if micro_mode == "whisper":
-        return None  # whisper mode suppresses health nudges
-
+    # NOTE: this function is currently not wired to any route (the health-signal
+    # POST uses PatternDetector.get_priority_nudge). Kept and routed through the
+    # single gate so that, if re-enabled, it respects mode/frequency/quiet-hours.
     # Get last 7 days of signals for trend detection
     cutoff = (datetime.utcnow() - timedelta(days=7)).strftime("%Y-%m-%d")
     recent = await db.health_signals.find(
@@ -374,25 +440,13 @@ async def check_health_signal_triggers(db, user_id: str, signal: dict) -> Option
     if recent_nudge:
         return None
 
-    # Create nudge directly with pre-formed content (no AI generation needed)
-    nudge_style = prefs.get("nudge_style", "silent")
-    nudge_id = str(uuid.uuid4())
-    nudge = Nudge(
-        id=nudge_id,
-        user_id=user_id,
-        nudge_type=nudge_type,
-        message=nudge_message,
-        explanation=explanation,
-        delivered=False,
-        silent=(nudge_style == "silent"),
+    # Deliver through the single gate (mode/frequency/quiet-hours + write + push).
+    delivered = await deliver_nudge(
+        db, user_id,
+        {"nudge_type": nudge_type, "message": nudge_message, "explanation": explanation},
+        channel="both",
     )
-    await db.nudges.insert_one(nudge.dict())
-    logger.info(f"Created health-signal nudge {nudge_id} (type={nudge_type}) for user {user_id}")
-
-    try:
-        from push_notifications import send_nudge_push
-        await send_nudge_push(db, user_id, nudge.message)
-    except Exception as e:
-        print(f"Push notification failed (non-blocking): {e}")
-
-    return nudge.dict()
+    if not delivered:
+        return None
+    logger.info(f"Created health-signal nudge (type={nudge_type}) for user {user_id}")
+    return delivered
