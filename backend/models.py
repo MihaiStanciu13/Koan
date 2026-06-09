@@ -18,9 +18,11 @@ def normalize_micro_mode(value) -> str:
 
 class SubscriptionStatus(str, Enum):
     TRIAL = "trial"
+    TRIAL_LOCKIN_REQUIRED = "trial_lockin_required"  # 14-day app trial elapsed; paywall locks
     ACTIVE = "active"
     CANCELLED = "cancelled"
     EXPIRED = "expired"
+    ARCHIVED = "archived"  # 90-day soft-archive; data preserved, restored on return
 
 # User Models
 class UserCreate(BaseModel):
@@ -47,6 +49,14 @@ class User(BaseModel):
     google_calendar_refresh_token: Optional[str] = None  # Google OAuth refresh token
     google_id: Optional[str] = None  # Google SSO user ID
     apple_id: Optional[str] = None  # Apple SSO user ID
+    # Subscription lifecycle (Phase 1e-1)
+    revenuecat_app_user_id: Optional[str] = None  # RC app_user_id (== id unless transferred/aliased)
+    product_id: Optional[str] = None              # current entitlement product (koan_monthly/yearly/lifetime)
+    cancelled_at: Optional[datetime] = None       # set on RC CANCELLATION; access continues to subscription_ends
+    status_changed_at: Optional[datetime] = None  # when the current status was entered (drives the 90-day archive timer)
+    archived: bool = False
+    archived_at: Optional[datetime] = None
+    pre_archive_status: Optional[str] = None       # status to restore to on unarchive
 
 # Behavioral Data Models
 class PhoneBehavior(BaseModel):

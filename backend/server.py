@@ -1,4 +1,5 @@
-from fastapi import FastAPI, APIRouter, Depends, HTTPException, Query
+from fastapi import FastAPI, APIRouter, Depends, HTTPException, Query, Request
+import httpx
 from starlette.types import ASGIApp, Receive, Scope, Send
 from collections import defaultdict
 import time
@@ -118,6 +119,255 @@ async def run_daily_nudge_evaluation():
 
     logger.info(f"Daily nudge evaluation complete: {total_nudges} nudges for {users_with_nudges}/{len(users)} users")
 
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Subscription lifecycle (Phase 1e-1): RevenueCat webhook, reconciliation cron,
+# trial-end cron, and 90-day soft-archive.
+# ─────────────────────────────────────────────────────────────────────────────
+
+def _ms_to_dt(ms):
+    """RevenueCat expiration_at_ms (epoch millis) -> naive UTC datetime, or None."""
+    if not ms:
+        return None
+    try:
+        return datetime.utcfromtimestamp(int(ms) / 1000.0)
+    except (ValueError, TypeError):
+        return None
+
+
+def _naive_utc(dt):
+    if dt is None:
+        return None
+    return dt.replace(tzinfo=None) if getattr(dt, "tzinfo", None) else dt
+
+
+async def _set_status(user_id: str, status: str, **extra):
+    """Set subscription_status and stamp status_changed_at (drives the 90-day timer)."""
+    payload = {"subscription_status": status, "status_changed_at": datetime.utcnow()}
+    payload.update(extra)
+    await db.users.update_one({"id": user_id}, {"$set": payload})
+
+
+async def _archive_user(user_id: str, prev_status: str):
+    """Soft-archive: data is preserved; the user is excluded from active queries
+    and restored automatically on next sign-in (see auth.get_current_user)."""
+    await db.users.update_one({"id": user_id}, {"$set": {
+        "subscription_status": SubscriptionStatus_value("ARCHIVED"),
+        "archived": True,
+        "archived_at": datetime.utcnow(),
+        "pre_archive_status": prev_status,
+        "status_changed_at": datetime.utcnow(),
+    }})
+
+
+def SubscriptionStatus_value(name: str) -> str:
+    from models import SubscriptionStatus
+    return getattr(SubscriptionStatus, name).value
+
+
+async def _apply_revenuecat_event(user: dict, event: dict) -> dict:
+    """Return the user-document update for a RevenueCat event. Pure-ish: builds
+    the $set dict; the caller writes it."""
+    etype = event.get("type")
+    update: dict = {}
+    exp = _ms_to_dt(event.get("expiration_at_ms"))
+    product = event.get("product_id")
+
+    if etype in ("INITIAL_PURCHASE", "RENEWAL", "PRODUCT_CHANGE"):
+        update["subscription_status"] = SubscriptionStatus_value("ACTIVE")
+        update["status_changed_at"] = datetime.utcnow()
+        update["cancelled_at"] = None
+        if exp:
+            update["subscription_ends"] = exp
+        if product:
+            update["product_id"] = product
+    elif etype == "NON_RENEWING_PURCHASE":
+        # Lifetime (koan_lifetime): active, no expiry.
+        update["subscription_status"] = SubscriptionStatus_value("ACTIVE")
+        update["status_changed_at"] = datetime.utcnow()
+        update["subscription_ends"] = None
+        if product:
+            update["product_id"] = product
+    elif etype == "CANCELLATION":
+        # Auto-renew off, but access continues until subscription_ends. Just flag.
+        update["cancelled_at"] = datetime.utcnow()
+    elif etype == "EXPIRATION":
+        update["subscription_status"] = SubscriptionStatus_value("EXPIRED")
+        update["status_changed_at"] = datetime.utcnow()
+    elif etype == "BILLING_ISSUE":
+        # Keep access for the grace period; record only.
+        logger.warning(f"RevenueCat BILLING_ISSUE for user {user.get('id')}")
+    elif etype in ("TRANSFER", "SUBSCRIBER_ALIAS"):
+        # Identity changed — keep the RC app_user_id mapping current.
+        new_app_id = event.get("app_user_id")
+        if new_app_id:
+            update["revenuecat_app_user_id"] = new_app_id
+    return update
+
+
+async def revenuecat_webhook(request: Request):
+    """POST /webhooks/revenuecat — authoritative subscription sync from RevenueCat.
+
+    Auth: the shared secret in the Authorization header must match
+    REVENUECAT_WEBHOOK_AUTH_HEADER. Idempotent via event_id dedup in the
+    webhook_events collection.
+    """
+    expected = os.getenv("REVENUECAT_WEBHOOK_AUTH_HEADER")
+    provided = request.headers.get("authorization") or request.headers.get("Authorization")
+    if not expected or provided != expected:
+        raise HTTPException(status_code=401, detail="Unauthorized")
+
+    try:
+        body = await request.json()
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid JSON")
+
+    event = body.get("event") or {}
+    event_id = event.get("id")
+    event_type = event.get("type")
+    app_user_id = event.get("app_user_id")
+    original_app_user_id = event.get("original_app_user_id")
+
+    if not event_id or not event_type:
+        raise HTTPException(status_code=400, detail="Missing event id/type")
+
+    # Idempotency — skip already-processed events.
+    if await db.webhook_events.find_one({"event_id": event_id}):
+        return {"status": "duplicate", "event_id": event_id}
+
+    # Resolve the user by RC app_user_id (== user.id unless transferred/aliased).
+    candidates = [x for x in (app_user_id, original_app_user_id) if x]
+    user = None
+    if candidates:
+        user = await db.users.find_one({"id": {"$in": candidates}}) \
+            or await db.users.find_one({"revenuecat_app_user_id": {"$in": candidates}})
+
+    user_id = user.get("id") if user else None
+    if user:
+        update = await _apply_revenuecat_event(user, event)
+        if update:
+            await db.users.update_one({"id": user_id}, {"$set": update})
+            logger.info(f"RevenueCat {event_type} applied to user {user_id}: {list(update.keys())}")
+    else:
+        logger.warning(f"RevenueCat {event_type}: no user for app_user_id={app_user_id}")
+
+    # Audit trail (also serves as the dedup record).
+    await db.webhook_events.insert_one({
+        "event_id": event_id,
+        "event_type": event_type,
+        "user_id": user_id,
+        "raw_payload": body,
+        "processed_at": datetime.utcnow(),
+    })
+    return {"status": "ok", "event_id": event_id, "user_found": bool(user)}
+
+
+async def trial_lifecycle_cron():
+    """Daily (06:00 UTC). Source of truth for trial/expiry/archive transitions,
+    and schedules trial-ending reminder pushes (mode/quiet-hours via deliver_nudge)."""
+    now = datetime.utcnow()
+
+    # 1) trial -> trial_lockin_required (+ reminders)
+    for u in await db.users.find({"subscription_status": "trial"}).to_list(None):
+        uid, te = u.get("id"), _naive_utc(u.get("trial_ends"))
+        if not uid or not te:
+            continue
+        if now > te:
+            await _set_status(uid, "trial_lockin_required")
+            continue
+        days_left = (te - now).days
+        reminders = {
+            7: "One week left in your trial.",
+            2: "Your trial ends in 2 days. Continue with Koan to keep going.",
+            1: "Your trial ends tomorrow.",
+        }
+        if days_left in reminders:
+            try:
+                # channel="push", write=False (transactional, not a feed nudge).
+                # Respects quiet hours; Whisper still suppresses the push (the
+                # in-app lock-in paywall is the unconditional surface).
+                await deliver_nudge(
+                    db, uid,
+                    {"nudge_type": "trial_reminder", "message": reminders[days_left]},
+                    channel="push", write=False, enforce_frequency=False,
+                )
+            except Exception as e:
+                logger.error(f"Trial reminder failed for {uid}: {e}")
+
+    # 2) trial_lockin_required -> expired (day 28 = trial_ends + 14) or archived (90d in lock-in)
+    for u in await db.users.find({"subscription_status": "trial_lockin_required"}).to_list(None):
+        uid = u.get("id")
+        te, sc = _naive_utc(u.get("trial_ends")), _naive_utc(u.get("status_changed_at"))
+        if not uid:
+            continue
+        if te and now > te + timedelta(days=14):
+            await _set_status(uid, "expired")
+        elif sc and now > sc + timedelta(days=90):
+            await _archive_user(uid, "trial_lockin_required")
+
+    # 3) expired -> archived (90 days after entering expired)
+    for u in await db.users.find({"subscription_status": "expired"}).to_list(None):
+        uid, sc = u.get("id"), _naive_utc(u.get("status_changed_at"))
+        if uid and sc and now > sc + timedelta(days=90):
+            await _archive_user(uid, "expired")
+
+    logger.info("Trial lifecycle cron complete")
+
+
+async def revenuecat_sync_cron():
+    """Daily reconciliation backup for missed webhooks. Compares RevenueCat's
+    entitlement state with our stored status for active/cancelled/expired users."""
+    secret = os.getenv("REVENUECAT_SECRET_API_KEY")
+    if not secret:
+        logger.info("RC sync skipped: REVENUECAT_SECRET_API_KEY not set")
+        return
+
+    users = await db.users.find(
+        {"subscription_status": {"$in": ["active", "cancelled", "expired"]}}
+    ).to_list(None)
+
+    changed = 0
+    async with httpx.AsyncClient(timeout=20.0) as client:
+        for u in users:
+            uid = u.get("id")
+            app_id = u.get("revenuecat_app_user_id") or uid
+            ours = u.get("subscription_status")
+            if not uid:
+                continue
+            try:
+                r = await client.get(
+                    f"https://api.revenuecat.com/v1/subscribers/{app_id}",
+                    headers={"Authorization": f"Bearer {secret}"},
+                )
+                if r.status_code != 200:
+                    continue
+                ents = ((r.json().get("subscriber") or {}).get("entitlements") or {})
+                prem = ents.get("premium")
+                rc_active = False
+                if prem:
+                    exp = prem.get("expires_date")
+                    if exp is None:
+                        rc_active = True  # lifetime
+                    else:
+                        try:
+                            from datetime import timezone as _tz
+                            exp_dt = datetime.fromisoformat(str(exp).replace("Z", "+00:00"))
+                            rc_active = exp_dt > datetime.now(_tz.utc)
+                        except Exception:
+                            rc_active = True
+                if not rc_active and ours in ("active", "cancelled"):
+                    await _set_status(uid, "expired")
+                    changed += 1
+                    logger.info(f"RC sync: {uid} {ours} -> expired")
+                elif rc_active and ours == "expired":
+                    await _set_status(uid, "active")
+                    changed += 1
+                    logger.info(f"RC sync: {uid} expired -> active")
+            except Exception as e:
+                logger.error(f"RC sync failed for {uid}: {e}")
+    logger.info(f"RC sync complete: {changed} status changes")
+
+
 scheduler = AsyncIOScheduler()
 
 # Lifespan context manager
@@ -129,9 +379,15 @@ async def lifespan(app: FastAPI):
     scheduler.add_job(run_daily_nudge_evaluation, CronTrigger(hour=9, minute=0))
     # Hourly so the Sunday koan push can fire at 08:00 in each user's local time.
     scheduler.add_job(send_sunday_koan_push, CronTrigger(minute=0))
+    # Trial/expiry/archive transitions + trial-ending reminders.
+    scheduler.add_job(trial_lifecycle_cron, CronTrigger(hour=6, minute=0))
+    # Backup reconciliation for missed RevenueCat webhooks.
+    scheduler.add_job(revenuecat_sync_cron, CronTrigger(hour=7, minute=0))
     scheduler.start()
     logger.info("Daily nudge scheduler started (runs at 09:00 UTC)")
     logger.info("Sunday koan push scheduler started (hourly; fires at local Sunday 08:00)")
+    logger.info("Trial lifecycle cron started (runs at 06:00 UTC)")
+    logger.info("RevenueCat sync cron started (runs at 07:00 UTC)")
     yield
     # Shutdown
     scheduler.shutdown()
@@ -140,6 +396,10 @@ async def lifespan(app: FastAPI):
 
 # Create the main app
 app = FastAPI(lifespan=lifespan)
+
+# RevenueCat webhook — registered on the app root (NOT under /api), matching the
+# dashboard URL https://koan-production.up.railway.app/webhooks/revenuecat
+app.add_api_route("/webhooks/revenuecat", revenuecat_webhook, methods=["POST"])
 
 # Pure ASGI rate limiting middleware — no BaseHTTPMiddleware, no thread context
 _rate_store: dict = defaultdict(list)

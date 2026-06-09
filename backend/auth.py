@@ -67,28 +67,60 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(s
     user = await db.users.find_one({"id": user_id})
     if user is None:
         raise HTTPException(status_code=401, detail="User not found")
+
+    # Auto-unarchive a returning user: data was never deleted, so "restoration"
+    # is just clearing the flag and restoring their pre-archive status (they land
+    # on the paywall and can resubscribe).
+    if user.get("archived"):
+        restored = user.get("pre_archive_status") or SubscriptionStatus.EXPIRED.value
+        await db.users.update_one(
+            {"id": user_id},
+            {"$set": {"subscription_status": restored, "archived": False,
+                      "archived_at": None, "status_changed_at": datetime.utcnow()}},
+        )
+        user["subscription_status"] = restored
+        user["archived"] = False
+        user["archived_at"] = None
+
     return User(**user)
 
+
+def _as_utc(dt):
+    from datetime import timezone
+    if dt is None:
+        return None
+    return dt.replace(tzinfo=timezone.utc) if dt.tzinfo is None else dt
+
+
 async def require_active_subscription(current_user: User = Depends(get_current_user)):
+    """Single canonical access gate.
+
+    Source of truth for the trial is the stored `trial_ends` date (now > trial_ends).
+    The previous days_elapsed-vs-30 branch is removed.
+    """
     from datetime import timezone
     status = current_user.subscription_status
+    now = datetime.now(timezone.utc)
 
     if status == SubscriptionStatus.ACTIVE:
         return current_user
 
     if status == SubscriptionStatus.TRIAL:
-        trial_start = current_user.trial_start
-        if trial_start:
-            if trial_start.tzinfo is None:
-                trial_start = trial_start.replace(tzinfo=timezone.utc)
-            days_elapsed = (datetime.now(timezone.utc) - trial_start).days
-            if days_elapsed <= 30:
-                return current_user
-        else:
-            # No trial start date — assume trial is still valid
+        trial_ends = _as_utc(current_user.trial_ends)
+        # No end date (legacy) or still within the window -> allow.
+        if trial_ends is None or now <= trial_ends:
             return current_user
+        raise HTTPException(status_code=402, detail="Your trial has ended. Continue with Koan to keep going.")
 
-    raise HTTPException(status_code=402, detail="Trial expired. Please subscribe to continue.")
+    if status == SubscriptionStatus.CANCELLED:
+        # Grace period: access continues until the paid period ends.
+        sub_ends = _as_utc(current_user.subscription_ends)
+        if sub_ends and now <= sub_ends:
+            return current_user
+        raise HTTPException(status_code=402, detail="Your subscription has ended. Resubscribe to continue.")
+
+    # trial_lockin_required, expired, archived (archived is auto-cleared above) -> blocked.
+    raise HTTPException(status_code=402, detail="Subscribe to continue.")
 
 def validate_password(password: str) -> tuple[bool, str]:
     """Validate password meets security requirements"""
@@ -119,7 +151,7 @@ async def signup(user_data: UserCreate):
     # Create new user
     user_id = str(uuid.uuid4())
     trial_start = datetime.utcnow()
-    trial_ends = trial_start + timedelta(days=30)
+    trial_ends = trial_start + timedelta(days=14)
 
     user = User(
         id=user_id,
@@ -239,7 +271,7 @@ async def google_auth(data: GoogleAuthRequest):
         # Create new user
         user_id = str(uuid.uuid4())
         trial_start = datetime.utcnow()
-        trial_ends = trial_start + timedelta(days=30)
+        trial_ends = trial_start + timedelta(days=14)
         new_user = User(
             id=user_id,
             email=email,
@@ -349,7 +381,7 @@ async def apple_auth(data: AppleAuthRequest):
     else:
         user_id = str(uuid.uuid4())
         trial_start = datetime.utcnow()
-        trial_ends = trial_start + timedelta(days=30)
+        trial_ends = trial_start + timedelta(days=14)
         # Apple may withhold email on repeat sign-ins; use a private relay placeholder
         user_email = email or f"apple.{apple_id}@privaterelay.appleid.com"
         resolved_name = resolve_apple_name(data.given_name, data.family_name, user_email)

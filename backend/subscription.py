@@ -104,20 +104,29 @@ async def cancel_subscription(
 async def check_trial_status(
     current_user: User = Depends(get_current_user)
 ):
-    """Check if trial has expired and update status"""
+    """Lazy safety-net for the trial-end transition (the daily cron is the
+    source of truth). Canonical check: now > trial_ends. On expiry the user
+    moves to trial_lockin_required (paywall locks; data preserved)."""
     if current_user.subscription_status == SubscriptionStatus.TRIAL:
         if current_user.trial_ends and datetime.utcnow() > current_user.trial_ends:
-            # Trial expired
             await db.users.update_one(
                 {"id": current_user.id},
-                {"$set": {"subscription_status": SubscriptionStatus.EXPIRED}}
+                {"$set": {
+                    "subscription_status": SubscriptionStatus.TRIAL_LOCKIN_REQUIRED,
+                    "status_changed_at": datetime.utcnow(),
+                }},
             )
             return {
                 "trial_expired": True,
-                "message": "Your trial has ended. Please subscribe to continue."
+                "subscription_status": SubscriptionStatus.TRIAL_LOCKIN_REQUIRED,
+                "message": "Your trial has ended. Continue with Koan to keep going.",
             }
-    
+
     return {
-        "trial_expired": False,
-        "subscription_status": current_user.subscription_status
+        "trial_expired": current_user.subscription_status in (
+            SubscriptionStatus.TRIAL_LOCKIN_REQUIRED,
+            SubscriptionStatus.EXPIRED,
+            SubscriptionStatus.ARCHIVED,
+        ),
+        "subscription_status": current_user.subscription_status,
     }
