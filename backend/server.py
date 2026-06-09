@@ -12,6 +12,7 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
 import os
 import logging
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from contextlib import asynccontextmanager
 
@@ -350,9 +351,8 @@ async def revenuecat_sync_cron():
                         rc_active = True  # lifetime
                     else:
                         try:
-                            from datetime import timezone as _tz
                             exp_dt = datetime.fromisoformat(str(exp).replace("Z", "+00:00"))
-                            rc_active = exp_dt > datetime.now(_tz.utc)
+                            rc_active = exp_dt > datetime.now(timezone.utc)
                         except Exception:
                             rc_active = True
                 if not rc_active and ours in ("active", "cancelled"):
@@ -679,13 +679,12 @@ async def get_pattern_nudge(
     current_user: User = Depends(require_active_subscription)
 ):
     """Get the highest priority nudge based on current patterns."""
-    from datetime import datetime as _dt, timedelta as _td
     detector = PatternDetector(db)
 
     # Exclude the observation already featured on today's home "Today" card so
     # the feed never duplicates it.
     featured = await db.nudges.find_one(
-        {"user_id": current_user.id, "featured_at": {"$gte": _dt.utcnow() - _td(hours=24)}},
+        {"user_id": current_user.id, "featured_at": {"$gte": datetime.utcnow() - timedelta(hours=24)}},
         sort=[("featured_at", -1)],
     )
     exclude = {featured["trigger_id"]} if featured and featured.get("trigger_id") else set()
@@ -717,10 +716,9 @@ async def get_today_card(
     tz_offset: int = 0,  # minutes east of UTC, supplied by the client
     current_user: User = Depends(require_active_subscription)
 ):
-    from datetime import datetime as _dt, timedelta as _td
     from koan_library import koan_for_week
 
-    local_now = _dt.utcnow() + _td(minutes=tz_offset)
+    local_now = datetime.utcnow() + timedelta(minutes=tz_offset)
 
     # Record the client's timezone offset so the Sunday-koan cron and quiet-hours
     # can reason in the user's local time.
@@ -740,7 +738,7 @@ async def get_today_card(
 
     # Weekday: feature the highest-priority observation, once per local day.
     local_midnight = local_now.replace(hour=0, minute=0, second=0, microsecond=0)
-    day_start_utc = local_midnight - _td(minutes=tz_offset)
+    day_start_utc = local_midnight - timedelta(minutes=tz_offset)
     existing = await db.nudges.find_one(
         {"user_id": current_user.id, "featured_at": {"$gte": day_start_utc}},
         sort=[("featured_at", -1)],
@@ -769,7 +767,7 @@ async def get_today_card(
             "message": nudge_data["message"],
             "explanation": nudge_data.get("principle", ""),
             "trigger_id": nudge_data["trigger_id"],
-            "featured_at": _dt.utcnow(),
+            "featured_at": datetime.utcnow(),
         },
         channel="in_app",
         enforce_frequency=False,
@@ -818,7 +816,6 @@ async def record_nudge_action(
 # Adaptive Nudge Engine endpoints
 from adaptive_nudge_engine import AdaptiveNudgeEngine, Signal, SignalType
 from pydantic import BaseModel
-from datetime import datetime as dt
 
 class SignalRequest(BaseModel):
     signal_type: str
@@ -834,7 +831,7 @@ async def evaluate_signal_endpoint(
     signal = Signal(
         signal_type=SignalType(signal_request.signal_type),
         strength=signal_request.strength,
-        timestamp=dt.utcnow(),
+        timestamp=datetime.utcnow(),
         metadata=signal_request.metadata,
     )
 
@@ -961,7 +958,7 @@ async def get_personalized_nudges_endpoint(
             })
         
         # Check for late night usage
-        late_night_events = [e for e in recent_events if e.get("timestamp", dt.utcnow()).hour >= 22]
+        late_night_events = [e for e in recent_events if e.get("timestamp", datetime.utcnow()).hour >= 22]
         if len(late_night_events) > 5:
             personalized_nudges.append({
                 "type": "evening_boundary",
@@ -991,10 +988,9 @@ async def record_health_signal(
     current_user: User = Depends(require_active_subscription)
 ):
     """Receive daily health signal snapshot from the mobile app"""
-    from datetime import datetime as dt
     doc = signal.dict()
     doc["user_id"] = current_user.id
-    doc["recorded_at"] = dt.utcnow()
+    doc["recorded_at"] = datetime.utcnow()
     await db.health_signals.update_one(
         {"user_id": current_user.id, "date": signal.date},
         {"$set": doc},
@@ -1011,8 +1007,7 @@ async def get_health_signals(
     current_user: User = Depends(require_active_subscription)
 ):
     """Get recent health signals for the current user"""
-    from datetime import datetime as dt, timedelta
-    cutoff = (dt.utcnow() - timedelta(days=days)).strftime("%Y-%m-%d")
+    cutoff = (datetime.utcnow() - timedelta(days=days)).strftime("%Y-%m-%d")
     signals = await db.health_signals.find(
         {"user_id": current_user.id, "date": {"$gte": cutoff}},
         sort=[("date", -1)]
@@ -1093,9 +1088,8 @@ async def get_usage_summary(
     Returns a 30-day Anthropic API usage summary for the authenticated user.
     Scoped to the requesting user — no cross-user data access.
     """
-    from datetime import datetime as dt, timedelta
     period_days = 30
-    cutoff = dt.utcnow() - timedelta(days=period_days)
+    cutoff = datetime.utcnow() - timedelta(days=period_days)
 
     docs = await db.api_usage.find(
         {"user_id": current_user.id, "timestamp": {"$gte": cutoff}}
