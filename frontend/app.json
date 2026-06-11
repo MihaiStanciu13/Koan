@@ -24,7 +24,8 @@
         "ITSAppUsesNonExemptEncryption": false,
         "UIBackgroundModes": [
           "fetch",
-          "remote-notification"
+          "remote-notification",
+          "healthkit"
         ],
         "BGTaskSchedulerPermittedIdentifiers": [
           "koan-health-background-fetch"
@@ -37,10 +38,6 @@
           }
         ]
       },
-      "backgroundModes": [
-        "healthkit",
-        "fetch"
-      ],
       "entitlements": {
         "com.apple.developer.healthkit": true,
         "com.apple.developer.family-controls": true,
