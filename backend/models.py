@@ -54,6 +54,7 @@ class User(BaseModel):
     product_id: Optional[str] = None              # current entitlement product (koan_monthly/yearly/lifetime)
     cancelled_at: Optional[datetime] = None       # set on RC CANCELLATION; access continues to subscription_ends
     status_changed_at: Optional[datetime] = None  # when the current status was entered (drives the 90-day archive timer)
+    premium_pending_until: Optional[datetime] = None  # short optimistic-access window after /activate, pending webhook
     archived: bool = False
     archived_at: Optional[datetime] = None
     pre_archive_status: Optional[str] = None       # status to restore to on unarchive

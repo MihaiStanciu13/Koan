@@ -63,24 +63,27 @@ async def create_checkout_session(
 async def activate_subscription(
     current_user: User = Depends(get_current_user)
 ):
-    """Activate subscription (mocked for testing)"""
-    # In production, this would be called by Stripe webhook
-    # For testing, we'll allow manual activation
-    
-    subscription_ends = datetime.utcnow() + timedelta(days=30)
-    
+    """Optimistic UI bridge after a client-verified purchase.
+
+    The client calls this immediately after RevenueCat confirms the entitlement
+    (getCustomerInfo), so the user gets instant access while the RevenueCat
+    webhook makes its way to /webhooks/revenuecat. This endpoint is NOT
+    authoritative: it does NOT write subscription_status or subscription_ends.
+    It only opens a short optimistic window; the webhook is the single source of
+    truth for durable subscription state. If no webhook arrives, the window
+    lapses and access reverts.
+    """
+    premium_pending_until = datetime.utcnow() + timedelta(minutes=15)  # tz-naive, Mongo convention
+
     await db.users.update_one(
         {"id": current_user.id},
-        {"$set": {
-            "subscription_status": SubscriptionStatus.ACTIVE,
-            "subscription_ends": subscription_ends
-        }}
+        {"$set": {"premium_pending_until": premium_pending_until}},
     )
-    
+
     return {
-        "status": "active",
-        "subscription_ends": subscription_ends,
-        "message": "Subscription activated successfully (mocked)"
+        "status": "pending_confirmation",
+        "premium_pending_until": premium_pending_until,
+        "message": "Access granted while we confirm your subscription.",
     }
 
 @router.post("/cancel")

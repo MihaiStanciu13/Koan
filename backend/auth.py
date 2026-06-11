@@ -92,17 +92,29 @@ def _as_utc(dt):
     return dt.replace(tzinfo=timezone.utc) if dt.tzinfo is None else dt
 
 
+def _has_optimistic_premium(current_user: User, now) -> bool:
+    """True during the short optimistic window opened by /subscription/activate,
+    before the RevenueCat webhook confirms ACTIVE. Auto-expires (15-min TTL set
+    on the flag); never produces durable premium on its own."""
+    pending = _as_utc(getattr(current_user, "premium_pending_until", None))
+    return pending is not None and now <= pending
+
+
 async def require_active_subscription(current_user: User = Depends(get_current_user)):
     """Single canonical access gate.
 
     Source of truth for the trial is the stored `trial_ends` date (now > trial_ends).
     The previous days_elapsed-vs-30 branch is removed.
+
+    Premium access is granted when EITHER subscription_status == ACTIVE
+    (webhook-authoritative, durable) OR premium_pending_until is in the future
+    (optimistic bridge after a verified purchase, auto-expiring).
     """
     from datetime import timezone
     status = current_user.subscription_status
     now = datetime.now(timezone.utc)
 
-    if status == SubscriptionStatus.ACTIVE:
+    if status == SubscriptionStatus.ACTIVE or _has_optimistic_premium(current_user, now):
         return current_user
 
     if status == SubscriptionStatus.TRIAL:
