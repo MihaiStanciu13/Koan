@@ -24,7 +24,7 @@ load_dotenv(ROOT_DIR / '.env')
 from auth import router as auth_router, get_current_user, require_active_subscription
 from behavioral_monitor import router as behavior_router
 from subscription import router as subscription_router
-from models import User, Preferences, PreferencesUpdate, Nudge, NudgeResponse, HealthSignalCreate
+from models import User, Preferences, PreferencesUpdate, Nudge, NudgeResponse, HealthSignalCreate, _utcnow
 from nudge_engine import get_pending_nudges, mark_nudge_delivered, mark_nudge_opened, create_nudge, deliver_nudge
 from nudge_orchestrator import NudgeOrchestrator
 from pattern_detector import PatternDetector, detect_weekly_patterns, learn_quiet_periods
@@ -69,7 +69,7 @@ async def send_sunday_koan_push():
         try:
             prefs = await db.preferences.find_one({"user_id": user_id}) or {}
             tz_offset = int(prefs.get("tz_offset", 0) or 0)
-            local_now = datetime.utcnow() + timedelta(minutes=tz_offset)
+            local_now = _utcnow() + timedelta(minutes=tz_offset)
             # Fire only at the user's local Sunday 08:xx hour.
             if local_now.weekday() != 6 or local_now.hour != 8:
                 continue
@@ -144,7 +144,7 @@ def _naive_utc(dt):
 
 async def _set_status(user_id: str, status: str, **extra):
     """Set subscription_status and stamp status_changed_at (drives the 90-day timer)."""
-    payload = {"subscription_status": status, "status_changed_at": datetime.utcnow()}
+    payload = {"subscription_status": status, "status_changed_at": _utcnow()}
     payload.update(extra)
     await db.users.update_one({"id": user_id}, {"$set": payload})
 
@@ -155,9 +155,9 @@ async def _archive_user(user_id: str, prev_status: str):
     await db.users.update_one({"id": user_id}, {"$set": {
         "subscription_status": SubscriptionStatus_value("ARCHIVED"),
         "archived": True,
-        "archived_at": datetime.utcnow(),
+        "archived_at": _utcnow(),
         "pre_archive_status": prev_status,
-        "status_changed_at": datetime.utcnow(),
+        "status_changed_at": _utcnow(),
     }})
 
 
@@ -176,7 +176,7 @@ async def _apply_revenuecat_event(user: dict, event: dict) -> dict:
 
     if etype in ("INITIAL_PURCHASE", "RENEWAL", "PRODUCT_CHANGE"):
         update["subscription_status"] = SubscriptionStatus_value("ACTIVE")
-        update["status_changed_at"] = datetime.utcnow()
+        update["status_changed_at"] = _utcnow()
         update["cancelled_at"] = None
         if exp:
             update["subscription_ends"] = exp
@@ -185,16 +185,16 @@ async def _apply_revenuecat_event(user: dict, event: dict) -> dict:
     elif etype == "NON_RENEWING_PURCHASE":
         # Lifetime (koan_lifetime): active, no expiry.
         update["subscription_status"] = SubscriptionStatus_value("ACTIVE")
-        update["status_changed_at"] = datetime.utcnow()
+        update["status_changed_at"] = _utcnow()
         update["subscription_ends"] = None
         if product:
             update["product_id"] = product
     elif etype == "CANCELLATION":
         # Auto-renew off, but access continues until subscription_ends. Just flag.
-        update["cancelled_at"] = datetime.utcnow()
+        update["cancelled_at"] = _utcnow()
     elif etype == "EXPIRATION":
         update["subscription_status"] = SubscriptionStatus_value("EXPIRED")
-        update["status_changed_at"] = datetime.utcnow()
+        update["status_changed_at"] = _utcnow()
     elif etype == "BILLING_ISSUE":
         # Keep access for the grace period; record only.
         logger.warning(f"RevenueCat BILLING_ISSUE for user {user.get('id')}")
@@ -258,7 +258,7 @@ async def revenuecat_webhook(request: Request):
         "event_type": event_type,
         "user_id": user_id,
         "raw_payload": body,
-        "processed_at": datetime.utcnow(),
+        "processed_at": _utcnow(),
     })
     return {"status": "ok", "event_id": event_id, "user_found": bool(user)}
 
@@ -266,7 +266,7 @@ async def revenuecat_webhook(request: Request):
 async def trial_lifecycle_cron():
     """Daily (06:00 UTC). Source of truth for trial/expiry/archive transitions,
     and schedules trial-ending reminder pushes (mode/quiet-hours via deliver_nudge)."""
-    now = datetime.utcnow()
+    now = _utcnow()
 
     # 1) trial -> trial_lockin_required (+ reminders)
     for u in await db.users.find({"subscription_status": "trial"}).to_list(None):
@@ -351,8 +351,14 @@ async def revenuecat_sync_cron():
                         rc_active = True  # lifetime
                     else:
                         try:
-                            exp_dt = datetime.fromisoformat(str(exp).replace("Z", "+00:00"))
-                            rc_active = exp_dt > datetime.now(timezone.utc)
+                            # Parse RC's tz-aware ISO timestamp, normalize to UTC,
+                            # then drop tzinfo so the comparison stays naive-to-naive.
+                            exp_dt = (
+                                datetime.fromisoformat(str(exp).replace("Z", "+00:00"))
+                                .astimezone(timezone.utc)
+                                .replace(tzinfo=None)
+                            )
+                            rc_active = exp_dt > _utcnow()
                         except Exception:
                             rc_active = True
                 if not rc_active and ours in ("active", "cancelled"):
@@ -376,7 +382,7 @@ async def hard_delete_archived_data():
     from auth import purge_user_data
 
     cutoff_days = int(os.getenv("ARCHIVE_HARD_DELETE_DAYS", "30"))
-    cutoff = datetime.utcnow() - timedelta(days=cutoff_days)  # tz-naive, Mongo convention
+    cutoff = _utcnow() - timedelta(days=cutoff_days)  # tz-naive, Mongo convention
 
     users = await db.users.find(
         {"archived": True, "archived_at": {"$lt": cutoff}}
@@ -720,7 +726,7 @@ async def get_pattern_nudge(
     # Exclude the observation already featured on today's home "Today" card so
     # the feed never duplicates it.
     featured = await db.nudges.find_one(
-        {"user_id": current_user.id, "featured_at": {"$gte": datetime.utcnow() - timedelta(hours=24)}},
+        {"user_id": current_user.id, "featured_at": {"$gte": _utcnow() - timedelta(hours=24)}},
         sort=[("featured_at", -1)],
     )
     exclude = {featured["trigger_id"]} if featured and featured.get("trigger_id") else set()
@@ -754,7 +760,7 @@ async def get_today_card(
 ):
     from koan_library import koan_for_week
 
-    local_now = datetime.utcnow() + timedelta(minutes=tz_offset)
+    local_now = _utcnow() + timedelta(minutes=tz_offset)
 
     # Record the client's timezone offset so the Sunday-koan cron and quiet-hours
     # can reason in the user's local time.
@@ -803,7 +809,7 @@ async def get_today_card(
             "message": nudge_data["message"],
             "explanation": nudge_data.get("principle", ""),
             "trigger_id": nudge_data["trigger_id"],
-            "featured_at": datetime.utcnow(),
+            "featured_at": _utcnow(),
         },
         channel="in_app",
         enforce_frequency=False,
@@ -867,7 +873,7 @@ async def evaluate_signal_endpoint(
     signal = Signal(
         signal_type=SignalType(signal_request.signal_type),
         strength=signal_request.strength,
-        timestamp=datetime.utcnow(),
+        timestamp=_utcnow(),
         metadata=signal_request.metadata,
     )
 
@@ -994,7 +1000,7 @@ async def get_personalized_nudges_endpoint(
             })
         
         # Check for late night usage
-        late_night_events = [e for e in recent_events if e.get("timestamp", datetime.utcnow()).hour >= 22]
+        late_night_events = [e for e in recent_events if e.get("timestamp", _utcnow()).hour >= 22]
         if len(late_night_events) > 5:
             personalized_nudges.append({
                 "type": "evening_boundary",
@@ -1026,7 +1032,7 @@ async def record_health_signal(
     """Receive daily health signal snapshot from the mobile app"""
     doc = signal.dict()
     doc["user_id"] = current_user.id
-    doc["recorded_at"] = datetime.utcnow()
+    doc["recorded_at"] = _utcnow()
     await db.health_signals.update_one(
         {"user_id": current_user.id, "date": signal.date},
         {"$set": doc},
@@ -1043,7 +1049,7 @@ async def get_health_signals(
     current_user: User = Depends(require_active_subscription)
 ):
     """Get recent health signals for the current user"""
-    cutoff = (datetime.utcnow() - timedelta(days=days)).strftime("%Y-%m-%d")
+    cutoff = (_utcnow() - timedelta(days=days)).strftime("%Y-%m-%d")
     signals = await db.health_signals.find(
         {"user_id": current_user.id, "date": {"$gte": cutoff}},
         sort=[("date", -1)]
@@ -1125,7 +1131,7 @@ async def get_usage_summary(
     Scoped to the requesting user — no cross-user data access.
     """
     period_days = 30
-    cutoff = datetime.utcnow() - timedelta(days=period_days)
+    cutoff = _utcnow() - timedelta(days=period_days)
 
     docs = await db.api_usage.find(
         {"user_id": current_user.id, "timestamp": {"$gte": cutoff}}

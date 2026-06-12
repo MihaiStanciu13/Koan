@@ -1,7 +1,17 @@
 from pydantic import BaseModel, Field, EmailStr
 from typing import Optional, List, Dict
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
+
+
+def _utcnow() -> datetime:
+    """Current UTC time as a naive datetime (the Mongo storage convention here).
+
+    Replacement for the deprecated datetime.utcnow(): same naive-UTC value, but
+    derived from the non-deprecated datetime.now(timezone.utc). Shared by auth.py
+    and server.py so all subscription/trial comparisons stay naive-to-naive.
+    """
+    return datetime.now(timezone.utc).replace(tzinfo=None)
 
 class MicroMode(str, Enum):
     STANDARD = "standard"

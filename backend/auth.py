@@ -12,7 +12,7 @@ import os
 import uuid
 import certifi
 import httpx
-from models import UserCreate, UserLogin, User, SubscriptionStatus, Preferences, MicroMode
+from models import UserCreate, UserLogin, User, SubscriptionStatus, Preferences, MicroMode, _utcnow
 
 # Load environment
 ROOT_DIR = Path(__file__).parent
@@ -47,9 +47,9 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
     to_encode = data.copy()
     if expires_delta:
-        expire = datetime.utcnow() + expires_delta
+        expire = _utcnow() + expires_delta
     else:
-        expire = datetime.utcnow() + timedelta(days=ACCESS_TOKEN_EXPIRE_DAYS)
+        expire = _utcnow() + timedelta(days=ACCESS_TOKEN_EXPIRE_DAYS)
     to_encode.update({"exp": expire})
     encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
     return encoded_jwt
@@ -76,7 +76,7 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(s
         await db.users.update_one(
             {"id": user_id},
             {"$set": {"subscription_status": restored, "archived": False,
-                      "archived_at": None, "status_changed_at": datetime.utcnow()}},
+                      "archived_at": None, "status_changed_at": _utcnow()}},
         )
         user["subscription_status"] = restored
         user["archived"] = False
@@ -85,18 +85,11 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(s
     return User(**user)
 
 
-def _as_utc(dt):
-    from datetime import timezone
-    if dt is None:
-        return None
-    return dt.replace(tzinfo=timezone.utc) if dt.tzinfo is None else dt
-
-
 def _has_optimistic_premium(current_user: User, now) -> bool:
     """True during the short optimistic window opened by /subscription/activate,
     before the RevenueCat webhook confirms ACTIVE. Auto-expires (15-min TTL set
-    on the flag); never produces durable premium on its own."""
-    pending = _as_utc(getattr(current_user, "premium_pending_until", None))
+    on the flag); never produces durable premium on its own. Naive-UTC compare."""
+    pending = getattr(current_user, "premium_pending_until", None)
     return pending is not None and now <= pending
 
 
@@ -109,16 +102,18 @@ async def require_active_subscription(current_user: User = Depends(get_current_u
     Premium access is granted when EITHER subscription_status == ACTIVE
     (webhook-authoritative, durable) OR premium_pending_until is in the future
     (optimistic bridge after a verified purchase, auto-expiring).
+
+    All datetimes here are naive UTC (the Mongo convention): stored fields come
+    back naive from motor, and `now` is _utcnow().
     """
-    from datetime import timezone
     status = current_user.subscription_status
-    now = datetime.now(timezone.utc)
+    now = _utcnow()
 
     if status == SubscriptionStatus.ACTIVE or _has_optimistic_premium(current_user, now):
         return current_user
 
     if status == SubscriptionStatus.TRIAL:
-        trial_ends = _as_utc(current_user.trial_ends)
+        trial_ends = current_user.trial_ends
         # No end date (legacy) or still within the window -> allow.
         if trial_ends is None or now <= trial_ends:
             return current_user
@@ -126,7 +121,7 @@ async def require_active_subscription(current_user: User = Depends(get_current_u
 
     if status == SubscriptionStatus.CANCELLED:
         # Grace period: access continues until the paid period ends.
-        sub_ends = _as_utc(current_user.subscription_ends)
+        sub_ends = current_user.subscription_ends
         if sub_ends and now <= sub_ends:
             return current_user
         raise HTTPException(status_code=402, detail="Your subscription has ended. Resubscribe to continue.")
@@ -162,7 +157,7 @@ async def signup(user_data: UserCreate):
     
     # Create new user
     user_id = str(uuid.uuid4())
-    trial_start = datetime.utcnow()
+    trial_start = _utcnow()
     trial_ends = trial_start + timedelta(days=14)
 
     user = User(
@@ -287,7 +282,7 @@ async def google_auth(data: GoogleAuthRequest):
     else:
         # Create new user
         user_id = str(uuid.uuid4())
-        trial_start = datetime.utcnow()
+        trial_start = _utcnow()
         trial_ends = trial_start + timedelta(days=14)
         new_user = User(
             id=user_id,
@@ -397,7 +392,7 @@ async def apple_auth(data: AppleAuthRequest):
             await db.users.update_one({"id": user["id"]}, {"$set": {"apple_id": apple_id}})
     else:
         user_id = str(uuid.uuid4())
-        trial_start = datetime.utcnow()
+        trial_start = _utcnow()
         trial_ends = trial_start + timedelta(days=14)
         # Apple may withhold email on repeat sign-ins; use a private relay placeholder
         user_email = email or f"apple.{apple_id}@privaterelay.appleid.com"
