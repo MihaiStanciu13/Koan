@@ -230,14 +230,19 @@ async def get_me(current_user: User = Depends(get_current_user)):
     }
 
 @router.delete("/account")
+async def purge_user_data(database, user_id: str) -> dict:
+    """Hard-delete a user and all their owned data. Single source of truth for
+    both account deletion and the archived-data hard-delete cron, so the
+    collection list never diverges. Idempotent; returns per-collection counts."""
+    counts = {"users": (await database.users.delete_one({"id": user_id})).deleted_count}
+    for coll in ("preferences", "behavior_events", "nudges",
+                 "health_signals", "phone_behaviors", "api_usage"):
+        counts[coll] = (await database[coll].delete_many({"user_id": user_id})).deleted_count
+    return counts
+
+
 async def delete_account(current_user: User = Depends(get_current_user)):
-    await db.users.delete_one({"id": current_user.id})
-    await db.preferences.delete_many({"user_id": current_user.id})
-    await db.behavior_events.delete_many({"user_id": current_user.id})
-    await db.nudges.delete_many({"user_id": current_user.id})
-    await db.health_signals.delete_many({"user_id": current_user.id})
-    await db.phone_behaviors.delete_many({"user_id": current_user.id})
-    await db.api_usage.delete_many({"user_id": current_user.id})
+    await purge_user_data(db, current_user.id)
     return {"message": "Account deleted"}
 
 

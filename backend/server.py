@@ -368,6 +368,40 @@ async def revenuecat_sync_cron():
     logger.info(f"RC sync complete: {changed} status changes")
 
 
+async def hard_delete_archived_data():
+    """Daily GDPR hard-delete: permanently purge users whose soft-archive is
+    older than the retention cutoff, measured from archived_at (NOT last
+    activity). Reuses the account-deletion purge helper so the collection list
+    never diverges. Idempotent — re-running only catches newly-eligible users."""
+    from auth import purge_user_data
+
+    cutoff_days = int(os.getenv("ARCHIVE_HARD_DELETE_DAYS", "30"))
+    cutoff = datetime.utcnow() - timedelta(days=cutoff_days)  # tz-naive, Mongo convention
+
+    users = await db.users.find(
+        {"archived": True, "archived_at": {"$lt": cutoff}}
+    ).to_list(None)
+    if not users:
+        logger.info(f"Hard-delete cron: no archived users older than {cutoff_days}d")
+        return
+
+    totals: dict = {}
+    purged = 0
+    for u in users:
+        uid = u.get("id")
+        if not uid:
+            continue
+        try:
+            counts = await purge_user_data(db, uid)
+            for k, v in counts.items():
+                totals[k] = totals.get(k, 0) + v
+            purged += 1
+        except Exception as e:
+            logger.error(f"Hard-delete failed for user {uid}: {e}")
+
+    logger.info(f"Hard-delete cron: purged {purged} archived users (>{cutoff_days}d); per-collection {totals}")
+
+
 scheduler = AsyncIOScheduler()
 
 # Lifespan context manager
@@ -381,6 +415,8 @@ async def lifespan(app: FastAPI):
     scheduler.add_job(send_sunday_koan_push, CronTrigger(minute=0))
     # Trial/expiry/archive transitions + trial-ending reminders.
     scheduler.add_job(trial_lifecycle_cron, CronTrigger(hour=6, minute=0))
+    # Hard-delete archived data past retention (minute=30 to avoid the hourly koan job)
+    scheduler.add_job(hard_delete_archived_data, CronTrigger(hour=4, minute=30))
     # Backup reconciliation for missed RevenueCat webhooks.
     scheduler.add_job(revenuecat_sync_cron, CronTrigger(hour=7, minute=0))
     scheduler.start()
