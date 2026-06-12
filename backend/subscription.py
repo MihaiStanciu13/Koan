@@ -4,6 +4,7 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from dotenv import load_dotenv
 import os
+import httpx
 from models import User, SubscriptionStatus
 from auth import get_current_user
 import logging
@@ -63,23 +64,70 @@ async def create_checkout_session(
 async def activate_subscription(
     current_user: User = Depends(get_current_user)
 ):
-    """Optimistic UI bridge after a client-verified purchase.
+    """Optimistic UI bridge after a purchase, backed by a server-side RC check.
 
     The client calls this immediately after RevenueCat confirms the entitlement
     (getCustomerInfo), so the user gets instant access while the RevenueCat
     webhook makes its way to /webhooks/revenuecat. This endpoint is NOT
     authoritative: it does NOT write subscription_status or subscription_ends.
-    It only opens a short optimistic window; the webhook is the single source of
-    truth for durable subscription state. If no webhook arrives, the window
-    lapses and access reverts.
-    """
-    premium_pending_until = datetime.utcnow() + timedelta(minutes=15)  # tz-naive, Mongo convention
+    The webhook is the single source of truth for durable subscription state.
 
+    Before opening the optimistic window, we verify the "premium" entitlement
+    server-side via the RevenueCat REST subscribers endpoint (using the SECRET
+    key from env — never the public SDK key). This closes the re-POST loophole:
+      - RC confirms entitled        -> open the short optimistic window.
+      - RC responds, NOT entitled   -> grant nothing.
+      - RC error/timeout/no key     -> FAIL OPEN (open the window anyway) so the
+                                       purchase UX never hard-depends on RC
+                                       availability. Logged. ~3s timeout.
+    """
+    secret = os.getenv("REVENUECAT_SECRET_API_KEY")
+    app_user_id = current_user.revenuecat_app_user_id or current_user.id
+
+    rc_entitled = None  # None = undeterminable (no key / error / timeout) -> fail open
+    if secret:
+        try:
+            async with httpx.AsyncClient(timeout=3.0) as hc:
+                resp = await hc.get(
+                    f"https://api.revenuecat.com/v1/subscribers/{app_user_id}",
+                    headers={"Authorization": f"Bearer {secret}"},
+                )
+            if resp.status_code == 200:
+                ents = ((resp.json().get("subscriber") or {}).get("entitlements") or {})
+                prem = ents.get("premium")
+                if not prem:
+                    rc_entitled = False
+                else:
+                    exp = prem.get("expires_date")
+                    if exp is None:
+                        rc_entitled = True  # lifetime
+                    else:
+                        try:
+                            exp_dt = datetime.fromisoformat(str(exp).replace("Z", "+00:00")).replace(tzinfo=None)
+                            rc_entitled = exp_dt > datetime.utcnow()  # tz-naive, Mongo convention
+                        except Exception:
+                            rc_entitled = True
+            else:
+                logger.warning(f"/activate: RC returned {resp.status_code} for {app_user_id}; failing open")
+        except Exception as e:
+            logger.warning(f"/activate: RC entitlement check failed ({e}); failing open")
+    else:
+        logger.warning("/activate: REVENUECAT_SECRET_API_KEY not set; failing open")
+
+    # RC explicitly says no active entitlement -> grant nothing.
+    if rc_entitled is False:
+        return {
+            "status": "not_entitled",
+            "message": "No active subscription found for this account.",
+        }
+
+    # Verified entitled, or RC undeterminable (fail open): open the optimistic
+    # window. Durable ACTIVE only ever comes from the webhook.
+    premium_pending_until = datetime.utcnow() + timedelta(minutes=15)  # tz-naive, Mongo convention
     await db.users.update_one(
         {"id": current_user.id},
         {"$set": {"premium_pending_until": premium_pending_until}},
     )
-
     return {
         "status": "pending_confirmation",
         "premium_pending_until": premium_pending_until,
