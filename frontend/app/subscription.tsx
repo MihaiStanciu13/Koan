@@ -7,10 +7,11 @@ import {
   ScrollView,
   ActivityIndicator,
   Platform,
+  BackHandler,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
+import { useRouter, useNavigation } from 'expo-router';
 import Purchases, { PurchasesPackage, PurchasesOffering } from 'react-native-purchases';
 import RevenueCatUI, { CUSTOMER_CENTER_RESULT } from 'react-native-purchases-ui';
 import { subscriptionAPI } from '../services/api';
@@ -27,9 +28,14 @@ const FEATURES = [
 
 type Plan = 'monthly' | 'yearly' | 'lifetime';
 
+// Statuses with no app access — when the paywall is reached in one of these,
+// it is a hard gate and the user must purchase/restore to leave.
+const GATED_STATUSES = ['expired', 'trial_lockin_required', 'archived'];
+
 export default function SubscriptionScreen() {
   const router = useRouter();
-  const { refreshAuth } = useAuth();
+  const navigation = useNavigation();
+  const { refreshAuth, user } = useAuth();
   const [plan, setPlan] = useState<Plan>('yearly');
   const [offering, setOffering] = useState<PurchasesOffering | null>(null);
   const [isPremium, setIsPremium] = useState(false);
@@ -42,6 +48,30 @@ export default function SubscriptionScreen() {
   useEffect(() => {
     Promise.all([checkEntitlement(), fetchOfferings()]);
   }, []);
+
+  // Hard gate: the paywall is blocking access (not opened voluntarily from
+  // Settings). Reached when the user lacks entitlement AND their backend status
+  // has no access. When subscribed (isPremium) or mid-trial, back is allowed.
+  const isHardGate =
+    !isPremium && !!user && GATED_STATUSES.includes(String(user.subscription_status));
+
+  // Block every escape while hard-gated: the iOS swipe-back gesture, the
+  // beforeRemove navigation event (back button / programmatic pop), and the
+  // Android hardware back. The only ways off remain purchase/restore — when
+  // those succeed isPremium flips, isHardGate clears, and these guards release.
+  useEffect(() => {
+    navigation.setOptions?.({ gestureEnabled: !isHardGate });
+    if (!isHardGate) return;
+
+    const removeBeforeRemove = navigation.addListener('beforeRemove', (e: any) => {
+      e.preventDefault();
+    });
+    const backSub = BackHandler.addEventListener('hardwareBackPress', () => true);
+    return () => {
+      removeBeforeRemove();
+      backSub.remove();
+    };
+  }, [isHardGate, navigation]);
 
   const checkEntitlement = async () => {
     try {
@@ -169,11 +199,13 @@ export default function SubscriptionScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* Header */}
+      {/* Header — back is hidden while the paywall is a hard gate */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-          <Ionicons name="arrow-back" size={24} color="#3A3A3A" />
-        </TouchableOpacity>
+        {!isHardGate && (
+          <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+            <Ionicons name="arrow-back" size={24} color="#3A3A3A" />
+          </TouchableOpacity>
+        )}
       </View>
 
       {loadingOfferings ? (
