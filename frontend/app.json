@@ -82,7 +82,8 @@
           "devTeamId": "J3W8B3M59W",
           "appGroup": "group.com.getkoan.app"
         }
-      ]
+      ],
+      "./plugins/withFmtConstevalFix"
     ],
     "experiments": {
       "typedRoutes": true
