@@ -131,7 +131,7 @@ def _ms_to_dt(ms):
     if not ms:
         return None
     try:
-        return datetime.utcfromtimestamp(int(ms) / 1000.0)
+        return datetime.fromtimestamp(int(ms) / 1000.0, timezone.utc).replace(tzinfo=None)
     except (ValueError, TypeError):
         return None
 

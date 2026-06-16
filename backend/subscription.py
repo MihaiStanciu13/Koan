@@ -5,7 +5,7 @@ from pathlib import Path
 from dotenv import load_dotenv
 import os
 import httpx
-from models import User, SubscriptionStatus
+from models import User, SubscriptionStatus, _utcnow
 from auth import get_current_user
 import logging
 
@@ -35,7 +35,7 @@ async def get_subscription_status(
     """Get current subscription status"""
     trial_days_remaining = 0
     if current_user.trial_ends:
-        days_left = (current_user.trial_ends - datetime.utcnow()).days
+        days_left = (current_user.trial_ends - _utcnow()).days
         trial_days_remaining = max(0, days_left)
     
     return {
@@ -104,7 +104,7 @@ async def activate_subscription(
                     else:
                         try:
                             exp_dt = datetime.fromisoformat(str(exp).replace("Z", "+00:00")).replace(tzinfo=None)
-                            rc_entitled = exp_dt > datetime.utcnow()  # tz-naive, Mongo convention
+                            rc_entitled = exp_dt > _utcnow()  # tz-naive, Mongo convention
                         except Exception:
                             rc_entitled = True
             else:
@@ -123,7 +123,7 @@ async def activate_subscription(
 
     # Verified entitled, or RC undeterminable (fail open): open the optimistic
     # window. Durable ACTIVE only ever comes from the webhook.
-    premium_pending_until = datetime.utcnow() + timedelta(minutes=15)  # tz-naive, Mongo convention
+    premium_pending_until = _utcnow() + timedelta(minutes=15)  # tz-naive, Mongo convention
     await db.users.update_one(
         {"id": current_user.id},
         {"$set": {"premium_pending_until": premium_pending_until}},
@@ -159,12 +159,12 @@ async def check_trial_status(
     source of truth). Canonical check: now > trial_ends. On expiry the user
     moves to trial_lockin_required (paywall locks; data preserved)."""
     if current_user.subscription_status == SubscriptionStatus.TRIAL:
-        if current_user.trial_ends and datetime.utcnow() > current_user.trial_ends:
+        if current_user.trial_ends and _utcnow() > current_user.trial_ends:
             await db.users.update_one(
                 {"id": current_user.id},
                 {"$set": {
                     "subscription_status": SubscriptionStatus.TRIAL_LOCKIN_REQUIRED,
-                    "status_changed_at": datetime.utcnow(),
+                    "status_changed_at": _utcnow(),
                 }},
             )
             return {
