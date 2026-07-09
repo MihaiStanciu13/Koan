@@ -224,11 +224,14 @@ async def get_me(current_user: User = Depends(get_current_user)):
         "trial_ends": current_user.trial_ends
     }
 
-@router.delete("/account")
 async def purge_user_data(database, user_id: str) -> dict:
     """Hard-delete a user and all their owned data. Single source of truth for
     both account deletion and the archived-data hard-delete cron, so the
-    collection list never diverges. Idempotent; returns per-collection counts."""
+    collection list never diverges. Idempotent; returns per-collection counts.
+
+    NOTE: this is a plain helper, NOT a route. The @router.delete("/account")
+    decorator belongs on delete_account below — do not let it drift back onto
+    this function (that unregisters delete_account and 422s every deletion)."""
     counts = {"users": (await database.users.delete_one({"id": user_id})).deleted_count}
     for coll in ("preferences", "behavior_events", "nudges",
                  "health_signals", "phone_behaviors", "api_usage"):
@@ -236,6 +239,7 @@ async def purge_user_data(database, user_id: str) -> dict:
     return counts
 
 
+@router.delete("/account")
 async def delete_account(current_user: User = Depends(get_current_user)):
     await purge_user_data(db, current_user.id)
     return {"message": "Account deleted"}
