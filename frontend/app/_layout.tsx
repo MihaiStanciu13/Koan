@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect } from 'react';
 import { Platform, View } from 'react-native';
 import { Stack, router } from 'expo-router';
 import Purchases from 'react-native-purchases';
@@ -23,46 +23,49 @@ if (Platform.OS === 'ios') {
 }
 
 function RootLayoutNav() {
-  const { isAuthenticated, isExpired, loading } = useAuth();
-  // Track previous auth value so we can detect false → true transitions.
-  // This covers the login-from-/landing case where app/index.tsx isn't mounted.
-  const wasAuthenticated = useRef(false);
+  // SINGLE navigation authority for authenticated lifecycle routing. index.tsx
+  // no longer redirects authenticated users — it only presents the logged-out
+  // intro/landing/login/signup screens. Keeping all "where does this user go"
+  // logic here kills the two-controller race that caused the flicker and the
+  // paywall flash.
+  const { isAuthenticated, isExpired, isPremium, loading } = useAuth();
 
   useEffect(() => {
+    // "Fully resolved" gate: `loading` stays true until checkAuth() has both the
+    // account (getMe + checkTrial → isExpired) AND the entitlement (RevenueCat
+    // logIn → isPremium). We never route — or paint anything but the splash —
+    // before both are known.
     if (loading) return;
 
-    if (isAuthenticated && isExpired) {
+    // Unauthenticated: index.tsx owns intro vs. landing presentation. Not our job.
+    if (!isAuthenticated) return;
+
+    // Lapsed = backend says expired AND RevenueCat has no active entitlement.
+    // Gating on !isPremium means a paying user whose backend status lags the
+    // RevenueCat webhook is NOT walled (kills the flash for paying users).
+    const lapsed = isExpired && !isPremium;
+
+    if (lapsed) {
+      // HARD WALL. Paywall only; no onboarding / new-user flow under any
+      // condition (even a fresh install of an already-expired account). The
+      // only exits are purchase/restore, enforced by the paywall's own
+      // beforeRemove/back guards (edeb44a).
       router.replace('/subscription');
-      wasAuthenticated.current = true;
       return;
     }
 
-    if (isAuthenticated && !isExpired) {
-      // NOTE: HealthKit observers are intentionally NOT registered here.
-      // Touching the react-native-health native module before the user has
-      // explicitly authorized HealthKit (via "Connect Apple Health") crashes
-      // the app on launch with NSRangeException on the AppleHealthKitQueue.
-      // Background delivery for already-authorized users is handled natively
-      // in AppDelegate.swift; JS observers are only registered immediately
-      // after a successful initHealthKit during the connect flow.
+    // new / trial / active (or premium-by-RevenueCat): onboarding if incomplete,
+    // otherwise Home.
+    storage.isOnboardingComplete().then((done) => {
+      router.replace(done ? '/(tabs)' : '/onboarding');
+    });
+  }, [isAuthenticated, isExpired, isPremium, loading]);
 
-      // If auth just became true (e.g. login from /landing where index.tsx
-      // isn't mounted), navigate to the correct destination ourselves.
-      if (!wasAuthenticated.current) {
-        storage.isOnboardingComplete().then((done) => {
-          router.replace(done ? '/(tabs)' : '/onboarding');
-        });
-      }
-    }
-
-    wasAuthenticated.current = isAuthenticated;
-  }, [isAuthenticated, isExpired, loading]);
-
-  // Root ready gate: until the auth/token check resolves, render a blank
-  // background-colored view instead of the navigator. This prevents the Stack
-  // from mounting and painting its default initial route (index) before we
-  // know where the user should go — the race that caused the screen flash on
-  // first open, after auth, and before the first onboarding screen.
+  // Root ready gate: until BOTH auth and subscription state are known, render a
+  // neutral splash instead of the navigator. This stops the Stack from mounting
+  // and painting its default initial route (index) before we know where the
+  // user should go — the race that caused the screen flash on first open, after
+  // auth, and before the first onboarding screen.
   if (loading) {
     return <View style={{ flex: 1, backgroundColor: '#FAFDFA' }} />;
   }

@@ -355,7 +355,6 @@ export default function Index() {
   const [splashCheckDone, setSplashCheckDone] = useState(false);
   const [showLogin, setShowLogin] = useState<boolean | null>(null); // null = landing, true = login, false = signup
   const [showStory, setShowStory] = useState(false);
-  const [checkingOnboarding, setCheckingOnboarding] = useState(false);
   const router = useRouter();
   const params = useLocalSearchParams<{ auth?: string; showStory?: string }>();
   const previousUserRef = useRef(user);
@@ -394,66 +393,31 @@ export default function Index() {
     }
   }, [loading, user]);
 
-  // Handle navigation when user state changes
+  // Reset logged-out presentation state when the user logs out. Authenticated
+  // routing is NOT handled here anymore — RootLayoutNav (_layout.tsx) is the
+  // single authority for where an authenticated user goes (Home / onboarding /
+  // paywall). index.tsx only presents the logged-out intro/landing/auth screens.
   useEffect(() => {
-    if (!loading) {
-      if (user) {
-        checkOnboardingAndNavigate();
-      } else if (previousUserRef.current !== null && user === null) {
-        // User just logged out — reset all screen state to landing page
-        setShowStory(false);
-        setShowLogin(null);
-        setCheckingOnboarding(false);
-      }
+    if (!loading && previousUserRef.current !== null && user === null) {
+      // User just logged out — reset all screen state to landing page.
+      setShowStory(false);
+      setShowLogin(null);
     }
     previousUserRef.current = user;
   }, [user, loading]);
 
-  const checkOnboardingAndNavigate = async () => {
-    if (checkingOnboarding) return;
-
-    setCheckingOnboarding(true);
-    try {
-      await new Promise((resolve) => setTimeout(resolve, 50));
-      const onboardingComplete = await storage.isOnboardingComplete();
-
-      if (onboardingComplete) {
-        router.replace('/(tabs)');
-      } else {
-        router.replace('/onboarding');
-      }
-    } catch (error) {
-      console.error('Navigation error:', error);
-      router.replace('/onboarding');
-    } finally {
-      setCheckingOnboarding(false);
-    }
-  };
-
   if (!splashCheckDone && !user && !loading) return <View style={{ flex: 1, backgroundColor: '#FAFDFA' }} />;
 
-  // Show loading while checking auth
+  // Auth/subscription state not yet resolved: paint the neutral splash (no
+  // branded spinner) so nothing flashes before RootLayoutNav routes.
   if (loading) {
-    return (
-      <View style={[styles.container, styles.centered]}>
-        <View style={styles.logoSymbol}>
-          <View style={styles.logoDot} />
-        </View>
-        <ActivityIndicator size="large" color="#5FAD8E" style={{ marginTop: 20 }} />
-      </View>
-    );
+    return <View style={{ flex: 1, backgroundColor: '#FAFDFA' }} />;
   }
 
-  // User is logged in — show loading while navigating
+  // Authenticated: RootLayoutNav is about to redirect (Home / onboarding /
+  // paywall). Hold on the neutral splash so index never flashes its own UI.
   if (user) {
-    return (
-      <View style={[styles.container, styles.centered]}>
-        <View style={styles.logoSymbol}>
-          <View style={styles.logoDot} />
-        </View>
-        <ActivityIndicator size="large" color="#5FAD8E" style={{ marginTop: 20 }} />
-      </View>
-    );
+    return <View style={{ flex: 1, backgroundColor: '#FAFDFA' }} />;
   }
 
   // First-time user — show story after intro
