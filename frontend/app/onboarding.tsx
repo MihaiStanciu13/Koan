@@ -155,8 +155,15 @@ export default function Onboarding() {
         if (!existing.includes('apple_health')) {
           await preferencesAPI.update({ connected_tools: [...existing, 'apple_health'] });
         }
-      } catch {
-        // non-fatal
+      } catch (e: any) {
+        // The native HealthKit grant already succeeded and is recorded locally
+        // (isHealthKitConnected), so the connection isn't lost — but surface the
+        // backend sync failure instead of silently no-op'ing.
+        console.error('[Onboarding] failed to persist apple_health to connected_tools:', e);
+        Alert.alert(
+          'Apple Health',
+          "Health access was granted, but saving it to your profile didn't go through. Check your connection — your health data will still sync, and you can re-toggle it in Settings.",
+        );
       }
     } catch (err: any) {
       const msg = String(err?.message || err);
@@ -276,9 +283,17 @@ export default function Onboarding() {
           enabled: true,
         }));
         await preferencesAPI.update({ anchor_actions });
-      } catch (error) {
+      } catch (error: any) {
+        // Surface the real failure instead of silently dropping the anchors.
+        // Navigation still proceeds (anchors are editable later in Settings), but
+        // the user is told their choices didn't save rather than discovering it
+        // silently.
         console.error('Failed to save anchors:', error);
-        // Don't block navigation on failure
+        Alert.alert(
+          "Couldn't save your anchors",
+          error?.response?.data?.detail ||
+            'Something went wrong saving your anchors. Please check your connection — you can set them anytime from Settings.',
+        );
       }
     }
     slideToStep(5);

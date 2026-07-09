@@ -25,6 +25,18 @@ async function wasHealthKitPreviouslyAuthorized(): Promise<boolean> {
   }
 }
 
+/**
+ * Device-truth "is Apple Health connected" for the UI. Reads the persisted local
+ * authorization flag, which is set the moment initHealthKit succeeds and never
+ * depends on the backend `connected_tools` write (which is subscription-gated and
+ * can fail). This is the source of truth for the Nudges/Settings connected state
+ * — iOS does not reliably report read-permission status via getAuthStatus, so we
+ * trust the flag we set ourselves on a successful authorization.
+ */
+export async function isHealthKitConnected(): Promise<boolean> {
+  return wasHealthKitPreviouslyAuthorized();
+}
+
 // Lazy-load so module init doesn't crash if native module isn't registered
 let AppleHealthKit: any = null;
 let HealthKitAvailable = false;

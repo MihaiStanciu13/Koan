@@ -10,6 +10,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { nudgeAPI, preferencesAPI, calendarAPI, microsoftAPI } from '../../services/api';
+import { isHealthKitConnected } from '../../services/healthKit';
 import Spacer from '../../components/Spacer';
 import { format } from 'date-fns';
 import { useRouter } from 'expo-router';
@@ -39,7 +40,10 @@ export default function NudgesScreen() {
         microsoftAPI.getStatus().catch(() => ({ connected: false })),
       ]);
       const tools: string[] = prefs.connected_tools || [];
-      setHealthConnected(tools.includes('apple_health'));
+      // Apple Health: the local device-truth flag is the source of truth, not the
+      // (subscription-gated, can-fail) backend connected_tools array.
+      const healthLocal = await isHealthKitConnected();
+      setHealthConnected(healthLocal || tools.includes('apple_health'));
       setGcalConnected(calStatus.connected || tools.includes('gcalendar'));
       setMsConnected(msStatus.connected || tools.includes('microsoft365'));
     } catch {

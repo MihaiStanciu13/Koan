@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -14,10 +14,10 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 import { useAuth } from '../../contexts/AuthContext';
 import { preferencesAPI, subscriptionAPI, authAPI, calendarAPI, microsoftAPI } from '../../services/api';
-import { requestHealthKitPermissions, finalizeHealthKitSetup } from '../../services/healthKit';
+import { requestHealthKitPermissions, finalizeHealthKitSetup, isHealthKitConnected } from '../../services/healthKit';
 import {
   requestScreenTimeAuthorization,
   registerScreenTimeThresholds,
@@ -69,6 +69,37 @@ export default function SettingsScreen() {
     loadSettings();
   }, []);
 
+  // Reflect device-truth grants (Apple Health, Screen Time) whenever Settings
+  // regains focus — e.g. right after the user authorizes in the OS — without an
+  // app relaunch. Only ADDS tools (never removes), so it can't clobber the base
+  // state loaded from preferences.
+  useFocusEffect(
+    useCallback(() => {
+      let active = true;
+      (async () => {
+        if (Platform.OS !== 'ios') return;
+        const healthOn = await isHealthKitConnected();
+        let screenTimeOn = false;
+        try {
+          screenTimeOn =
+            (await getScreenTimeAuthorizationStatus()) === 'approved' && hasScreenTimeSelection();
+        } catch {
+          // Family Controls entitlement unavailable — leave the row as-is.
+        }
+        if (!active) return;
+        setConnectedTools((prev) => {
+          let next = prev;
+          if (healthOn && !next.includes('apple_health')) next = [...next, 'apple_health'];
+          if (screenTimeOn && !next.includes('screen_time')) next = [...next, 'screen_time'];
+          return next;
+        });
+      })();
+      return () => {
+        active = false;
+      };
+    }, []),
+  );
+
   const loadSettings = async () => {
     if (!user) return;
     try {
@@ -82,6 +113,13 @@ export default function SettingsScreen() {
 
       setNotificationsEnabled(prefs.notification_enabled ?? true);
       setConnectedTools(prefs.connected_tools || []);
+      // Apple Health: the local device-truth flag is the source of truth, not the
+      // (subscription-gated, can-fail) backend connected_tools array.
+      if (Platform.OS === 'ios' && (await isHealthKitConnected())) {
+        setConnectedTools((prev) =>
+          prev.includes('apple_health') ? prev : [...prev, 'apple_health'],
+        );
+      }
       setMicroMode(prefs.micro_mode || 'standard');
       setAnchorAction(prefs.anchor_action || 'close one loop');
 
